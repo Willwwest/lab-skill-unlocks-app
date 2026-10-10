@@ -2133,3 +2133,90 @@ main.cc-main {
   max-width: none;
   margin-right: 0;
 }
+
+/* Avatars in rows keep their size; only the text column grows. */
+.cc-row > .kid-avatar,
+.cc-alert > .kid-avatar {
+  flex: 0 0 auto;
+}
+
+/* ---------- Pending check-ins, grouped by session ---------- */
+.cc-pend-group {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.cc-pend-group:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.cc-pend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cc-pend-head > span {
+  display: grid;
+}
+.cc-pend-head small {
+  color: var(--text-3);
+  font-size: 13px;
+}
+.cc-pend-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.cc-pend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.cc-pend-kid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  text-align: left;
+}
+.cc-pend-kid > span {
+  display: grid;
+  min-width: 0;
+}
+.cc-pend-kid small {
+  color: var(--text-3);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-round {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.cc-round.confirm {
+  background: var(--navy);
+  color: #fff;
+}
+.cc-round.dismiss {
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  color: var(--text-3);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cc-round.dismiss:hover {
+    color: var(--text);
+    border-color: var(--text-3);
+  }
+}

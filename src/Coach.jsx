@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Check,
   ClipboardCheck,
   Lock,
   MapPin,
@@ -898,6 +899,14 @@ function WrapView({ ops, now }) {
   const myAwards = state.awards.filter((a) => a.coach === actor.name && !a.revoked && dayKey(a.at) === dayKey(now));
   const myPhotos = (state.floor?.moments ?? []).filter((m) => m.coach === actor.name && dayKey(m.at) === dayKey(now));
   const kid = (id) => people.find((p) => p.id === id);
+  // Pending requests grouped by session, earliest session first.
+  const groups = [...new Set(pending.map((e) => e.session))]
+    .map((id) => ({
+      id,
+      block: sessions(`${id.slice(0, 10)}T12:00:00Z`).find((s) => s.id === id),
+      items: pending.filter((e) => e.session === id),
+    }))
+    .sort((a, b) => a.id.slice(0, 10).localeCompare(b.id.slice(0, 10)) || (a.block?.start ?? "").localeCompare(b.block?.start ?? ""));
   return (
     <div className="cc-view">
       <div className="cc-view-head">
@@ -910,48 +919,62 @@ function WrapView({ ops, now }) {
         <Stat value={myPhotos.length} label="photos you took" />
       </div>
       <section className="cc-card">
-        <div className="cc-card-head">
-          <h2>Check-ins to confirm · {pending.length}</h2>
-          {pending.some((e) => e.kind === "class") && (
-            <button
-              className="button navy compact"
-              onClick={(e) =>
-                ops.run(
-                  "Attendance confirmed.",
-                  (s) =>
-                    pending
-                      .filter((p) => p.kind === "class")
-                      .reduce((n, p) => coachAct(n, actor, { type: "approve", id: p.id, childId: p.childId }), s),
-                  { spark: e.currentTarget },
-                )
-              }
-            >
-              Confirm all attendance
-            </button>
-          )}
-        </div>
+        <h2>Check-ins to confirm · {pending.length}</h2>
         {!pending.length && <p className="cc-muted">All caught up.</p>}
-        {pending.map((e) => (
-          <div className="cc-row" key={e.id}>
-            <Avatar child={kid(e.childId)} photoId={state.floor?.avatars?.[e.childId]} size={40} />
-            <span>
-              <b>{kid(e.childId).first}</b> · {e.kind === "class" ? "Class attendance" : describeEvent(e)}
-              <small>
-                {sessions(e.at).find((s) => s.id === e.session)?.name} · {clockTime(e.at)}
-              </small>
-            </span>
-            <button
-              className="button navy compact"
-              onClick={() => ops.run("Confirmed.", (s) => coachAct(s, actor, { type: "approve", id: e.id, childId: e.childId }))}
-            >
-              Confirm
-            </button>
-            <button
-              className="button outline compact"
-              onClick={() => ops.run("Dismissed.", (s) => coachAct(s, actor, { type: "reject", id: e.id, childId: e.childId }))}
-            >
-              Dismiss
-            </button>
+        {groups.map(({ id, block, items }) => (
+          <div className="cc-pend-group" key={id}>
+            <div className="cc-pend-head">
+              <span>
+                <b>{block?.name ?? "Earlier session"}</b>
+                <small>
+                  {block ? `${clock(block.start)}–${clock(block.end)}` : ""}
+                  {id.slice(0, 10) !== dayKey(now) ? ` · ${id.slice(5, 10).replace("-", "/")}` : ""}
+                  {" · "}
+                  {items.length} waiting
+                </small>
+              </span>
+              <button
+                className="button navy compact"
+                onClick={(e) =>
+                  ops.run(
+                    `${items.length} confirmed.`,
+                    (s) => items.reduce((n, p) => coachAct(n, actor, { type: "approve", id: p.id, childId: p.childId }), s),
+                    { spark: e.currentTarget },
+                  )
+                }
+              >
+                Confirm all {items.length}
+              </button>
+            </div>
+            <div className="cc-pend-list">
+              {items.map((e) => (
+                <div className="cc-pend" key={e.id}>
+                  <button className="cc-pend-kid" onClick={() => ops.openKid(e.childId)}>
+                    <Avatar child={kid(e.childId)} photoId={state.floor?.avatars?.[e.childId]} size={40} />
+                    <span>
+                      <b>{kid(e.childId).first}</b>
+                      <small>
+                        {e.kind === "class" ? "Arrived" : describeEvent(e)} · {clockTime(e.at)}
+                      </small>
+                    </span>
+                  </button>
+                  <button
+                    className="cc-round confirm"
+                    aria-label={`Confirm ${kid(e.childId).first}`}
+                    onClick={() => ops.run(`${kid(e.childId).first} confirmed.`, (s) => coachAct(s, actor, { type: "approve", id: e.id, childId: e.childId }))}
+                  >
+                    <Check size={20} />
+                  </button>
+                  <button
+                    className="cc-round dismiss"
+                    aria-label={`Dismiss ${kid(e.childId).first}`}
+                    onClick={() => ops.run("Dismissed.", (s) => coachAct(s, actor, { type: "reject", id: e.id, childId: e.childId }))}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </section>
