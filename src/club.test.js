@@ -11,6 +11,7 @@ import {
   validClub,
   stationFromInput,
   seasonKey,
+  sessionName,
 } from "./club.js";
 const now = new Date("2026-10-09T22:00:00Z");
 const session = sessions(now)[0].id;
@@ -255,4 +256,32 @@ test("persistence accepts valid events and rejects malformed ones", () => {
   const s = record(base(), "class");
   assert.ok(validClub(JSON.parse(JSON.stringify(s.club))));
   assert.equal(validClub({ ...s.club, events: [{}] }), false);
+});
+test("stored session ids resolve to their class name", () => {
+  assert.equal(sessionName(sessions(now)[1].id), "Ninja progressions");
+  assert.equal(sessionName("2026-10-10:9"), "Class");
+});
+test("trainer names and correction reasons are trimmed to their limits", () => {
+  let s = record(base(), "class", { coach: `  ${"J".repeat(60)}  ` });
+  assert.equal(s.club.events[0].coach.length, 40);
+  s = applyClub(
+    s,
+    {
+      ...action,
+      type: "revoke",
+      id: s.club.events[0].id,
+      reason: ` ${"x".repeat(300)} `,
+    },
+    now,
+  );
+  assert.equal(s.club.events[0].reason.length, 200);
+  assert.throws(
+    () =>
+      applyClub(
+        record(base(), "class"),
+        { ...action, type: "revoke", id: "x", reason: "   " },
+        now,
+      ),
+    /not found|reason/,
+  );
 });

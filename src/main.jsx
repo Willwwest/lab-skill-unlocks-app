@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -27,14 +27,28 @@ import {
   currentTier,
   tierProgress,
   isEligible,
+  formatResult,
+  resultCap,
 } from "./domain";
 import { Badge, Meter, OutlineWords, Ring, ShirtImage, skillNumber } from "./ui.jsx";
 import DotField from "./DotField.jsx";
-import { CountUp, Glare, sparkFrom } from "./motion.jsx";
+import { CountUp, Glare, reducedMotion, spark, sparkFrom } from "./motion.jsx";
+import { date } from "./format.js";
 import { MoveArt } from "./moves.jsx";
 import "./styles.css";
 import Club, { ClubHero, ClubSummary } from "./Club.jsx";
 import { applyClub, validClub, emptyClub } from "./club.js";
+import { LayoutGrid, Users } from "lucide-react";
+// The coach center and kiosk load on demand; they carry the QR decoder.
+const CoachCenter = lazy(() => import("./Coach.jsx"));
+const Kiosk = lazy(() => import("./Kiosk.jsx"));
+import Family, { MomentsGallery } from "./Family.jsx";
+import { emptyFloor, validFloor } from "./floor.js";
+import { clearPhotos } from "./media.js";
+import { familyOf } from "./roster.js";
+
+// Read on demand so tests (and in-app links) can change the URL.
+const params = { has: (k) => new URLSearchParams(window.location.search).has(k) };
 
 // Nav icons only render in the phone bottom tab bar.
 const navIcons = {
@@ -42,6 +56,8 @@ const navIcons = {
   Clubhouse: Star,
   Achievements: Trophy,
   "Coach desk": ClipboardCheck,
+  "Coach center": LayoutGrid,
+  Family: Users,
   Rewards: Shirt,
   Activity: Medal,
 };
@@ -49,7 +65,9 @@ const shortNames = {
   "My journey": "Home",
   Clubhouse: "Club",
   Achievements: "Skills",
-  "Coach desk": "Coach",
+  "Coach desk": "Desk",
+  "Coach center": "Floor",
+  Family: "Family",
   Rewards: "Rewards",
   Activity: "Story",
 };
@@ -63,8 +81,6 @@ const pageCopy = {
     "Observe the skill. Celebrate the progress. Keep it specific.",
   ],
 };
-const date = (at) =>
-  new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const statusLabel = {
   earned: "Unlocked",
   locked: "Learn first",
@@ -95,16 +111,19 @@ function App() {
       return {
         ...saved,
         club: validClub(saved.club) ? saved.club : emptyClub(),
+        floor: validFloor(saved.floor) ? saved.floor : emptyFloor(),
       };
     } catch {
       return load(null);
     }
   });
   const [saveError, setSaveError] = useState("");
-  const [role, setRole] = useState("Athlete");
+  const [role, setRole] = useState(() => (params.has("coach") ? "Coach" : "Athlete"));
   const [childId, setChildId] = useState("theo");
   const [page, setPage] = useState(() =>
-    new URLSearchParams(window.location.search).has("station") ||
+    params.has("coach")
+      ? "Coach center"
+      : new URLSearchParams(window.location.search).has("station") ||
     new URLSearchParams(window.location.search).has("class")
       ? "Clubhouse"
       : "My journey",
@@ -114,11 +133,13 @@ function App() {
   const [status, setStatus] = useState("All");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
-  const [toast, setToast] = useState("");
+  // { id, message, error, tier, leaving }; a new id restarts the timer even
+  // when the same message fires twice.
+  const [toast, setToast] = useState(null);
   const [correction, setCorrection] = useState(null);
   const [reason, setReason] = useState("");
   const [resetOpen, setResetOpen] = useState(false);
-  const [toastError, setToastError] = useState(false);
+  const [toastPaused, setToastPaused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [rewardFocus, setRewardFocus] = useState(() => focusTier(state, "theo"));
   const [rewardView, setRewardView] = useState("front");
@@ -141,26 +162,79 @@ function App() {
       );
     }
   }, [state]);
+  // Other tabs on this device (the kiosk, a second coach view) write the
+  // same record; pick up their saves.
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== key || !e.newValue) return;
+      try {
+        const next = load({ getItem: () => e.newValue });
+        const raw = JSON.parse(e.newValue);
+        setState({
+          ...next,
+          club: validClub(raw.club) ? raw.club : emptyClub(),
+          floor: validFloor(raw.floor) ? raw.floor : emptyFloor(),
+        });
+      } catch {
+        // Ignore a partial write; the next one will land.
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  // The timer pauses while the toast is hovered or the tab is hidden, and
+  // restarts in full on resume.
   useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => notify(""), 4500);
+    if (!toast || toast.leaving || toastPaused) return;
+    const id = setTimeout(dismissToast, toast.tier ? 6500 : 4500);
     return () => clearTimeout(id);
-  }, [toast]);
-  function notify(message, isError = false) {
-    setToast(message);
-    setToastError(isError);
+  }, [toast, toastPaused]);
+  useEffect(() => {
+    const onVisibility = () => setToastPaused(document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  function notify(message, isError = false, tier = null) {
+    setToastPaused(false);
+    setToast(
+      message ? { id: Date.now(), message, error: isError, tier } : null,
+    );
+  }
+  // Exit runs as a short transition before unmount.
+  function dismissToast() {
+    if (reducedMotion()) return setToast(null);
+    setToast((t) => (t ? { ...t, leaving: true } : t));
+    setTimeout(
+      () => setToast((t) => (t?.leaving ? null : t)),
+      200,
+    );
   }
   function commit(action, message) {
     try {
       const next = apply(state, action);
       setState(next);
-      if (message) notify(message);
+      // Finishing a chapter creates its shirt reward: the one moment that
+      // gets its own toast.
+      const newReward =
+        action.type === "award" &&
+        next.rewards.find((r) => !state.rewards.some((o) => o.id === r.id));
+      if (newReward) {
+        const t = tiers[newReward.tier - 1];
+        const who = people.find((p) => p.id === newReward.childId);
+        notify(`${who.first} earned the ${t.name} tee!`, false, newReward.tier);
+        spark(window.innerWidth / 2, window.innerHeight - 120, {
+          count: 24,
+          radius: 140,
+          size: 26,
+          duration: 900,
+        });
+      } else if (message) notify(message);
       return true;
     } catch (e) {
       notify(e.message, true);
@@ -177,6 +251,7 @@ function App() {
   const nav =
     role === "Coach"
       ? [
+          "Coach center",
           "My journey",
           "Clubhouse",
           "Achievements",
@@ -184,7 +259,9 @@ function App() {
           "Rewards",
           "Activity",
         ]
-      : ["My journey", "Clubhouse", "Achievements", "Rewards", "Activity"];
+      : role === "Parent"
+        ? ["My journey", "Clubhouse", "Achievements", "Rewards", "Activity", "Family"]
+        : ["My journey", "Clubhouse", "Achievements", "Rewards", "Activity"];
   function clubCommit(actions) {
     try {
       const next = (Array.isArray(actions) ? actions : [actions]).reduce(
@@ -284,6 +361,25 @@ function App() {
         : page === "Clubhouse"
           ? "club"
           : "page";
+  if (params.has("kiosk"))
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <Kiosk state={state} setState={setState} />
+      </Suspense>
+    );
+  if (page === "Coach center")
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <CoachCenter
+          state={state}
+          setState={setState}
+          onExit={() => {
+            setRole("Athlete");
+            setPage("My journey");
+          }}
+        />
+      </Suspense>
+    );
   return (
     <div className="app">
       <header className={`appbar ${scrolled ? "is-scrolled" : ""}`.trim()}>
@@ -349,6 +445,8 @@ function App() {
                 onChange={(e) => {
                   setRole(e.target.value);
                   if (page === "Coach desk") setPage("My journey");
+                  if (page === "Family" && e.target.value !== "Parent")
+                    setPage("My journey");
                 }}
               >
                 {["Athlete", "Parent", "Coach"].map((r) => (
@@ -371,7 +469,7 @@ function App() {
       >
         <div className="masthead-art" aria-hidden="true">
           <DotField />
-          <OutlineWords />
+          {mastheadKind !== "home" && <OutlineWords />}
         </div>
         <div className="masthead-inner">
           {page === "My journey" && (
@@ -391,21 +489,33 @@ function App() {
                     </>
                   )}
                 </h1>
-                <p className="lead">{heroLead}</p>
-                <div className="hero-actions">
-                  <button
-                    className="button cyan"
-                    onClick={() => exploreTier(current)}
+                <div className="hero-progress">
+                  <Ring
+                    value={chapterProgress.count}
+                    max={chapterProgress.total}
+                    size={64}
+                    stroke={6}
+                    color="var(--cyan)"
+                    track="rgba(255,255,255,0.16)"
                   >
-                    Explore my next skills
-                  </button>
-                  <button
-                    className="button mint"
-                    onClick={() => navigate("Rewards")}
-                  >
-                    See the shirts
-                  </button>
+                    <strong>
+                      <CountUp value={chapterProgress.count} />
+                    </strong>
+                    <small>of {chapterProgress.total}</small>
+                  </Ring>
+                  <p className="lead">{heroLead}</p>
                 </div>
+              </div>
+              <div className="hero-actions">
+                <button
+                  className="button cyan"
+                  onClick={() => exploreTier(current)}
+                >
+                  Explore my next skills
+                </button>
+                <button className="hero-link" onClick={() => navigate("Rewards")}>
+                  See the shirts <ArrowRight size={16} />
+                </button>
               </div>
               <div className="hero-reward">
                 <ShirtImage
@@ -415,29 +525,6 @@ function App() {
                   alt={`The ${chapter.name} tee, the tier ${current} shirt`}
                   eager
                 />
-                <div className="hero-ring">
-                  <Ring
-                    value={chapterProgress.count}
-                    max={chapterProgress.total}
-                    size={104}
-                    stroke={8}
-                    color="var(--cyan)"
-                    track="rgba(255,255,255,0.16)"
-                  >
-                    <strong>
-                      <CountUp value={chapterProgress.count} />
-                    </strong>
-                    <small>of {chapterProgress.total}</small>
-                  </Ring>
-                  <p>
-                    <b>The {chapter.name} tee</b>
-                    <span>
-                      {remaining > 0
-                        ? `${remaining} ${remaining === 1 ? "skill" : "skills"} to go`
-                        : "Earned"}
-                    </span>
-                  </p>
-                </div>
               </div>
             </div>
           )}
@@ -481,6 +568,15 @@ function App() {
                 <button className="button mint compact" onClick={exportProgress}>
                   Export JSON
                 </button>
+              </div>
+            </div>
+          )}
+          {page === "Family" && (
+            <div className="page-head">
+              <div>
+                <span className="eyebrow">Family</span>
+                <h1>{familyOf(childId)?.name ?? "Your family"}</h1>
+                <p>Your check-in pass, photo settings and moments from the floor.</p>
               </div>
             </div>
           )}
@@ -621,6 +717,11 @@ function App() {
                 <label className="search">
                   <Search size={16} />
                   <input
+                    type="search"
+                    enterKeyHint="search"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     aria-label="Search achievements"
                     placeholder="Find a skill…"
                     value={search}
@@ -743,6 +844,23 @@ function App() {
             </p>
           </>
         )}
+        {page === "Family" && role === "Parent" && (
+          <Family
+            state={state}
+            childId={childId}
+            setState={setState}
+            notify={notify}
+          />
+        )}
+        {page === "Activity" && (
+          <MomentsGallery
+            state={state}
+            childIds={[childId]}
+            role={role}
+            setState={setState}
+            notify={notify}
+          />
+        )}
         {page === "Activity" && (
           <section className="card timeline-panel">
             {recent.length ? (
@@ -762,7 +880,7 @@ function App() {
                       <h3>{s.title}</h3>
                       <p>
                         {typeof a.value === "number"
-                          ? `${a.value} ${s.unit} · `
+                          ? `${formatResult(s, a.value)} · `
                           : ""}
                         {a.setup}
                       </p>
@@ -860,6 +978,7 @@ function App() {
               className="button navy"
               onClick={() => {
                 commit({ type: "reset" }, "Demo data reset.");
+                clearPhotos().catch(() => {});
                 setTier(1);
                 setResetOpen(false);
               }}
@@ -884,6 +1003,8 @@ function App() {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Why is this record being corrected?"
+              maxLength={200}
+              enterKeyHint="done"
             />
           </label>
           <div className="dialog-buttons">
@@ -906,11 +1027,23 @@ function App() {
       )}
       {toast && (
         <div
-          className={`toast ${toastError ? "error" : ""}`}
-          role={toastError ? "alert" : "status"}
+          key={toast.id}
+          className={`toast ${toast.error ? "error" : ""} ${toast.tier ? "toast-reward" : ""} ${toast.leaving ? "is-leaving" : ""}`}
+          role={toast.error ? "alert" : "status"}
+          onMouseEnter={() => setToastPaused(true)}
+          onMouseLeave={() => setToastPaused(false)}
         >
-          <span>{toast}</span>
-          <button aria-label="Dismiss notification" onClick={() => notify("")}>
+          {toast.tier && (
+            <ShirtImage
+              tier={toast.tier}
+              view="front"
+              className="toast-shirt"
+              alt=""
+              eager
+            />
+          )}
+          <span>{toast.message}</span>
+          <button aria-label="Dismiss notification" onClick={dismissToast}>
             <X size={15} />
           </button>
         </div>
@@ -1006,7 +1139,13 @@ function RewardStage({
         )}
       </div>
       <div className="stage-art">
-        <ShirtImage tier={t.id} view={view} className="stage-shirt" eager />
+        <ShirtImage
+          key={`${t.id}-${view}`}
+          tier={t.id}
+          view={view}
+          className="stage-shirt"
+          eager
+        />
         <div className="stage-flip" role="group" aria-label="Shirt view">
           <button
             aria-pressed={view === "front"}
@@ -1129,7 +1268,7 @@ function SkillCard({ skill, earned, eligible, state, childId, onClick }) {
           Tier {skill.tier} · {skill.category}
         </span>
         <h3>{skill.title}</h3>
-        <p>{skill.target ? `${skill.target} ${skill.unit}` : skill.criteria}</p>
+        <p>{skill.target ? formatResult(skill, skill.target) : skill.criteria}</p>
       </div>
     </button>
   );
@@ -1138,6 +1277,13 @@ function Modal({ title, onClose, children }) {
   const ref = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const [leaving, setLeaving] = useState(false);
+  // Pointer closes play a short exit first; Escape closes at once.
+  const animatedClose = () => {
+    if (reducedMotion()) return onClose();
+    setLeaving(true);
+    setTimeout(() => closeRef.current(), 180);
+  };
   useEffect(() => {
     const old = document.activeElement;
     const bodyOverflow = document.body.style.overflow;
@@ -1173,9 +1319,9 @@ function Modal({ title, onClose, children }) {
   }, []);
   return (
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop ${leaving ? "is-leaving" : ""}`.trim()}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) animatedClose();
       }}
     >
       <section
@@ -1189,7 +1335,7 @@ function Modal({ title, onClose, children }) {
         <button
           className="modal-close"
           aria-label="Close dialog"
-          onClick={onClose}
+          onClick={animatedClose}
         >
           <X size={18} />
         </button>
@@ -1295,7 +1441,7 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
             <p>
               {award.coach} · {date(award.at)}
               {typeof award.value === "number"
-                ? ` · ${award.value} ${skill.unit}`
+                ? ` · ${formatResult(skill, award.value)}`
                 : ""}
             </p>
           </div>
@@ -1311,10 +1457,13 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
           </p>
           {skill.target && (
             <label className="field">
-              Measured result ({skill.unit})
+              Measured result ({skill.units?.[1] ?? skill.unit})
               <input
                 type="number"
+                inputMode={skill.unit === "seconds" ? "decimal" : "numeric"}
+                enterKeyHint="done"
                 min="0"
+                max={resultCap(skill)}
                 step={skill.unit === "seconds" ? "any" : "1"}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}

@@ -14,7 +14,9 @@ import {
   validateState,
   load,
   apply,
+  formatResult,
 } from "./domain.js";
+import { num, plural, date, dayLabel } from "./format.js";
 
 test("counted achievements reject fractional results", () => {
   assert.throws(
@@ -629,5 +631,43 @@ describe("boundary tests", () => {
         size: "Youth M",
       });
     }, /not eligible/);
+  });
+});
+
+describe("display formatting", () => {
+  const skill = (id) => catalog.find((s) => s.id === id);
+  test("counts pluralize and big numbers get separators", () => {
+    assert.equal(plural(1, "try", "tries"), "1 try");
+    assert.equal(plural(0, "try", "tries"), "0 tries");
+    assert.equal(plural(1250, "star", "stars"), "1,250 stars");
+    assert.equal(num(12500), "12,500");
+  });
+
+  test("dates read on the Phoenix calendar", () => {
+    // 9 PM in Phoenix on Oct 9 is already Oct 10 in UTC.
+    assert.equal(date("2026-10-10T04:00:00Z"), "Oct 9");
+    assert.equal(dayLabel("2026-10-05"), "Oct 5");
+  });
+
+  test("results pluralize their unit and keep one decimal for seconds", () => {
+    assert.equal(formatResult(skill("S08"), 1), "1 basket");
+    assert.equal(formatResult(skill("S08"), 2), "2 baskets");
+    assert.equal(formatResult(skill("S02"), 12.345), "12.3 seconds");
+    assert.equal(formatResult(skill("S02"), 1), "1 second");
+    assert.equal(formatResult(skill("S07"), "Demonstrated"), "Demonstrated");
+  });
+
+  test("results far above the target are rejected as entry mistakes", () => {
+    const award = (value) =>
+      apply(seed(), {
+        type: "award",
+        childId: "leo",
+        skillId: "S08",
+        value,
+        coach: "Demo",
+        confirmed: true,
+      });
+    assert.throws(() => award(11), /at most 10 baskets/);
+    assert.equal(award(10).awards.at(-1).value, 10);
   });
 });

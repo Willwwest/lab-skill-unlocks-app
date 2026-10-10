@@ -9,8 +9,8 @@
   opacity: 0;
   transition: opacity 1.4s ease;
   /* Keep the copy side quiet; the field lives behind the art. */
-  mask-image: linear-gradient(90deg, transparent 4%, rgba(0, 0, 0, 0.55) 32%, #000 62%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 4%, rgba(0, 0, 0, 0.55) 32%, #000 62%);
+  mask-image: linear-gradient(90deg, transparent 22%, rgba(0, 0, 0, 0.5) 44%, #000 68%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 22%, rgba(0, 0, 0, 0.5) 44%, #000 68%);
 }
 
 .dot-field.is-ready {
@@ -19,8 +19,8 @@
 
 @media (max-width: 760px) {
   .dot-field {
-    mask-image: linear-gradient(180deg, transparent 20%, #000 85%);
-    -webkit-mask-image: linear-gradient(180deg, transparent 20%, #000 85%);
+    mask-image: linear-gradient(180deg, transparent 64%, #000 96%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 64%, #000 96%);
   }
 }
 

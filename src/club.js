@@ -62,10 +62,54 @@ export const dayKey = (at = new Date()) =>
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(at));
+// The daily schedule. Classes earn a class star; open gym blocks are
+// coach-staffed stations where kids checked in at the front earn stars.
+// Index order is the stored id suffix, so append new blocks at the end.
+const schedule = [
+  { name: "Ninja foundations", kind: "class", start: "15:30", end: "16:30", ages: "6–8", lead: "Coach Jordan" },
+  { name: "Ninja progressions", kind: "class", start: "16:45", end: "17:45", ages: "9–12", lead: "Coach Sam" },
+  { name: "Open gym rotation", kind: "open", start: "12:00", end: "15:15" },
+  { name: "Evening open gym", kind: "open", start: "18:00", end: "20:00" },
+];
 export const sessions = (at = new Date()) =>
-  ["Ninja foundations", "Ninja progressions", "Open gym rotation"].map(
-    (name, i) => ({ id: `${dayKey(at)}:${i}`, name }),
+  schedule.map((s, i) => ({ ...s, id: `${dayKey(at)}:${i}`, index: i }));
+// Minutes since midnight on the gym's clock.
+export const gymMinutes = (at = new Date()) => {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Phoenix",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date(at))
+    .split(":")
+    .map(Number);
+  return h * 60 + m;
+};
+const toMinutes = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+// "live", "upcoming" or "done" for a session at a moment.
+export function sessionPhase(s, at = new Date()) {
+  const now = gymMinutes(at);
+  if (now < toMinutes(s.start)) return "upcoming";
+  return now < toMinutes(s.end) ? "live" : "done";
+}
+// "3:30" from "15:30".
+export const clock = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`;
+};
+// Checked in at the front desk today and not checked out.
+export const isHere = (state, childId, at = new Date()) =>
+  (state.floor?.presence ?? []).some(
+    (p) => p.childId === childId && !p.out && dayKey(p.in) === dayKey(at),
   );
+// Class name for a stored session id ("2026-10-10:1").
+export const sessionName = (id) =>
+  sessions(`${id.slice(0, 10)}T12:00:00Z`).find((s) => s.id === id)?.name ??
+  "Class";
 export const emptyClub = () => ({ events: [], claims: [], profiles: {} });
 export function validClub(c) {
   return (
@@ -106,6 +150,11 @@ export function validClub(c) {
     new Set(c.claims.map((r) => r.id)).size === c.claims.length
   );
 }
+// Classes need confirmed attendance; open gym needs a front-desk check-in.
+const attended = (state, c, id, block, now) =>
+  block.kind === "open"
+    ? isHere(state, id, now)
+    : approved(c, id).some((e) => e.kind === "class" && e.session === block.id);
 const approved = (c, id) =>
   c.events.filter((e) => e.childId === id && e.status === "approved");
 const points = { class: 5, visit: 2, complete: 5, praise: 3 };
@@ -114,9 +163,8 @@ export function clubStats(state, id) {
   const events = approved(c, id);
   const classes = events.filter((e) => e.kind === "class").length;
   const visits = events.filter((e) => e.kind === "visit").length;
-  const days = new Set(
-    events.filter((e) => e.kind === "class").map((e) => dayKey(e.at)),
-  ).size;
+  // Any coach-confirmed day counts, so open-gym-only kids reach these too.
+  const days = new Set(events.map((e) => dayKey(e.at))).size;
   const skillPoints = earnedIds(state, id).reduce(
     (sum, key) => sum + 10 + catalog.find((s) => s.id === key).tier * 10,
     0,
@@ -129,6 +177,7 @@ export function clubStats(state, id) {
       target: n,
       bonus: n === 1 ? 0 : n * 2,
       unit: "classes",
+      unitOne: "class",
     })),
     ...[10, 25, 50, 100].map((n) => ({
       id: `visits-${n}`,
@@ -137,6 +186,7 @@ export function clubStats(state, id) {
       target: n,
       bonus: n,
       unit: "check-ins",
+      unitOne: "check-in",
     })),
     ...[10, 25, 50, 100].map((n) => ({
       id: `days-${n}`,
@@ -145,6 +195,7 @@ export function clubStats(state, id) {
       target: n,
       bonus: n,
       unit: "gym days",
+      unitOne: "gym day",
     })),
   ].map((b) => ({ ...b, earned: b.count >= b.target }));
   const participationPoints = events.reduce(
@@ -213,8 +264,9 @@ export function applyClub(state, action, now = new Date()) {
   if (!["Athlete", "Parent", "Coach"].includes(role))
     throw Error("Choose a valid demo role.");
   if (!people.some((p) => p.id === childId)) throw Error("Choose an athlete.");
+  const trainer = action.coach?.trim().slice(0, 40) ?? "";
   const coach = () => {
-    if (role !== "Coach" || !action.coach?.trim())
+    if (role !== "Coach" || !trainer)
       throw Error("A trainer must confirm this action.");
   };
   const at = new Date(now).toISOString();
@@ -239,13 +291,18 @@ export function applyClub(state, action, now = new Date()) {
     const { kind, station, session, category } = action;
     if (!Object.hasOwn(points, kind))
       throw Error("Choose a valid recognition.");
-    if (!sessions(now).some((s) => s.id === session))
-      throw Error("Choose a class from today.");
+    const block = sessions(now).find((s) => s.id === session);
+    if (!block) throw Error("Choose a class from today.");
+    if (kind === "class" && block.kind === "open")
+      throw Error("Open gym has no class star. Check in at the front desk.");
     if (
       ["visit", "complete"].includes(kind) &&
       !stations.some((s) => s.id === station)
     )
       throw Error("Choose a valid gym station.");
+    const outage = station && state.floor?.outages?.[station];
+    if (["visit", "complete"].includes(kind) && outage)
+      throw Error(`This station is paused: ${outage.reason}`);
     if (["complete", "praise"].includes(kind)) coach();
     if (kind === "praise" && !shoutouts.includes(category))
       throw Error("Choose a recognition badge.");
@@ -275,11 +332,13 @@ export function applyClub(state, action, now = new Date()) {
     if (
       (["complete", "praise"].includes(kind) ||
         (kind === "visit" && role === "Coach")) &&
-      !approved(c, childId).some(
-        (e) => e.kind === "class" && e.session === session,
-      )
+      !attended(state, c, childId, block, now)
     )
-      throw Error("Confirm class attendance first.");
+      throw Error(
+        block.kind === "open"
+          ? "Check in at the front desk first."
+          : "Confirm class attendance first.",
+      );
     if (kind === "complete" && !action.note?.trim())
       throw Error("Describe the obstacle setup and completed task.");
     if (role === "Coach") coach();
@@ -294,7 +353,7 @@ export function applyClub(state, action, now = new Date()) {
       note: action.note?.trim().slice(0, 500) || "",
       at,
       status: role === "Coach" ? "approved" : "pending",
-      coach: role === "Coach" ? action.coach.trim() : null,
+      coach: role === "Coach" ? trainer : null,
     });
   } else if (["approve", "reject", "revoke"].includes(action.type)) {
     coach();
@@ -303,10 +362,11 @@ export function applyClub(state, action, now = new Date()) {
     );
     if (!event) throw Error("Record not found.");
     if (action.type === "revoke") {
-      if (event.status !== "approved" || !action.reason?.trim())
+      const reason = action.reason?.trim().slice(0, 200);
+      if (event.status !== "approved" || !reason)
         throw Error("A correction needs an approved record and a reason.");
       event.status = "revoked";
-      event.reason = action.reason.trim();
+      event.reason = reason;
       if (event.kind === "class")
         c.events
           .filter(
@@ -317,7 +377,7 @@ export function applyClub(state, action, now = new Date()) {
           )
           .forEach((e) => {
             e.status = "revoked";
-            e.reason = "Class attendance corrected: " + action.reason.trim();
+            e.reason = "Class attendance corrected: " + reason;
           });
     } else {
       if (event.status !== "pending")
@@ -325,14 +385,20 @@ export function applyClub(state, action, now = new Date()) {
       if (
         action.type === "approve" &&
         event.kind === "visit" &&
-        !approved(c, childId).some(
-          (e) => e.kind === "class" && e.session === event.session,
+        !attended(
+          state,
+          c,
+          childId,
+          sessions(`${event.session.slice(0, 10)}T12:00:00Z`).find(
+            (s) => s.id === event.session,
+          ) ?? { id: event.session, kind: "class" },
+          now,
         )
       )
         throw Error("Confirm class attendance before station participation.");
       event.status = action.type === "approve" ? "approved" : "rejected";
     }
-    event.coach = action.coach.trim();
+    event.coach = trainer;
     event.reviewedAt = at;
   } else if (action.type === "redeem") {
     if (!["Parent", "Coach"].includes(role))
@@ -354,7 +420,7 @@ export function applyClub(state, action, now = new Date()) {
     if (action.type === "fulfill" && clubStats(state, childId).balance < 0)
       throw Error("Corrected points need review before collecting rewards.");
     r.status = action.type === "fulfill" ? "Collected" : "Cancelled";
-    r.coach = action.coach.trim();
+    r.coach = trainer;
     r.updatedAt = at;
   } else throw Error("Unknown club action.");
   return { ...state, club: c };

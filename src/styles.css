@@ -46,6 +46,8 @@
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='33 0 46 42'%3E%3Cpath d='M33.96 41.26 44.96 20.63 65.93 31.8 52.5 6.61 56.04 0 78.04 41.26 70.33 41.29 47.53 29.11 41.01 41.26Z' fill='%23ffffff'/%3E%3C/svg%3E");
   --nav-h: 76px;
   --gutter: 12px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --content: 1236px;
   font-family: "Work Sans", system-ui, Arial, sans-serif;
   font-size: 15px;
@@ -72,12 +74,15 @@ textarea {
   font: inherit;
 }
 
-button,
-a,
-input,
-select,
-textarea {
+html {
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overscroll-behavior: none;
 }
 
 button {
@@ -139,9 +144,12 @@ svg {
 
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: var(--gutter) var(--gutter) 0;
+  padding: calc(var(--gutter) + env(safe-area-inset-top, 0px))
+    max(var(--gutter), env(safe-area-inset-right, 0px)) 0
+    max(var(--gutter), env(safe-area-inset-left, 0px));
 }
 
 /* The bar floats over the masthead, then becomes an ink capsule on scroll. */
@@ -172,9 +180,28 @@ svg {
 .appbar.is-scrolled .appbar-inner {
   background: rgba(9, 13, 25, 0.86);
   border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 20px 44px -24px rgba(2, 3, 15, 0.8);
+}
+
+/* The blur sits on a pseudo-element: a backdrop-filter on the bar itself
+   would become the containing block for the phone tab bar inside it, and
+   pull that fixed bar up to the top of the screen. */
+.appbar-inner {
+  position: relative;
+}
+
+.appbar-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.appbar.is-scrolled .appbar-inner::before {
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: 0 20px 44px -24px rgba(2, 3, 15, 0.8);
 }
 
 .brand {
@@ -213,9 +240,11 @@ svg {
   transition: background 0.15s, color 0.15s;
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
 }
 
 .nav-item.active {
@@ -253,8 +282,10 @@ svg {
   transition: background 0.15s;
 }
 
-.chip-select:hover {
-  background: rgba(255, 255, 255, 0.18);
+@media (hover: hover) and (pointer: fine) {
+  .chip-select:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
 }
 
 .chip-select select {
@@ -373,7 +404,6 @@ svg {
 
 /* Home */
 
-.masthead-home .outline-words,
 .masthead-rewards .outline-words {
   right: 4%;
   top: calc(var(--nav-h) + 6px);
@@ -382,13 +412,17 @@ svg {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
-  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  grid-template-areas:
+    "copy art"
+    "actions art";
+  column-gap: 32px;
   align-items: end;
 }
 
 .hero-copy {
-  padding: 28px 0 22px;
+  grid-area: copy;
+  padding: 28px 0 0;
 }
 
 .hero h1,
@@ -414,78 +448,86 @@ svg {
   max-width: 44ch;
 }
 
-.hero-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 30px;
-}
-
-/* The shirt breaks out of the bottom of the panel. */
-.hero-reward {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  margin-bottom: -118px;
-}
-
-.hero-shirt {
-  position: relative;
-  height: 440px;
-  width: auto;
-  filter: drop-shadow(0 34px 34px rgba(2, 3, 15, 0.55));
-  animation: float 7s ease-in-out infinite;
-}
-
-.hero-ring {
-  position: absolute;
-  left: -12px;
-  bottom: 150px;
+/* Chapter progress sits with the copy: the ring, then the line it counts. */
+.hero-progress {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 8px 20px 8px 8px;
-  border-radius: 999px;
-  background: rgba(9, 13, 25, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 40px -20px rgba(2, 3, 15, 0.8);
+  gap: 16px;
+  margin-top: 22px;
 }
 
-.hero-ring .ring {
-  width: 64px !important;
-  height: 64px !important;
+.hero-progress p.lead {
+  margin-top: 0;
 }
 
-.hero-ring .ring-content strong {
+.hero-progress .ring {
+  flex-shrink: 0;
+}
+
+.hero-progress .ring-content strong {
   font-family: Argentum, "Work Sans", sans-serif;
   font-weight: 800;
   font-size: 22px;
   line-height: 1;
 }
 
-.hero-ring .ring-content small {
+.hero-progress .ring-content small {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
   font-weight: 600;
   margin-top: 2px;
 }
 
-.hero-ring p {
-  display: grid;
-  gap: 1px;
-  line-height: 1.25;
+.hero-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+  padding: 28px 0 22px;
 }
 
-.hero-ring p b {
-  font-size: 15px;
-}
-
-.hero-ring p span {
-  font-size: 13px;
-  color: var(--sky);
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  font: inherit;
   font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-underline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hero-link:hover {
+    text-decoration: underline;
+  }
+}
+
+/* The shirt breaks out of the bottom of the panel. */
+.hero-reward {
+  grid-area: art;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  margin-bottom: -72px;
+}
+
+.hero-shirt {
+  position: relative;
+  height: 400px;
+  width: auto;
+  filter: drop-shadow(0 26px 26px rgba(2, 3, 15, 0.45));
+}
+
+/* Home keeps one texture, the dot field; the halftone corners and outlined
+   words stay on the other mastheads. */
+.masthead-home .masthead-art::before {
+  display: none;
 }
 
 /* Standard page masthead: title plus an outlined band along the bottom. */
@@ -623,11 +665,13 @@ svg {
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.15s, background 0.15s, border-color 0.15s;
 }
 
-.button:hover:not(:disabled) {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
 }
 
 .button.cyan {
@@ -635,9 +679,11 @@ svg {
   color: var(--ink);
 }
 
-.button.cyan:hover:not(:disabled) {
-  background: #45c8f2;
-  box-shadow: 0 12px 24px -12px rgba(34, 188, 237, 0.9);
+@media (hover: hover) and (pointer: fine) {
+  .button.cyan:hover:not(:disabled) {
+    background: #45c8f2;
+    box-shadow: 0 12px 24px -12px rgba(34, 188, 237, 0.9);
+  }
 }
 
 .button.mint {
@@ -645,9 +691,11 @@ svg {
   color: var(--ink);
 }
 
-.button.mint:hover:not(:disabled) {
-  background: #d4eee6;
-  box-shadow: 0 12px 24px -12px rgba(194, 230, 219, 0.8);
+@media (hover: hover) and (pointer: fine) {
+  .button.mint:hover:not(:disabled) {
+    background: #d4eee6;
+    box-shadow: 0 12px 24px -12px rgba(194, 230, 219, 0.8);
+  }
 }
 
 .button.navy {
@@ -655,9 +703,11 @@ svg {
   color: #fff;
 }
 
-.button.navy:hover:not(:disabled) {
-  background: var(--navy-2);
-  box-shadow: 0 12px 24px -14px rgba(15, 14, 84, 0.7);
+@media (hover: hover) and (pointer: fine) {
+  .button.navy:hover:not(:disabled) {
+    background: var(--navy-2);
+    box-shadow: 0 12px 24px -14px rgba(15, 14, 84, 0.7);
+  }
 }
 
 .button.outline {
@@ -666,8 +716,10 @@ svg {
   color: var(--navy);
 }
 
-.button.outline:hover:not(:disabled) {
-  border-color: var(--navy);
+@media (hover: hover) and (pointer: fine) {
+  .button.outline:hover:not(:disabled) {
+    border-color: var(--navy);
+  }
 }
 
 .button.compact {
@@ -686,9 +738,11 @@ svg {
   font-size: 14px;
 }
 
-.text-button:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) and (pointer: fine) {
+  .text-button:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 /* ============================================
@@ -737,12 +791,13 @@ svg {
   overflow: hidden;
 }
 
+/* The fill scales from the left edge; the track's radius clips it. */
 .meter > span {
   display: block;
   height: 100%;
-  border-radius: inherit;
   background: var(--meter, var(--cyan));
-  transition: width 0.4s ease;
+  transform-origin: left;
+  transition: transform 0.3s var(--ease-out);
 }
 
 .meter.on-dark {
@@ -864,8 +919,10 @@ svg {
   transition: filter 0.15s;
 }
 
-button.stat-tile:hover {
-  filter: brightness(0.97);
+@media (hover: hover) and (pointer: fine) {
+  button.stat-tile:hover {
+    filter: brightness(0.97);
+  }
 }
 
 .tile-sky {
@@ -977,7 +1034,7 @@ button.stat-tile:hover {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--r-card);
   min-width: 0;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.15s;
 }
 
 .tier-card::before {
@@ -996,9 +1053,11 @@ button.stat-tile:hover {
   position: relative;
 }
 
-.tier-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 22px 40px -22px rgba(2, 3, 15, 0.7);
+@media (hover: hover) and (pointer: fine) {
+  .tier-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 40px -22px rgba(2, 3, 15, 0.7);
+  }
 }
 
 .tier-card.selected {
@@ -1078,13 +1137,15 @@ button.stat-tile:hover {
   border-radius: var(--r-card);
   box-shadow: var(--shadow-sm);
   min-width: 0;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.15s, border-color 0.15s;
 }
 
-.skill-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--line-strong);
+@media (hover: hover) and (pointer: fine) {
+  .skill-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--line-strong);
+  }
 }
 
 /* A faded pictogram of the movement sits behind the card content. */
@@ -1117,9 +1178,11 @@ button.stat-tile:hover {
   transition: opacity 0.2s, transform 0.3s ease;
 }
 
-.skill-card:hover .move-art {
-  opacity: 0.16;
-  transform: translate(-4px, -4px);
+@media (hover: hover) and (pointer: fine) {
+  .skill-card:hover .move-art {
+    opacity: 0.16;
+    transform: translate(-4px, -4px);
+  }
 }
 
 .skill-card.state-earned .move-art {
@@ -1289,9 +1352,11 @@ button.stat-tile:hover {
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
-.filters button:hover {
-  border-color: var(--navy);
-  color: var(--navy);
+@media (hover: hover) and (pointer: fine) {
+  .filters button:hover {
+    border-color: var(--navy);
+    color: var(--navy);
+  }
 }
 
 .filters button.selected {
@@ -1521,7 +1586,14 @@ button.stat-tile:hover {
   object-fit: contain;
   filter: drop-shadow(0 36px 36px rgba(2, 3, 15, 0.55));
   animation: float 7s ease-in-out infinite;
-  transition: filter 0.3s;
+  transition: filter 0.2s, opacity 0.2s var(--ease-out);
+}
+
+/* Front/back and tier changes remount the image, which fades in. */
+@starting-style {
+  .stage-shirt {
+    opacity: 0;
+  }
 }
 
 .stage[data-state="locked"] .stage-shirt {
@@ -1584,19 +1656,28 @@ button.stat-tile:hover {
   text-align: center;
   color: var(--ink);
   min-width: 0;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, background 0.15s;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.collection-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  background: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .collection-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    background: #fff;
+  }
 }
 
 .collection-card.selected {
   background: #fff;
   border-color: var(--navy);
   box-shadow: var(--shadow-md);
+}
+
+/* A ring instead of an outline: outlines paint over the shirt that
+   breaks out of the card's top edge; box-shadow paints beneath it. */
+.collection-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--cyan), var(--shadow-md);
 }
 
 .collection-shirt {
@@ -1607,13 +1688,17 @@ button.stat-tile:hover {
   transition: transform 0.2s;
 }
 
-.collection-card:hover .collection-shirt {
-  transform: translateY(-4px);
+@media (hover: hover) and (pointer: fine) {
+  .collection-card:hover .collection-shirt {
+    transform: translateY(-4px);
+  }
 }
 
+/* Faded with filters, not opacity, so the card's border can't show
+   through where the shirt overlaps it. */
 .collection-card.locked .collection-shirt {
-  filter: grayscale(0.6) drop-shadow(0 16px 16px rgba(15, 14, 84, 0.2));
-  opacity: 0.6;
+  filter: grayscale(0.7) contrast(0.55) brightness(1.4)
+    drop-shadow(0 16px 16px rgba(15, 14, 84, 0.2));
 }
 
 .collection-meta {
@@ -1723,6 +1808,11 @@ button.stat-tile:hover {
   color: var(--royal-bright);
 }
 
+.coach-note,
+.audit-line {
+  overflow-wrap: anywhere;
+}
+
 .coach-note {
   font-style: italic;
   margin-top: 10px !important;
@@ -1754,18 +1844,47 @@ button.stat-tile:hover {
   justify-content: center;
   padding: 20px;
   overflow: auto;
+  overscroll-behavior: contain;
+  transition: opacity 0.2s ease-out;
+}
+
+.modal-backdrop.is-leaving {
+  opacity: 0;
+  transition-duration: 0.15s;
+}
+
+@starting-style {
+  .modal-backdrop {
+    opacity: 0;
+  }
 }
 
 .modal {
   width: 560px;
   max-width: 100%;
   max-height: 92vh;
+  max-height: 92dvh;
   overflow: auto;
+  overscroll-behavior: contain;
+  transition: transform 0.2s var(--ease-out), opacity 0.2s var(--ease-out);
   background: var(--surface);
   border-radius: 24px;
   padding: 30px;
   position: relative;
   box-shadow: 0 30px 80px rgba(9, 13, 25, 0.4);
+}
+
+@starting-style {
+  .modal {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.is-leaving .modal {
+  opacity: 0;
+  transform: scale(0.97);
+  transition-duration: 0.15s;
 }
 
 .modal > h2 {
@@ -1791,8 +1910,10 @@ button.stat-tile:hover {
   place-items: center;
 }
 
-.modal-close:hover {
-  background: var(--line);
+@media (hover: hover) and (pointer: fine) {
+  .modal-close:hover {
+    background: var(--line);
+  }
 }
 
 .modal > p {
@@ -2026,6 +2147,46 @@ button.stat-tile:hover {
   font-size: 14px;
   font-weight: 600;
   max-width: min(440px, calc(100vw - 32px));
+  transition: transform 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
+}
+
+@starting-style {
+  .toast {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateY(16px);
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in;
+}
+
+/* A chapter's shirt earned: the one toast with a picture. */
+.toast-reward {
+  padding: 10px 18px 10px 12px;
+  font-size: 15px;
+}
+
+.toast-shirt {
+  height: 64px;
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.4));
+  animation: shirt-earned 0.5s var(--ease-out) both;
+}
+
+@keyframes shirt-earned {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .toast.error {
@@ -2112,8 +2273,10 @@ main {
   transition: background 0.15s;
 }
 
-.footer-meta button:hover {
-  background: rgba(255, 255, 255, 0.1);
+@media (hover: hover) and (pointer: fine) {
+  .footer-meta button:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .footer-watermark {
@@ -2152,7 +2315,7 @@ main {
   }
 
   .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
   }
 
   .hero h1,
@@ -2161,11 +2324,7 @@ main {
   }
 
   .hero-shirt {
-    height: 380px;
-  }
-
-  .hero-ring {
-    bottom: 120px;
+    height: 360px;
   }
 
   .stage-copy h2 {
@@ -2225,11 +2384,11 @@ main {
   }
 
   .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
   }
 
   .hero-shirt {
-    height: 320px;
+    height: 300px;
   }
 
   .stage {
@@ -2389,10 +2548,14 @@ main {
     margin-top: 22px;
   }
 
-  /* Home hero: copy, then the shirt breaking the bottom edge. */
+  /* Home hero: copy across the top; the button and link sit beside a
+     smaller shirt that breaks the bottom edge. */
   .hero {
-    grid-template-columns: 1fr;
-    gap: 0;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-areas:
+      "copy copy"
+      "actions art";
+    column-gap: 12px;
   }
 
   .hero-copy {
@@ -2407,64 +2570,51 @@ main {
 
   .hero p.lead {
     font-size: 16px;
-    margin-top: 12px;
+  }
+
+  .hero-progress {
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .hero-progress .ring {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .hero-progress .ring-content strong {
+    font-size: 19px;
   }
 
   .hero-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 22px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 20px 0 4px;
   }
 
   .hero-actions .button {
-    padding: 13px 10px;
-    font-size: 14px;
+    padding: 13px 14px;
+    font-size: 15px;
     white-space: normal;
     text-align: center;
-    min-height: 50px;
+  }
+
+  .hero-link {
+    justify-content: center;
+    font-size: 14px;
   }
 
   .masthead-rewards .outline-words {
     display: none;
   }
 
-  .masthead-home .outline-words {
-    font-size: 78px;
-    right: -6px;
-    top: auto;
-    bottom: 18px;
-    transform: none;
-  }
-
   .hero-reward {
-    justify-items: end;
-    margin: 6px 0 -64px;
-    padding-right: 4px;
+    margin: 0 0 -44px;
   }
 
   .hero-shirt {
-    height: 230px;
-  }
-
-  .hero-ring {
-    left: 0;
-    bottom: 84px;
-    gap: 10px;
-    padding: 6px 14px 6px 6px;
-  }
-
-  .hero-ring .ring {
-    width: 52px !important;
-    height: 52px !important;
-  }
-
-  .hero-ring .ring-content strong {
-    font-size: 18px;
-  }
-
-  .hero-ring p b {
-    font-size: 14px;
+    height: 170px;
   }
 
   .masthead-home + main {
@@ -2796,14 +2946,18 @@ main {
   *::before,
   *::after {
     animation: none !important;
-    transition: none !important;
+    transition-property: opacity, color, background-color, border-color !important;
     scroll-behavior: auto !important;
   }
 
   .button:hover,
   .tier-card:hover,
   .skill-card:hover,
-  .collection-card:hover {
+  .collection-card:hover,
+  .collection-card:hover .collection-shirt,
+  .skill-card:hover .move-art,
+  .is-leaving .modal,
+  .toast.is-leaving {
     transform: none;
   }
 }
@@ -2854,44 +3008,50 @@ label {
   touch-action: manipulation;
 }
 
-@media (hover: none) {
-  .button:hover:not(:disabled),
-  .tier-card:hover,
-  .skill-card:hover,
-  .collection-card:hover,
-  .club-stations button:hover {
-    transform: none;
-  }
-
-  .button:active:not(:disabled),
-  .tier-card:active,
-  .skill-card:active,
-  button.stat-tile:active,
-  .collection-card:active,
-  .club-stations button:active,
-  .nav-item:active {
-    transform: scale(0.97);
-  }
+.button:active:not(:disabled),
+.tier-card:active,
+.skill-card:active,
+button.stat-tile:active,
+.collection-card:active,
+.nav-item:active,
+.filters button:active,
+.stage-flip button:active,
+.text-button:active,
+.hero-link:active,
+.modal-close:active,
+.toast button:active,
+.footer-meta button:active,
+.chip-select:active {
+  transform: scale(0.97);
 }
 
-@media (max-width: 760px) {
-  html {
-    -webkit-text-size-adjust: 100%;
-  }
+.nav-item,
+.filters button,
+.stage-flip button,
+.text-button,
+.hero-link,
+.modal-close,
+.toast button,
+.footer-meta button,
+.chip-select,
+button.stat-tile {
+  transition-property: transform, background-color, border-color, color, filter;
+  transition-duration: 0.12s;
+  transition-timing-function: var(--ease-out);
+}
 
-  body {
-    overscroll-behavior-y: none;
-  }
+/* Controls are not text; content stays selectable. */
+button,
+summary,
+.chip-select,
+.brand {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 
-  .app {
-    padding-top: calc(var(--gutter) + env(safe-area-inset-top));
-  }
-
-  .appbar {
-    top: calc(var(--gutter) + env(safe-area-inset-top));
-  }
-
-  /* 16px inputs stop iOS from zooming the page on focus. */
+/* 16px inputs stop iOS from zooming the page on focus, at any width. */
+@media (pointer: coarse) {
   input:not([type="checkbox"]),
   select,
   textarea,
@@ -2899,6 +3059,12 @@ label {
   .search input,
   .select {
     font-size: 16px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .appbar {
+    top: calc(var(--gutter) + env(safe-area-inset-top, 0px));
   }
 
   /* 44px minimum tap targets. */
@@ -2960,8 +3126,24 @@ label {
     max-height: calc(100dvh - 24px - env(safe-area-inset-top));
     border-radius: 24px 24px 0 0;
     padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
-    animation: sheet-up 0.24s ease-out;
-    overscroll-behavior: contain;
+    transition: transform 0.3s var(--ease-drawer);
+  }
+
+  @starting-style {
+    .modal {
+      opacity: 1;
+      transform: translateY(100%);
+    }
+  }
+
+  .is-leaving .modal {
+    opacity: 1;
+    transform: translateY(100%);
+    transition: transform 0.18s ease-in;
+  }
+
+  .modal-backdrop {
+    overflow: hidden;
   }
 
   .modal::before {
@@ -3004,26 +3186,3 @@ label {
   }
 }
 
-@keyframes sheet-up {
-  from {
-    transform: translateY(40px);
-    opacity: 0;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-
-@media (display-mode: standalone) {
-  body {
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  input,
-  textarea {
-    user-select: text;
-    -webkit-user-select: text;
-  }
-}

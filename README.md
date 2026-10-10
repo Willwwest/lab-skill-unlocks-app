@@ -119,3 +119,47 @@ Previous files are in `design-v4-backup/`. 51 domain tests and 7 React interacti
 ### Movement pictograms on skill cards
 
 Each skill card shows a faded pictogram of the movement behind its content (`src/moves.jsx`). The 18 poses are hang, monkey bars, wall catch, wall top-out, balance, stepping stones, landing, roll, shot, dribble, course, rings, cargo net, precision jump, rope, vault, pass and personal project. Each pose is a set of joint coordinates with its equipment drawn alongside. `skillPose` maps all 55 skill ids to a pose. The figures sit at 10% opacity (6% when locked) and fade out toward the text, rising slightly on hover. To use photography instead, swap `MoveArt` for an image per skill. The card CSS already handles opacity and the fade.
+
+## Coach center, front desk kiosk and family moments (October 10, 2026)
+
+A floor tool for coaches on a tablet or phone, a check-in kiosk for the front desk, and a parent Family page.
+
+### Routes
+
+- `?coach` opens the coach center directly (or choose Coach in the demo view and open **Coach center**). Coaches pick their name and enter a PIN. Demo PINs: Jordan 1111, Sam 2222, Priya 3333, Alex 9999 (head coach). The device locks after 10 minutes without a tap.
+- `?kiosk` is the front desk. Parents hold up the family pass QR or type the family PIN, pick which kids are here, and check in or out.
+- Parent view → **Family** shows the family pass QR and PIN, a kid pass QR per child, photo consent switches and the Moments gallery.
+
+### Coach center
+
+- **Now:** who is in the building, check-ins to confirm, rewards to hand out to kids who are here, care notes, kids one or two skills from a shirt, birthdays this week, today's schedule and latest arrivals.
+- **Class:** the roster for a class with each kid's front-desk status. One button confirms everyone who checked in; tiles confirm one kid or mark a walk-in. Select mode gives a group "tried" or shoutout. A rotation timer cycles stations on this device.
+- **Station:** pick your station; kids who are here are listed with goals at that station first. "Tried +2" records in one tap. Scan a kid or family pass to jump to a kid.
+- **Kids:** search by first name, last name, parent name or family PIN; filter to who is here; recently opened kids.
+- **Kid panel:** tried / completed (tap a preset task) / photo, shoutouts with the daily cap shown, skills ready at this station with goals first, assessment with a stepper for counts and a stopwatch for holds, tier progress, shirts and star rewards to hand over, staff-only notes with follow-ups, moments, recent records with corrections, check in/out.
+- **Wrap-up:** pending check-ins with confirm-all, kids seen today with no shoutout, open follow-ups, and the coach's own totals for the day.
+- **Head coach:** pause or reopen stations with a reason, mark reserved shirts ready, recognition by coach for the last 7 days, photo consent overview, kiosk tools.
+- Every action shows a toast with Undo for 7 seconds. Unlocks open a full-screen celebration with an optional celebration photo.
+
+### Rules added
+
+- Front-desk check-in records presence. For a kid enrolled in a class that hasn't ended today, it also files a pending class attendance request; a coach confirms it.
+- Open gym blocks (12:00–3:15 and 6:00–8:00 in the demo schedule) have no class star. Station tries, completions and shoutouts there need a front-desk check-in instead of class attendance.
+- A coach recording anything for a kid confirms that kid's attendance (class) or check-in (open gym) in the same step.
+- Gym days now count any day with a coach-confirmed record, so open-gym-only kids reach the gym-day milestones.
+- A paused station rejects tries and completions.
+- Photos need family consent. Parents can turn consent off (which removes the profile photo), hide a photo from their child's view, save it, or delete it. The coach who took a photo and the head coach can also delete it.
+
+### Data
+
+- `roster.js` adds 21 synthetic kids, 19 families, guardian names, family PINs, birthdays, class enrollment, four care notes and two families without photo consent. Seed progress for the new kids varies by position.
+- `floor.js` holds presence, moments, notes, profile photos, consent and station pauses, plus selectors. Its records live in the same browser save as the rest of the app (`state.floor`).
+- Photos are stored in this browser's IndexedDB (`media.js`) as a 1600 px JPEG and a 480 px thumbnail. Reset clears them.
+- QR decoding uses the native BarcodeDetector where available and jsQR elsewhere. The camera needs HTTPS or localhost; over plain HTTP the photo button falls back to the device camera picker and the scanner falls back to typed codes.
+- Tabs on the same device share saves, so a kiosk tab and a coach tab stay in step.
+
+### Boundaries
+
+Everything is still local to one browser. A kiosk tablet and a coach phone do not share check-ins, photos or stars until there is a backend with staff accounts, server-side rules, private photo storage and a signed, rotating family pass. PINs are a device lock, not authentication. Parent notifications are not sent.
+
+Validation: 70 domain/club/floor tests and 13 React interaction tests pass (`npm.cmd test`, `npm.cmd run test:ui`); production build passes. Checked in headless Chrome at 390 × 844, 820 × 1180 and 1180 × 820, including the photo flow with Chrome's fake camera through to the parent Family page.

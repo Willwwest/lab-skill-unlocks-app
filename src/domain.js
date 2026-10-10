@@ -1,4 +1,6 @@
 import raw from "./catalog.json" with { type: "json" };
+import { plural } from "./format.js";
+import { extraKids } from "./roster.js";
 
 export const tiers = [
   {
@@ -104,6 +106,17 @@ const numbers = {
   X14: [5, "consecutive baskets"],
   X15: [3, "repetitions"],
 };
+// [one, many] for each result unit; `unit` keeps the form its target reads in.
+const unitForms = {
+  rungs: ["rung", "rungs"],
+  seconds: ["second", "seconds"],
+  basket: ["basket", "baskets"],
+  dribbles: ["dribble", "dribbles"],
+  transfers: ["transfer", "transfers"],
+  "consecutive baskets": ["consecutive basket", "consecutive baskets"],
+  passes: ["pass", "passes"],
+  repetitions: ["repetition", "repetitions"],
+};
 const prereqs = {
   M01: ["S01"],
   M02: ["S02"],
@@ -172,6 +185,7 @@ export const catalog = raw.map((s) => {
     category,
     target: numbers[s.id]?.[0] ?? null,
     unit: numbers[s.id]?.[1] ?? "completed demonstration",
+    units: unitForms[numbers[s.id]?.[1]] ?? null,
     setup,
     prerequisites: prereqs[s.id] ?? [],
     version: 1,
@@ -223,8 +237,16 @@ export const people = [
     color: "#FBE4B7",
     goal: "My first crossing",
   },
+  ...extraKids,
 ];
 export const key = "lab-skill-unlocks-v1";
+// "1 basket", "2 baskets", "12.5 seconds": at most one decimal, for seconds.
+export function formatResult(skill, value) {
+  if (!skill?.units || typeof value !== "number") return String(value);
+  return plural(value, ...skill.units, skill.unit === "seconds" ? 1 : 0);
+}
+// Results above this are treated as entry mistakes.
+export const resultCap = (skill) => skill.target * 10;
 export function earnedIds(state, childId) {
   const candidates = state.awards.filter(
     (a) => a.childId === childId && !a.revoked,
@@ -301,7 +323,7 @@ export function seed() {
         ? catalog.filter((s) => first.includes(s.id))
         : child.id === "maya"
           ? catalog.filter((s) => s.tier <= 2)
-          : [];
+          : seededSkills(child.id);
     list.forEach((s, i) =>
       awards.push({
         id: `seed-${child.id}-${s.id}`,
@@ -328,8 +350,35 @@ export function seed() {
       theo: ["S07", "S09", "S10"],
       maya: ["A01", "A03", "A12"],
       leo: ["S01", "S08", "S06"],
+      ...Object.fromEntries(
+        extraKids.map((k) => [k.id, seededGoals(k.id, awards)]),
+      ),
     },
   });
+}
+// Varied synthetic progress for the extra roster, so the coach center has
+// kids at different points. Deterministic by roster position.
+function seededSkills(childId) {
+  const i = extraKids.findIndex((k) => k.id === childId);
+  if (i < 0) return [];
+  const tier1 = catalog.filter((s) => s.tier === 1);
+  const count = [3, 8, 5, 1, 6, 10, 2, 4, 10, 6, 9, 0, 7, 10, 4, 10, 5, 10, 0, 3, 10][i];
+  const list = tier1.slice(0, count);
+  if (count < 10) return list;
+  const done = new Set(list.map((s) => s.id));
+  const tier2 = catalog.filter(
+    (s) => s.tier === 2 && s.prerequisites.every((p) => done.has(p)),
+  );
+  return [...list, ...tier2.slice(0, (i * 5) % 9)];
+}
+function seededGoals(childId, awards) {
+  const done = new Set(
+    awards.filter((a) => a.childId === childId).map((a) => a.skillId),
+  );
+  return catalog
+    .filter((s) => !done.has(s.id) && s.prerequisites.every((p) => done.has(p)))
+    .slice(0, 2)
+    .map((s) => s.id);
 }
 export function validateState(value) {
   if (
@@ -424,7 +473,11 @@ export function apply(state, action) {
         !Number.isFinite(Number(value)) ||
         Number(value) < skill.target)
     )
-      throw Error(`Record at least ${skill.target} ${skill.unit}.`);
+      throw Error(`Record at least ${formatResult(skill, skill.target)}.`);
+    if (skill.target && Number(value) > resultCap(skill))
+      throw Error(
+        `Record at most ${formatResult(skill, resultCap(skill))}. Check the measured result.`,
+      );
     if (
       skill.target &&
       skill.unit !== "seconds" &&
@@ -593,19 +646,20 @@ export function apply(state, action) {
     };
   }
   if (action.type === "revoke") {
-    if (!action.reason?.trim()) throw Error("A correction reason is required.");
+    const reason = action.reason?.trim().slice(0, 200);
+    if (!reason) throw Error("A correction reason is required.");
     const award = state.awards.find((a) => a.id === action.id && !a.revoked);
     if (!award) throw Error("Choose an active award.");
     return reconcile({
       ...state,
       awards: state.awards.map((a) =>
-        a.id === award.id ? { ...a, revoked: true, reason: action.reason } : a,
+        a.id === award.id ? { ...a, revoked: true, reason } : a,
       ),
       audit: [
         ...state.audit,
         {
           at: new Date().toISOString(),
-          action: `Corrected award: ${action.reason}`,
+          action: `Corrected award: ${reason}`,
           childId: award.childId,
           skillId: award.skillId,
           by: "Demo head coach",

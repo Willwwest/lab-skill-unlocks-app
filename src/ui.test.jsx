@@ -145,7 +145,7 @@ describe("Clubhouse participation flows", () => {
       screen.getByRole("button", { name: "Class star earned" }).disabled,
     ).toBe(true);
     expect(
-      screen.getByRole("button", { name: /Monkey bars & rings 1 tries/ }),
+      screen.getByRole("button", { name: /Monkey bars & rings 1 try/ }),
     ).toBeTruthy();
   });
   it("gives the entire selected roster one class star with repeat protection", async () => {

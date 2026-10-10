@@ -12,11 +12,42 @@ import {
   clubStats,
   crowns,
   seasonKey,
+  sessionName,
   stationFromInput,
 } from "./club.js";
 import { Meter } from "./ui.jsx";
-import { CountUp, sparkFrom } from "./motion.jsx";
+import { useCountUp, sparkFrom } from "./motion.jsx";
+import { num, plural, word, date, dayLabel } from "./format.js";
 import "./club.css";
+
+const points = { class: 5, visit: 2, complete: 5, praise: 3 };
+const statusText = {
+  approved: "Confirmed",
+  pending: "Waiting for trainer",
+  revoked: "Corrected",
+  rejected: "Dismissed",
+};
+const eventLabel = (e) =>
+  e.kind === "class"
+    ? "Class star"
+    : e.kind === "praise"
+      ? e.category
+      : `${stations.find((s) => s.id === e.station)?.name} · ${e.kind === "visit" ? "I tried it" : "I completed it"}`;
+// Long lists show the latest entries first, then offer the rest.
+const PAGE = 20;
+
+function Stars({ value }) {
+  return <span className="count-up">{num(useCountUp(value))}</span>;
+}
+
+function ShowAll({ total, open, onOpen }) {
+  if (open || total <= PAGE) return null;
+  return (
+    <button className="text-button club-more" onClick={onOpen}>
+      Show all ({num(total)})
+    </button>
+  );
+}
 
 function QRCard({ station }) {
   const [src, setSrc] = useState("");
@@ -66,11 +97,12 @@ export function ClubSummary({ state, childId, onOpen }) {
     <button className="stat-tile tile-mint club-summary" onClick={onOpen}>
       <span className="eyebrow">Clubhouse</span>
       <strong className="stat-value">
-        <CountUp value={stats.total} />
+        <Stars value={stats.total} />
       </strong>
       <b>lifetime stars</b>
       <small>
-        {stats.classes} classes · {stats.visits} station check-ins
+        {plural(stats.classes, "class", "classes")} ·{" "}
+        {plural(stats.visits, "station check-in", "station check-ins")}
       </small>
       <span className="text-button">
         Open Clubhouse <ArrowRight size={14} />
@@ -95,11 +127,11 @@ export function ClubHero({ state, childId }) {
       </div>
       <div className="star-total">
         <strong>
-          <CountUp value={stats.total} />
+          <Stars value={stats.total} />
         </strong>
         <span>lifetime stars</span>
         {stats.balance !== stats.total && (
-          <small>{stats.balance} available to spend</small>
+          <small>{num(Math.max(0, stats.balance))} available to spend</small>
         )}
       </div>
     </div>
@@ -130,6 +162,8 @@ export default function Club({ state, childId, role, commit }) {
   const [alias, setAlias] = useState(profile.alias);
   const [optIn, setOptIn] = useState(profile.optIn);
   const [showQR, setShowQR] = useState(false);
+  const [fullLedger, setFullLedger] = useState(false);
+  const [fullRecords, setFullRecords] = useState(false);
   const tabsRef = useRef(null);
   useEffect(() => {
     // Keep the active tab visible when the strip scrolls horizontally on phones.
@@ -148,6 +182,8 @@ export default function Club({ state, childId, role, commit }) {
     setOptIn(profile.optIn);
     setRoster([childId]);
     setFeedback("");
+    setFullLedger(false);
+    setFullRecords(false);
   }, [childId]);
   const send = (action, message) => {
     const ok = commit({
@@ -175,6 +211,7 @@ export default function Club({ state, childId, role, commit }) {
     .filter((e) => e.childId === childId)
     .slice()
     .reverse();
+  const records = stats.events.slice().reverse();
   const pending = club.events
     .filter((e) => e.status === "pending")
     .sort(
@@ -193,14 +230,18 @@ export default function Club({ state, childId, role, commit }) {
     <div className="club">
       <div className="club-stats">
         {[
-          [stats.classes, "class stars"],
-          [stats.visits, "station stamps"],
-          [stats.days, "gym days"],
-          [stats.badges.filter((b) => b.earned).length, "milestone badges"],
-        ].map(([n, label]) => (
-          <article key={label}>
-            <strong>{n}</strong>
-            <b>{label}</b>
+          [stats.classes, "class star", "class stars"],
+          [stats.visits, "station stamp", "station stamps"],
+          [stats.days, "gym day", "gym days"],
+          [
+            stats.badges.filter((b) => b.earned).length,
+            "milestone badge",
+            "milestone badges",
+          ],
+        ].map(([n, one, many]) => (
+          <article key={many}>
+            <strong>{num(n)}</strong>
+            <b>{word(n, one, many)}</b>
           </article>
         ))}
       </div>
@@ -276,6 +317,11 @@ export default function Club({ state, childId, role, commit }) {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     placeholder="e.g. LAB-GRIP"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete="off"
+                    enterKeyHint="go"
                   />
                 </label>
                 <button className="button outline" type="submit">
@@ -304,7 +350,7 @@ export default function Club({ state, childId, role, commit }) {
               <h3>{next?.name ?? "A passport full of progress"}</h3>
               <p>
                 {next
-                  ? `${next.count} of ${next.target} ${next.unit}.`
+                  ? `${num(next.count)} of ${plural(next.target, next.unitOne, next.unit)}.`
                   : "You’ve earned every milestone. Keep exploring."}
               </p>
               {next && (
@@ -347,9 +393,15 @@ export default function Club({ state, childId, role, commit }) {
                 >
                   <h4>{s.name}</h4>
                   <strong>
-                    {visits} <span>tries</span>
+                    {num(visits)} <span>{word(visits, "try", "tries")}</span>
                   </strong>
-                  <small>{completions} trainer-confirmed completions</small>
+                  <small>
+                    {plural(
+                      completions,
+                      "trainer-confirmed completion",
+                      "trainer-confirmed completions",
+                    )}
+                  </small>
                 </button>
               );
             })}
@@ -368,9 +420,13 @@ export default function Club({ state, childId, role, commit }) {
                 <p>
                   {b.earned
                     ? "Earned"
-                    : `${Math.min(b.count, b.target)} / ${b.target} ${b.unit}`}
+                    : `${num(Math.min(b.count, b.target))} / ${plural(b.target, b.unitOne, b.unit)}`}
                 </p>
-                <small>{b.bonus ? `+${b.bonus} stars` : "First badge"}</small>
+                <small>
+                  {b.bonus
+                    ? `+${plural(b.bonus, "star", "stars")}`
+                    : "First badge"}
+                </small>
               </article>
             ))}
           </div>
@@ -381,29 +437,25 @@ export default function Club({ state, childId, role, commit }) {
                 Your first class star starts this story.
               </p>
             )}
-            {rows.map((e) => (
+            {(fullLedger ? rows : rows.slice(0, PAGE)).map((e) => (
               <div key={e.id}>
                 <span>
-                  <b>
-                    {e.kind === "class"
-                      ? "Class star"
-                      : e.kind === "praise"
-                        ? e.category
-                        : `${stations.find((s) => s.id === e.station)?.name} · ${e.kind === "visit" ? "I tried it" : "I completed it"}`}
-                  </b>
+                  <b>{eventLabel(e)}</b>
                   <small>
-                    {e.at.slice(0, 10)} · {e.status} {e.coach && `· ${e.coach}`}
+                    {date(e.at)} · {statusText[e.status]}
+                    {e.coach && ` · ${e.coach}`}
                   </small>
                   {e.note && <small>{e.note}</small>}
                   {e.reason && <small>Correction: {e.reason}</small>}
                 </span>
-                <b>
-                  {e.status === "approved"
-                    ? `+${{ class: 5, visit: 2, complete: 5, praise: 3 }[e.kind]}`
-                    : "—"}
-                </b>
+                <b>{e.status === "approved" ? `+${points[e.kind]}` : "—"}</b>
               </div>
             ))}
+            <ShowAll
+              total={rows.length}
+              open={fullLedger}
+              onOpen={() => setFullLedger(true)}
+            />
           </section>
         </>
       )}
@@ -412,7 +464,7 @@ export default function Club({ state, childId, role, commit }) {
           <section className="card club-panel">
             <h3>A fresh chance every week</h3>
             <p>
-              Week of {seasonKey()} · {profile.group}
+              Week of {dayLabel(seasonKey())} · {profile.group}
             </p>
             <p>
               Most completion days at a station earns its crown. Ties share the
@@ -433,6 +485,7 @@ export default function Club({ state, childId, role, commit }) {
                   Nickname on crown boards
                   <input
                     maxLength="24"
+                    autoComplete="off"
                     value={alias}
                     onChange={(e) => setAlias(e.target.value)}
                   />
@@ -476,7 +529,14 @@ export default function Club({ state, childId, role, commit }) {
                 {s.winners.length ? (
                   <>
                     <strong>{s.winners.map((w) => w.name).join(" & ")}</strong>
-                    <p>{s.winners[0].count} completion days this week</p>
+                    <p>
+                      {plural(
+                        s.winners[0].count,
+                        "completion day",
+                        "completion days",
+                      )}{" "}
+                      this week
+                    </p>
                   </>
                 ) : (
                   <>
@@ -492,11 +552,13 @@ export default function Club({ state, childId, role, commit }) {
       {tab === "Star rewards" && (
         <>
           <section className="card club-panel">
-            <h3>{stats.balance} stars to spend</h3>
+            <h3>
+              {plural(Math.max(0, stats.balance), "star", "stars")} to spend
+            </h3>
             <p>
-              {stats.skillPoints} from skill badges +{" "}
-              {stats.participationPoints} from participation and recognition +{" "}
-              {stats.milestonePoints} from milestones.
+              {num(stats.skillPoints)} from skill badges +{" "}
+              {num(stats.participationPoints)} from participation and
+              recognition + {num(stats.milestonePoints)} from milestones.
             </p>
             {stats.balance < 0 && (
               <p role="alert">
@@ -509,7 +571,7 @@ export default function Club({ state, childId, role, commit }) {
             {prizes.map((p) => (
               <article className="card club-panel" key={p.id}>
                 <h3>{p.name}</h3>
-                <strong>{p.cost} stars</strong>
+                <strong>{plural(p.cost, "star", "stars")}</strong>
                 <button
                   className="button navy"
                   disabled={role === "Athlete" || stats.balance < p.cost}
@@ -584,6 +646,9 @@ export default function Club({ state, childId, role, commit }) {
                 <input
                   value={coach}
                   onChange={(e) => setCoach(e.target.value)}
+                  maxLength="40"
+                  autoComplete="name"
+                  autoCapitalize="words"
                 />
               </label>
               <label>
@@ -736,7 +801,9 @@ export default function Club({ state, childId, role, commit }) {
                   {e.kind === "class"
                     ? "Class attendance"
                     : stations.find((s) => s.id === e.station)?.name}
-                  <small>{e.session}</small>
+                  <small>
+                    {sessionName(e.session)} · {date(e.at)}
+                  </small>
                 </span>
                 <button
                   className="button navy"
@@ -794,13 +861,19 @@ export default function Club({ state, childId, role, commit }) {
               <input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+                maxLength="200"
+                enterKeyHint="done"
               />
             </label>
-            {stats.events.map((e) => (
+            {!records.length && <p className="club-empty">No records yet.</p>}
+            {(fullRecords ? records : records.slice(0, PAGE)).map((e) => (
               <div className="club-claim" key={e.id}>
                 <span>
-                  {e.kind} · {e.category ?? e.station ?? "Class star"} ·{" "}
-                  {e.at.slice(0, 10)}
+                  {eventLabel(e)}
+                  <small>
+                    {date(e.at)}
+                    {e.coach && ` · ${e.coach}`}
+                  </small>
                 </span>
                 <button
                   className="button outline"
@@ -816,6 +889,11 @@ export default function Club({ state, childId, role, commit }) {
                 </button>
               </div>
             ))}
+            <ShowAll
+              total={records.length}
+              open={fullRecords}
+              onOpen={() => setFullRecords(true)}
+            />
           </details>
         </>
       )}

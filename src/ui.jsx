@@ -58,7 +58,7 @@ export function Meter({ value = 0, max = 1, color, label, className = "" }) {
       aria-valuemax={max}
       style={color ? { "--meter": color } : undefined}
     >
-      <span style={{ width: `${pct}%` }} />
+      <span style={{ transform: `scaleX(${pct / 100})` }} />
     </span>
   );
 }

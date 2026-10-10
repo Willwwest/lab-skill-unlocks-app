@@ -36,7 +36,7 @@
   mix-blend-mode: soft-light;
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .glare {
     transition: background-position 0.75s ease;
   }
@@ -87,7 +87,7 @@
   z-index: 1;
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   :hover > .badge-earned::after {
     background-position: 10% 10%;
   }
