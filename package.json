@@ -1,0 +1,27 @@
+{
+  "name": "lab-skill-unlocks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "node --test src/domain.test.js src/club.test.js",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:ui": "vitest run",
+    "dev:lan": "vite --host 0.0.0.0"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "jsdom": "^29.1.1",
+    "vite": "^7.2.0",
+    "vitest": "^4.1.11"
+  }
+}

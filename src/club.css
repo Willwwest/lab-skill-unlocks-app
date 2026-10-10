@@ -1,0 +1,617 @@
+.club {
+  display: grid;
+  gap: 20px;
+}
+
+.club h3 {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.club h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--navy);
+}
+
+.club p {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.club small {
+  display: block;
+}
+
+/* Hero */
+
+/* The star total is the hero's one big number: type, not a medallion. */
+.star-total {
+  display: grid;
+  gap: 6px;
+  text-align: right;
+}
+
+.star-total strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 88px;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  color: var(--gold);
+}
+
+.star-total span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.star-total small {
+  font-size: 13px;
+  color: #aeb5d8;
+}
+
+/* Stats */
+
+/* One stat strip with dividers instead of four floating tiles. */
+.club-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.club-stats article {
+  padding: 18px 22px;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.club-stats article + article {
+  border-left: 1px solid var(--line);
+}
+
+.club-stats strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--navy);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.club-stats b {
+  display: block;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.club-stats small {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Tabs */
+
+.club-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #e7eaf2;
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+.club-tabs button {
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-2);
+  transition: background 0.15s, color 0.15s;
+}
+
+.club-tabs button:hover {
+  color: var(--navy);
+}
+
+.club-tabs button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--navy);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Panels + forms */
+
+.club-two {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 16px;
+}
+
+.club-panel {
+  padding: 24px;
+  min-width: 0;
+}
+
+.club-panel h3 {
+  margin-bottom: 6px;
+}
+
+.club-panel label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 16px 0 10px;
+}
+
+.club input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--navy);
+}
+
+.club-panel label.club-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.club-panel fieldset {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 6px 14px 10px;
+  margin: 16px 0;
+}
+
+.club-panel legend {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-3);
+  padding: 0 6px;
+}
+
+.club .button {
+  white-space: normal;
+}
+
+.club-panel form {
+  margin: 12px 0;
+}
+
+.club-section-title {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.club-section-title > span {
+  color: var(--text-3);
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.club-hint {
+  font-size: 12px !important;
+  color: var(--text-3) !important;
+  margin: 12px 0 !important;
+}
+
+.club-milestone {
+  background: linear-gradient(180deg, #fff7e3, #fff 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 14px;
+}
+
+.club-milestone h3 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+.club progress {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--gold);
+}
+
+.club-callout {
+  background: #e3f4ee;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 16px;
+  color: #1d6b53;
+}
+
+.club-callout p {
+  font-size: 13px;
+  color: inherit;
+}
+
+/* Stations */
+
+.club-stations {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.club-stations button {
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  box-shadow: inset 4px 0 0 var(--station-color);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.club-stations button:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: inset 4px 0 0 var(--station-color), var(--shadow-md);
+}
+
+.club-stations b {
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.club-stations small {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.club-block-heading {
+  margin-top: 4px;
+}
+
+/* Milestones */
+
+.club-badges {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 40px;
+  padding: 6px 24px;
+}
+
+.club-badges article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-badges article:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.club-badges h4 {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.club-badges .meter {
+  grid-column: 1 / -1;
+}
+
+.club-badges p {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.club-badges small {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a5d00;
+}
+
+.club-badges article.earned p {
+  color: #1d6b53;
+  font-weight: 700;
+}
+
+/* Ledger */
+
+.club-ledger > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-ledger > div > span {
+  flex: 1;
+}
+
+.club-ledger > div > b {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--navy);
+}
+
+.club-ledger small {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 3px;
+}
+
+/* Crowns + prizes */
+
+.club-crowns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.club-crowns article {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.club-crowns strong {
+  font-size: 20px;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+
+.club-feedback {
+  background: #e3f4ee;
+  color: #1d6b53;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.club-praise {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.club-praise button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff7e3;
+  border: 1.5px solid #ffe7b0;
+  font-weight: 600;
+  color: var(--navy);
+  transition: border-color 0.15s;
+}
+
+.club-praise button:hover {
+  border-color: var(--gold);
+}
+
+.club-praise b {
+  margin-left: auto;
+  color: #9a6b00;
+}
+
+.club-claim {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.club-claim > span {
+  flex: 1;
+  min-width: 150px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.club-claim small {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+/* QR */
+
+.club-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.club-qr {
+  padding: 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.club-qr img {
+  max-width: 100%;
+  height: auto;
+}
+
+.club-qr strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--navy);
+}
+
+.club-qr a {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Rules */
+
+.club-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.club-rule-grid b {
+  display: block;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  color: var(--navy);
+}
+
+.club-rule-grid span {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.club summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.club details[open] summary {
+  margin-bottom: 10px;
+}
+
+.club-empty {
+  padding: 14px 0;
+  color: var(--text-3) !important;
+}
+
+.club-preferences {
+  max-width: 560px;
+}
+
+@media (max-width: 1080px) {
+  .club-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-stats article:nth-child(3) {
+    border-left: 0;
+  }
+
+  .club-stats article:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .club-stations {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .club-crowns,
+  .club-qr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .star-total {
+    text-align: left;
+  }
+
+  .club-panel {
+    padding: 18px;
+  }
+
+  .club-stations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-badges {
+    grid-template-columns: 1fr;
+    padding: 4px 18px;
+  }
+
+  .club-badges article:nth-last-child(2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .club-stats article {
+    padding: 14px 16px;
+  }
+
+  .club-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: none;
+  }
+
+  .club-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .club-tabs button {
+    padding: 9px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .club-crowns,
+  .club-qr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .club-rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-stations button {
+    padding: 14px;
+  }
+
+  .club-claim .button {
+    flex: 1;
+  }
+}

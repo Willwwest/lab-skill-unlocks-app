@@ -1,0 +1,332 @@
+[
+  {
+    "id": "S01",
+    "title": "First Crossing",
+    "criteria": "Traverse 2 distinct monkey-bar rungs after starting grip",
+    "tier": 1
+  },
+  {
+    "id": "S02",
+    "title": "Hang 10",
+    "criteria": "Approved bar hang for 10 seconds",
+    "tier": 1
+  },
+  {
+    "id": "S03",
+    "title": "Wall A: Catch",
+    "criteria": "WA-C rubric",
+    "tier": 1
+  },
+  {
+    "id": "S04",
+    "title": "Balance Crossing",
+    "criteria": "Complete designated beginner balance route with controlled finish",
+    "tier": 1
+  },
+  {
+    "id": "S05",
+    "title": "Step Explorer",
+    "criteria": "Complete designated stepping-stone/quad-step route",
+    "tier": 1
+  },
+  {
+    "id": "S06",
+    "title": "Quiet Landing",
+    "criteria": "Demonstrate approved ground-level landing task",
+    "tier": 1
+  },
+  {
+    "id": "S07",
+    "title": "First Roll",
+    "criteria": "Demonstrate coach-taught ground-level parkour roll on approved surface",
+    "tier": 1
+  },
+  {
+    "id": "S08",
+    "title": "First Basket",
+    "criteria": "Make one basket from named beginner marker",
+    "tier": 1
+  },
+  {
+    "id": "S09",
+    "title": "Ball Control",
+    "criteria": "10 controlled dribbles and controlled stop with approved ball",
+    "tier": 1
+  },
+  {
+    "id": "S10",
+    "title": "First Combination",
+    "criteria": "Complete approved 2-obstacle sequence with safe transitions",
+    "tier": 1
+  },
+  {
+    "id": "M01",
+    "title": "Four Across",
+    "criteria": "Traverse 4 distinct monkey-bar rungs",
+    "tier": 2
+  },
+  {
+    "id": "M02",
+    "title": "Hang 20",
+    "criteria": "Same approved hang variant for 20 seconds",
+    "tier": 2
+  },
+  {
+    "id": "M03",
+    "title": "Wall A: Top Out",
+    "criteria": "WA-T rubric",
+    "tier": 2
+  },
+  {
+    "id": "M04",
+    "title": "Wall B: Catch",
+    "criteria": "WB-C rubric",
+    "tier": 2
+  },
+  {
+    "id": "M05",
+    "title": "Ring Traveler",
+    "criteria": "Complete a defined 2-transfer ring route",
+    "tier": 2
+  },
+  {
+    "id": "M06",
+    "title": "Balance Builder",
+    "criteria": "Complete a second, approved more-demanding balance route",
+    "tier": 2
+  },
+  {
+    "id": "M07",
+    "title": "Net Navigator",
+    "criteria": "Complete approved cargo-net route, if installed",
+    "tier": 2
+  },
+  {
+    "id": "M08",
+    "title": "Precision Starter",
+    "criteria": "Complete specified low/ground precision-landing target",
+    "tier": 2
+  },
+  {
+    "id": "M09",
+    "title": "Roll in Motion",
+    "criteria": "Demonstrate approved low-risk movement-to-roll sequence",
+    "tier": 2
+  },
+  {
+    "id": "M10",
+    "title": "Two in a Row",
+    "criteria": "Make 2 consecutive baskets from named marker",
+    "tier": 2
+  },
+  {
+    "id": "M11",
+    "title": "Court Control",
+    "criteria": "Dribble through designated cone route and stop in control",
+    "tier": 2
+  },
+  {
+    "id": "M12",
+    "title": "Three Linked",
+    "criteria": "Complete approved 3-obstacle sequence",
+    "tier": 2
+  },
+  {
+    "id": "A01",
+    "title": "Six Across",
+    "criteria": "Traverse 6 distinct monkey-bar rungs",
+    "tier": 3
+  },
+  {
+    "id": "A02",
+    "title": "Ten Across",
+    "criteria": "Traverse 10 distinct monkey-bar rungs on defined route",
+    "tier": 3
+  },
+  {
+    "id": "A03",
+    "title": "Hang 30",
+    "criteria": "Same approved hang variant for 30 seconds",
+    "tier": 3
+  },
+  {
+    "id": "A04",
+    "title": "Wall B: Top Out",
+    "criteria": "WB-T rubric",
+    "tier": 3
+  },
+  {
+    "id": "A05",
+    "title": "Wall C: Catch",
+    "criteria": "WC-C rubric",
+    "tier": 3
+  },
+  {
+    "id": "A06",
+    "title": "Ring Crossing",
+    "criteria": "Complete defined 4-transfer ring route",
+    "tier": 3
+  },
+  {
+    "id": "A07",
+    "title": "Rope Route",
+    "criteria": "Reach designated rope-climb marker and descend per approved rubric",
+    "tier": 3
+  },
+  {
+    "id": "A08",
+    "title": "Balance Return",
+    "criteria": "Complete designated out-and-back balance route",
+    "tier": 3
+  },
+  {
+    "id": "A09",
+    "title": "Precision Pair",
+    "criteria": "Link 2 approved low precision targets with controlled finishes",
+    "tier": 3
+  },
+  {
+    "id": "A10",
+    "title": "Vault Unlock",
+    "criteria": "Demonstrate one specifically named coach-approved vault variation",
+    "tier": 3
+  },
+  {
+    "id": "A11",
+    "title": "Landing + Roll",
+    "criteria": "Demonstrate approved landing-to-roll sequence; no default drop height",
+    "tier": 3
+  },
+  {
+    "id": "A12",
+    "title": "Three at the Line",
+    "criteria": "Make 3 consecutive baskets from the configured free-throw line",
+    "tier": 3
+  },
+  {
+    "id": "A13",
+    "title": "Pass on Target",
+    "criteria": "Complete 5 accurate passes/catches with partner from named markers",
+    "tier": 3
+  },
+  {
+    "id": "A14",
+    "title": "Four Linked",
+    "criteria": "Complete approved 4-obstacle sequence",
+    "tier": 3
+  },
+  {
+    "id": "A15",
+    "title": "Route Choice",
+    "criteria": "Choose between approved routes, explain plan, and complete chosen route",
+    "tier": 3
+  },
+  {
+    "id": "X01",
+    "title": "Full Monkey-Bar Crossing",
+    "criteria": "Traverse entire identified installed route; record actual rung count",
+    "tier": 4
+  },
+  {
+    "id": "X02",
+    "title": "Hang 45",
+    "criteria": "Same approved hang variant for 45 seconds",
+    "tier": 4
+  },
+  {
+    "id": "X03",
+    "title": "Hang 60",
+    "criteria": "Same approved hang variant for 60 seconds",
+    "tier": 4
+  },
+  {
+    "id": "X04",
+    "title": "Wall C: Top Out",
+    "criteria": "WC-T rubric",
+    "tier": 4
+  },
+  {
+    "id": "X05",
+    "title": "Wall Repeat",
+    "criteria": "Repeat already-approved wall completion on two separate assessment dates",
+    "tier": 4
+  },
+  {
+    "id": "X06",
+    "title": "Full Ring Route",
+    "criteria": "Complete identified full ring route",
+    "tier": 4
+  },
+  {
+    "id": "X07",
+    "title": "Rope Progression",
+    "criteria": "Complete next approved rope route and descent",
+    "tier": 4
+  },
+  {
+    "id": "X08",
+    "title": "Traverse Unlock",
+    "criteria": "Complete specified peg-board OR hanging-door route, if installed/approved",
+    "tier": 4
+  },
+  {
+    "id": "X09",
+    "title": "Advanced Balance Route",
+    "criteria": "Complete distinct approved balance route with controlled finish",
+    "tier": 4
+  },
+  {
+    "id": "X10",
+    "title": "Precision Chain",
+    "criteria": "Complete 3 approved low precision targets",
+    "tier": 4
+  },
+  {
+    "id": "X11",
+    "title": "Vault Combination",
+    "criteria": "Link approved vault with controlled movement/landing sequence",
+    "tier": 4
+  },
+  {
+    "id": "X12",
+    "title": "Parkour Flow",
+    "criteria": "Complete coach-approved movement, landing and roll sequence; no mandatory height",
+    "tier": 4
+  },
+  {
+    "id": "X13",
+    "title": "Three from Beyond",
+    "criteria": "Make 3 consecutive baskets from a named marker beyond the configured free-throw line",
+    "tier": 4
+  },
+  {
+    "id": "X14",
+    "title": "Five at the Line",
+    "criteria": "Make 5 consecutive baskets from the configured free-throw line",
+    "tier": 4
+  },
+  {
+    "id": "X15",
+    "title": "Moving Shot",
+    "criteria": "Complete prescribed dribble-and-shot sequence for 3 successful repetitions",
+    "tier": 4
+  },
+  {
+    "id": "X16",
+    "title": "Five Linked",
+    "criteria": "Complete approved 5-obstacle sequence",
+    "tier": 4
+  },
+  {
+    "id": "X17",
+    "title": "Two Courses",
+    "criteria": "Complete 2 distinct coach-approved course layouts across assessment dates",
+    "tier": 4
+  },
+  {
+    "id": "X18",
+    "title": "Personal Project",
+    "criteria": "Complete a preapproved objectively defined skill project with signed rubric",
+    "tier": 4
+  }
+]
