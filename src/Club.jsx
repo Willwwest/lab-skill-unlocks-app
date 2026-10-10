@@ -159,7 +159,6 @@ export default function Club({ state, childId, role, commit }) {
     <div className="club">
       <section className="hero club-hero">
         <div className="hero-copy">
-          <span className="eyebrow">The LAB Clubhouse</span>
           <h2>
             Every try <em>counts here.</em>
           </h2>
@@ -178,19 +177,14 @@ export default function Club({ state, childId, role, commit }) {
       </section>
       <div className="card club-stats">
         {[
-          [stats.classes, "class stars", "Every confirmed class"],
-          [stats.visits, "station stamps", "Trying counts, too"],
-          [stats.days, "gym days", "Your own pace"],
-          [
-            stats.badges.filter((b) => b.earned).length,
-            "milestone badges",
-            "Little wins, big pride",
-          ],
-        ].map(([n, label, hint]) => (
+          [stats.classes, "class stars"],
+          [stats.visits, "station stamps"],
+          [stats.days, "gym days"],
+          [stats.badges.filter((b) => b.earned).length, "milestone badges"],
+        ].map(([n, label]) => (
           <article key={label}>
             <strong>{n}</strong>
             <b>{label}</b>
-            <small>{hint}</small>
           </article>
         ))}
       </div>
@@ -217,7 +211,6 @@ export default function Club({ state, childId, role, commit }) {
           <div className="club-two">
             <section className="card club-panel">
               <h3>Collect today’s stamps</h3>
-              <p>One class star. A stamp for each station you try.</p>
               <label>
                 Today’s class
                 <select
@@ -289,17 +282,13 @@ export default function Club({ state, childId, role, commit }) {
               <button className="button cyan" onClick={() => record("visit")}>
                 I tried this station · +2 stars
               </button>
-              <p className="club-hint">
-                You don’t have to finish it. Your trainer confirms
-                participation. Repeated scans in the same class count once.
-              </p>
             </section>
             <section className="card club-panel club-milestone">
               <span className="eyebrow">Your next little victory</span>
               <h3>{next?.name ?? "A passport full of progress"}</h3>
               <p>
                 {next
-                  ? `${next.count} of ${next.target} ${next.unit}. Keep going at your pace.`
+                  ? `${next.count} of ${next.target} ${next.unit}.`
                   : "You’ve earned every milestone. Keep exploring."}
               </p>
               {next && (
@@ -316,14 +305,13 @@ export default function Club({ state, childId, role, commit }) {
                   <b>100 tries. All heart.</b>
                   <br />
                   100 confirmed station check-ins earns a special badge and 100
-                  bonus stars—even if you’re still learning to finish.
+                  bonus stars.
                 </p>
               </div>
             </section>
           </div>
           <div className="club-section-title">
             <h3>Your station passport</h3>
-            <span>Every attempt belongs here.</span>
           </div>
           <div className="club-stations">
             {stations.map((s) => {
@@ -373,9 +361,6 @@ export default function Club({ state, childId, role, commit }) {
           </div>
           <section className="card club-panel club-ledger">
             <h3>{child.first}’s effort story</h3>
-            <p>
-              Parents can see the reason, trainer and status behind every star.
-            </p>
             {!rows.length && (
               <p className="club-empty">
                 Your first class star starts this story.
@@ -415,13 +400,8 @@ export default function Club({ state, childId, role, commit }) {
               Week of {seasonKey()} · {profile.group}
             </p>
             <p>
-              Most completion days at a station earns its crown. A trainer
-              verifies the task; one completion day per station counts each day.
-              Ties share the crown. Your stars and milestones are yours forever.
-            </p>
-            <p className="club-hint">
-              Competition is optional. Groups combine age and skill level. No
-              public full names or live location.
+              Most completion days at a station earns its crown. Ties share the
+              crown.
             </p>
             {role !== "Athlete" && (
               <form
@@ -435,7 +415,7 @@ export default function Club({ state, childId, role, commit }) {
                 }}
               >
                 <label>
-                  Display nickname
+                  Nickname on crown boards
                   <input
                     maxLength="24"
                     value={alias}
@@ -469,8 +449,7 @@ export default function Club({ state, childId, role, commit }) {
             )}
             {role === "Athlete" && !profile.optIn && (
               <p>
-                Ask your parent or trainer to join a crown challenge. Your
-                passport still grows either way.
+                Ask your parent or trainer to join a crown challenge.
               </p>
             )}
           </section>
@@ -504,10 +483,6 @@ export default function Club({ state, childId, role, commit }) {
               {stats.participationPoints} from participation and recognition +{" "}
               {stats.milestonePoints} from milestones.
             </p>
-            <p>
-              Spending stars never erases your lifetime total or badges. The
-              four tier shirts remain earned through their skill checklists.
-            </p>
             {stats.balance < 0 && (
               <p role="alert">
                 A corrected record affected your balance. A trainer needs to
@@ -540,7 +515,7 @@ export default function Club({ state, childId, role, commit }) {
           <section className="card club-panel">
             <h3>Your reward requests</h3>
             {!club.claims.some((r) => r.childId === childId) && (
-              <p>No requests yet. Your next reward is waiting.</p>
+              <p>No requests yet.</p>
             )}
             {club.claims
               .filter((r) => r.childId === childId)
@@ -676,10 +651,6 @@ export default function Club({ state, childId, role, commit }) {
               >
                 Give selected kids a class star
               </button>
-              <p className="club-hint">
-                Already-awarded kids are skipped. Confirm only children who
-                participated.
-              </p>
               <h4>Recognize {child.first}</h4>
               <div className="club-praise">
                 {shoutouts.map((s) => (
@@ -699,10 +670,7 @@ export default function Club({ state, childId, role, commit }) {
             </section>
             <section className="card club-panel">
               <h3>Celebrate a completed obstacle</h3>
-              <p>
-                Repeat completions build confidence and crown progress.
-                Skill-tier assessment stays in Coach desk.
-              </p>
+              <p>Skill-tier assessment stays in Coach desk.</p>
               <label>
                 Station
                 <select
@@ -732,24 +700,12 @@ export default function Club({ state, childId, role, commit }) {
                 Confirm completion · +5 stars
               </button>
               <p className="club-hint">
-                Once per station per class. Crown credit is limited to one
-                completion day per station per day.
+                Once per station per class.
               </p>
-              <div className="club-callout">
-                <p>
-                  <b>Effort is an achievement, too.</b>
-                  <br />
-                  Use “Kept trying” when a child works hard without finishing.
-                </p>
-              </div>
             </section>
           </div>
           <section className="card club-panel">
             <h3>Check-in requests · {pending.length}</h3>
-            <p>
-              Confirm attendance first, then the stations you saw each child
-              try.
-            </p>
             {!pending.length && (
               <p className="club-empty">
                 All caught up. New scans will land here.
@@ -792,14 +748,11 @@ export default function Club({ state, childId, role, commit }) {
           <section className="card club-panel">
             <h3>Station QR signs</h3>
             <p>
-              Codes open a station-specific check-in. They contain no child
-              identity. Shared kiosk/manual codes support kids without phones.
+              Codes open a station-specific check-in.
             </p>
             <p className="club-hint">
-              Local preview only: phone scans of 127.0.0.1 cannot reach this
-              computer. Use the same-device links or station codes here. Live
-              scanning needs a hosted app, member sign-in and shared server
-              records.
+              Scans record on the phone that scanned. This demo has no shared
+              server, so they won’t reach this screen.
             </p>
             <button
               className="button outline"
@@ -866,9 +819,7 @@ export default function Club({ state, childId, role, commit }) {
           ))}
         </div>
         <p>
-          Attendance never expires. Missing a week doesn’t erase progress. A
-          scan requests credit; a trainer confirms it. Skill shirts stay tied to
-          mastery.
+          A scan requests credit; a trainer confirms it.
         </p>
       </details>
     </div>

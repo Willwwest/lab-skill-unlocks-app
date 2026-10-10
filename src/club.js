@@ -271,7 +271,7 @@ export function applyClub(state, action, now = new Date()) {
       active.filter((e) => e.kind === "praise" && dayKey(e.at) === dayKey(now))
         .length >= 3
     )
-      throw Error("Three recognition awards per day keep stars balanced.");
+      throw Error("Three recognition awards per day is the limit.");
     if (
       (["complete", "praise"].includes(kind) ||
         (kind === "visit" && role === "Coach")) &&

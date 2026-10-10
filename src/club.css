@@ -144,6 +144,10 @@
   margin-bottom: 6px;
 }
 
+.club-panel h4 {
+  margin-top: 20px;
+}
+
 .club-panel label {
   display: grid;
   gap: 6px;

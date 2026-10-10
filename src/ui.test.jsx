@@ -81,7 +81,7 @@ describe("redesigned app interactions", () => {
       "Youth M",
     );
     await user.click(
-      screen.getByRole("button", { name: "Reserve demo shirt", exact: true }),
+      screen.getByRole("button", { name: "Reserve shirt", exact: true }),
     );
     expect(screen.getAllByText(/Reserved/).length).toBeGreaterThan(0);
   });

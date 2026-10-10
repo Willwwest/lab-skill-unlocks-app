@@ -58,10 +58,7 @@ const shortNames = {
   Activity: "Story",
 };
 const pageCopy = {
-  Clubhouse: [
-    "Clubhouse",
-    "Class stars, station stamps and little moments worth celebrating.",
-  ],
+  Clubhouse: ["Clubhouse"],
   Achievements: [
     "Achievements",
     "Every unlock is a real skill, verified by a coach.",
@@ -245,7 +242,7 @@ function App() {
   };
   const heroLead =
     remaining > 0
-      ? `${remaining} more ${remaining === 1 ? "skill" : "skills"} and the ${chapter.name} tee is yours. No clock. No comparison.`
+      ? `${remaining} more ${remaining === 1 ? "skill" : "skills"} and the ${chapter.name} tee is yours.`
       : "Every chapter complete. Keep exploring with your coaches.";
   const title = pageCopy[page];
   return (
@@ -324,11 +321,8 @@ function App() {
           <div className="page-head">
             <div>
               <h1>{title[0]}</h1>
-              <p>{title[1]}</p>
+              {title[1] && <p>{title[1]}</p>}
             </div>
-            {page === "Coach desk" && (
-              <span className="status status-practicing">Demo workspace</span>
-            )}
           </div>
         )}
         {page === "Activity" && (
@@ -466,14 +460,7 @@ function App() {
                     <small>of {chapterProgress.total}</small>
                   </Ring>
                 </div>
-                <p className="hero-reward-caption">
-                  The {chapter.name} tee
-                  <span>
-                    {remaining > 0
-                      ? `${remaining} ${remaining === 1 ? "skill" : "skills"} away`
-                      : "Earned"}
-                  </span>
-                </p>
+                <p className="hero-reward-caption">The {chapter.name} tee</p>
               </div>
             </section>
             <div className="overview">
@@ -489,7 +476,7 @@ function App() {
                   <strong>The {chapter.name} tee</strong>
                   <span className="sub">
                     {remaining > 0
-                      ? `${remaining} ${remaining === 1 ? "skill" : "skills"} away. Made for the ones who did it.`
+                      ? "Made for the ones who did it."
                       : "Earned. Made for the ones who did it."}
                   </span>
                   <button
@@ -532,7 +519,6 @@ function App() {
                 <h2>Your four chapters</h2>
                 <p>Each one earned through what you can do.</p>
               </div>
-              <span className="quiet-note">NO CLOCK. NO COMPARISON.</span>
             </div>
             <TierRail
               state={state}
@@ -610,7 +596,8 @@ function App() {
                   <h2>{active.name} achievements</h2>
                   <p>
                     {progress.count} of {progress.total} unlocked
-                    {tier > 1
+                    {tier > 1 &&
+                    !tierProgress(state, childId, tier - 1).complete
                       ? " · previous chapters required to earn this shirt"
                       : ""}
                   </p>
@@ -703,7 +690,7 @@ function App() {
                             onClick={() =>
                               commit(
                                 { type: "bonus", childId, bonusId: b.id },
-                                "Bonus added. Skill tier progress stays the same.",
+                                "Bonus added.",
                               )
                             }
                             className="text-button"
@@ -766,7 +753,8 @@ function App() {
                         {a.setup}
                       </p>
                       <span className="verified">
-                        Verified by {a.coach} · rubric v{a.version}
+                        Verified by {a.coach}
+                        {role === "Coach" && ` · rubric v${a.version}`}
                       </span>
                       {a.note && <p className="coach-note">{a.note}</p>}
                     </div>
@@ -879,7 +867,7 @@ function App() {
                 if (
                   commit(
                     { type: "revoke", id: correction.id, reason },
-                    "Record corrected. Related rewards were rechecked.",
+                    "Record corrected.",
                   )
                 )
                   setCorrection(null);
@@ -1235,10 +1223,6 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
         <strong>Sample setup</strong>
         <p>{skill.setup}</p>
       </div>
-      <p className="demo-detail">
-        Prototype rubric only. Real equipment dimensions, readiness, rest and
-        stop rules require qualified coach approval.
-      </p>
       {skill.prerequisites.length > 0 && (
         <div className="prerequisites">
           <strong>Build these skills first</strong>
@@ -1288,6 +1272,10 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
           <div className="form-divider" />
           <h3>Verify a demonstration</h3>
           <p className="subtle">Demo verifier: Coach Jordan</p>
+          <p className="demo-detail">
+            Prototype rubric only. Real equipment dimensions, readiness, rest
+            and stop rules require qualified coach approval.
+          </p>
           {skill.target && (
             <label className="field">
               Measured result ({skill.unit})
@@ -1357,7 +1345,7 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
                 if (
                   commit(
                     { type: "practice", childId: child.id, skillId: skill.id },
-                    "Practice recorded. No mastery badge awarded.",
+                    "Practice recorded.",
                   )
                 )
                   onClose();
@@ -1427,11 +1415,11 @@ function RewardControls({ reward, role, commit }) {
             onClick={() =>
               commit(
                 { type: "reward", id: reward.id, status: "Reserved", size },
-                "Demo shirt reserved. No order was placed.",
+                "Shirt reserved.",
               )
             }
           >
-            Reserve demo shirt
+            Reserve shirt
           </button>
         </>
       ) : (
