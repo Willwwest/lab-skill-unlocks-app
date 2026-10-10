@@ -47,6 +47,7 @@ import { clearPhotos } from "./media.js";
 import { familyOf } from "./roster.js";
 import { SkillAbout, SkillHero, SkillPath } from "./SkillDetail.jsx";
 import { firstStep } from "./paths.js";
+import { plain } from "./skillcopy.js";
 
 // Read on demand so tests (and in-app links) can change the URL.
 const params = { has: (k) => new URLSearchParams(window.location.search).has(k) };
@@ -1270,7 +1271,7 @@ function SkillCard({ skill, earned, eligible, state, childId, onClick }) {
           Tier {skill.tier} · {skill.category}
         </span>
         <h3>{skill.title}</h3>
-        <p>{skill.target ? formatResult(skill, skill.target) : skill.criteria}</p>
+        <p>{skill.target ? formatResult(skill, skill.target) : (plain[skill.id] ?? skill.criteria)}</p>
       </div>
     </button>
   );

@@ -317,7 +317,7 @@ export function KidPanel({ childId, ops, now, onClose }) {
               <span>
                 <b>{s.title}</b>
                 <small>
-                  {s.target ? formatResult(s, s.target) : s.criteria}
+                  {s.target ? formatResult(s, s.target) : (plain[s.id] ?? s.criteria)}
                   {goals.includes(s.id) ? " · Goal" : ""}
                 </small>
               </span>
