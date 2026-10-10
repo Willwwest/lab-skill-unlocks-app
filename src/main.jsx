@@ -28,16 +28,12 @@ import {
   tierProgress,
   isEligible,
 } from "./domain";
-import {
-  Badge,
-  Meter,
-  Ring,
-  ShirtImage,
-  categoryMeta,
-  skillNumber,
-} from "./ui.jsx";
+import { Badge, Meter, OutlineWords, Ring, ShirtImage, skillNumber } from "./ui.jsx";
+import DotField from "./DotField.jsx";
+import { CountUp, Glare, sparkFrom } from "./motion.jsx";
+import { MoveArt } from "./moves.jsx";
 import "./styles.css";
-import Club, { ClubSummary } from "./Club.jsx";
+import Club, { ClubHero, ClubSummary } from "./Club.jsx";
 import { applyClub, validClub, emptyClub } from "./club.js";
 
 // Nav icons only render in the phone bottom tab bar.
@@ -58,7 +54,6 @@ const shortNames = {
   Activity: "Story",
 };
 const pageCopy = {
-  Clubhouse: ["Clubhouse"],
   Achievements: [
     "Achievements",
     "Every unlock is a real skill, verified by a coach.",
@@ -66,10 +61,6 @@ const pageCopy = {
   "Coach desk": [
     "Coach desk",
     "Observe the skill. Celebrate the progress. Keep it specific.",
-  ],
-  Rewards: [
-    "Rewards",
-    "Four chapters. Four exclusive shirts. Earned, never given.",
   ],
 };
 const date = (at) =>
@@ -128,6 +119,9 @@ function App() {
   const [reason, setReason] = useState("");
   const [resetOpen, setResetOpen] = useState(false);
   const [toastError, setToastError] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [rewardFocus, setRewardFocus] = useState(() => focusTier(state, "theo"));
+  const [rewardView, setRewardView] = useState("front");
   const child = people.find((p) => p.id === childId);
   const earned = new Set(earnedIds(state, childId));
   const current = currentTier(state, childId);
@@ -147,6 +141,12 @@ function App() {
       );
     }
   }, [state]);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => notify(""), 4500);
@@ -170,6 +170,8 @@ function App() {
   function chooseChild(id) {
     setChildId(id);
     setTier(currentTier(state, id));
+    setRewardFocus(focusTier(state, id));
+    setRewardView("front");
     setSelected(null);
   }
   const nav =
@@ -245,146 +247,135 @@ function App() {
       ? `${remaining} more ${remaining === 1 ? "skill" : "skills"} and the ${chapter.name} tee is yours.`
       : "Every chapter complete. Keep exploring with your coaches.";
   const title = pageCopy[page];
+  const exportProgress = () => {
+    const payload = {
+      athlete: child.name,
+      participation: (state.club?.events ?? []).filter(
+        (e) => e.childId === childId,
+      ),
+      starRewards: (state.club?.claims ?? []).filter(
+        (e) => e.childId === childId,
+      ),
+      awards: state.awards.filter((a) => a.childId === childId),
+      bonuses: state.bonusAwards.filter((a) => a.childId === childId),
+      rewards: state.rewards.filter((r) => r.childId === childId),
+    };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lab-${childId}-progress.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify("Progress exported.");
+  };
+  const exploreTier = (id) => {
+    setTier(id);
+    navigate("Achievements");
+  };
+  const mastheadKind =
+    page === "My journey"
+      ? "home"
+      : page === "Rewards"
+        ? "rewards"
+        : page === "Clubhouse"
+          ? "club"
+          : "page";
   return (
     <div className="app">
-      <header className="appbar">
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("My journey");
-          }}
-        >
-          <img src={`${import.meta.env.BASE_URL}lab-white.svg`} alt="The LAB — Learn. Adapt. Build." />
-        </a>
-        <nav className="primary-nav" aria-label="Main navigation">
-          {nav.map((n) => {
-            const Icon = navIcons[n];
-            return (
-              <button
-                className={page === n ? "nav-item active" : "nav-item"}
-                key={n}
-                onClick={() => navigate(n)}
-                aria-current={page === n ? "page" : undefined}
-                title={n}
+      <header className={`appbar ${scrolled ? "is-scrolled" : ""}`.trim()}>
+        <div className="appbar-inner">
+          <a
+            className="brand"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("My journey");
+            }}
+          >
+            <img
+              src={`${import.meta.env.BASE_URL}lab-white.svg`}
+              alt="The LAB — Learn. Adapt. Build."
+            />
+          </a>
+          <nav className="primary-nav" aria-label="Main navigation">
+            {nav.map((n) => {
+              const Icon = navIcons[n];
+              return (
+                <button
+                  className={page === n ? "nav-item active" : "nav-item"}
+                  key={n}
+                  onClick={() => navigate(n)}
+                  aria-current={page === n ? "page" : undefined}
+                  title={n}
+                >
+                  <span className="nav-icon">
+                    <Icon size={18} />
+                  </span>
+                  <span className="nav-label">{n}</span>
+                  <span className="nav-short" aria-hidden="true">
+                    {shortNames[n]}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="appbar-controls">
+            <label className="chip-select athlete-chip">
+              <span className="avatar" style={{ background: child.color }}>
+                {child.initials}
+              </span>
+              <select
+                aria-label="Select athlete"
+                value={childId}
+                onChange={(e) => chooseChild(e.target.value)}
               >
-                <span className="nav-icon">
-                  <Icon size={18} />
-                </span>
-                <span className="nav-label">{n}</span>
-                <span className="nav-short" aria-hidden="true">
-                  {shortNames[n]}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="appbar-controls">
-          <label className="chip-select athlete-chip">
-            <span className="avatar" style={{ background: child.color }}>
-              {child.initials}
-            </span>
-            <select
-              aria-label="Select athlete"
-              value={childId}
-              onChange={(e) => chooseChild(e.target.value)}
-            >
-              {people.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.first}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="caret" />
-          </label>
-          <label className="chip-select role-chip">
-            <span className="sr-only">Demo view</span>
-            <select
-              aria-label="Demo view"
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value);
-                if (page === "Coach desk") setPage("My journey");
-              }}
-            >
-              {["Athlete", "Parent", "Coach"].map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="caret" />
-          </label>
-        </div>
-      </header>
-      <main>
-        {title && (
-          <div className="page-head">
-            <div>
-              <h1>{title[0]}</h1>
-              {title[1] && <p>{title[1]}</p>}
-            </div>
-          </div>
-        )}
-        {page === "Activity" && (
-          <div className="page-head">
-            <div>
-              <h1>{child.first}’s skill story</h1>
-              <p>What happened, when, and who saw it.</p>
-            </div>
-            <div className="page-head-actions">
-              <button
-                className="button outline compact"
-                onClick={() => {
-                  const payload = {
-                    athlete: child.name,
-                    participation: (state.club?.events ?? []).filter(
-                      (e) => e.childId === childId,
-                    ),
-                    starRewards: (state.club?.claims ?? []).filter(
-                      (e) => e.childId === childId,
-                    ),
-                    awards: state.awards.filter((a) => a.childId === childId),
-                    bonuses: state.bonusAwards.filter(
-                      (a) => a.childId === childId,
-                    ),
-                    rewards: state.rewards.filter(
-                      (r) => r.childId === childId,
-                    ),
-                  };
-                  const url = URL.createObjectURL(
-                    new Blob([JSON.stringify(payload, null, 2)], {
-                      type: "application/json",
-                    }),
-                  );
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `lab-${childId}-progress.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  notify("Progress exported.");
+                {people.map((p) => (
+                  <option value={p.id} key={p.id}>
+                    {p.first}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="caret" />
+            </label>
+            <label className="chip-select role-chip">
+              <span className="sr-only">Demo view</span>
+              <select
+                aria-label="Demo view"
+                value={role}
+                onChange={(e) => {
+                  setRole(e.target.value);
+                  if (page === "Coach desk") setPage("My journey");
                 }}
               >
-                Export JSON
-              </button>
-            </div>
+                {["Athlete", "Parent", "Coach"].map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="caret" />
+            </label>
           </div>
-        )}
-        {saveError && (
-          <div role="alert" className="warning">
-            {saveError}
-          </div>
-        )}
-        {page === "Clubhouse" && (
-          <Club
-            state={state}
-            childId={childId}
-            role={role}
-            commit={clubCommit}
-          />
-        )}
-        {page === "My journey" && (
-          <>
-            <section className="hero" style={{ "--tier-color": chapter.color }}>
+        </div>
+      </header>
+      <section
+        className={`masthead masthead-${mastheadKind}`}
+        style={{
+          "--tier-color":
+            page === "Rewards"
+              ? tiers[rewardFocus - 1].color
+              : chapter.color,
+        }}
+      >
+        <div className="masthead-art" aria-hidden="true">
+          <DotField />
+          <OutlineWords />
+        </div>
+        <div className="masthead-inner">
+          {page === "My journey" && (
+            <div className="hero">
               <div className="hero-copy">
                 <span className="eyebrow">
                   Chapter {current} · {chapter.name}
@@ -404,115 +395,150 @@ function App() {
                 <div className="hero-actions">
                   <button
                     className="button cyan"
-                    onClick={() => {
-                      setTier(current);
-                      navigate("Achievements");
-                    }}
+                    onClick={() => exploreTier(current)}
                   >
                     Explore my next skills
                   </button>
                   <button
-                    className="button ghost"
+                    className="button mint"
                     onClick={() => navigate("Rewards")}
                   >
                     See the shirts
                   </button>
                 </div>
-                <div className="hero-stats">
-                  <div>
-                    <strong>
-                      {total}
-                      <small>/ {catalog.length}</small>
-                    </strong>
-                    <span>skills unlocked</span>
-                  </div>
-                  <div>
-                    <strong>
-                      {chaptersDone}
-                      <small>/ 4</small>
-                    </strong>
-                    <span>chapters complete</span>
-                  </div>
-                  <div>
-                    <strong>{ready}</strong>
-                    <span>ready to explore</span>
-                  </div>
-                </div>
               </div>
               <div className="hero-reward">
-                <div className="hero-reward-art">
-                  <ShirtImage
-                    tier={current}
-                    view="front"
-                    className="hero-shirt"
-                    alt={`The ${chapter.name} tee, the tier ${current} shirt`}
-                    eager
-                  />
+                <ShirtImage
+                  tier={current}
+                  view="front"
+                  className="hero-shirt"
+                  alt={`The ${chapter.name} tee, the tier ${current} shirt`}
+                  eager
+                />
+                <div className="hero-ring">
                   <Ring
                     value={chapterProgress.count}
                     max={chapterProgress.total}
-                    size={100}
-                    stroke={9}
-                    color={chapter.color}
-                    track="rgba(255,255,255,0.14)"
+                    size={104}
+                    stroke={8}
+                    color="var(--cyan)"
+                    track="rgba(255,255,255,0.16)"
                   >
-                    <strong>{chapterProgress.count}</strong>
+                    <strong>
+                      <CountUp value={chapterProgress.count} />
+                    </strong>
                     <small>of {chapterProgress.total}</small>
                   </Ring>
+                  <p>
+                    <b>The {chapter.name} tee</b>
+                    <span>
+                      {remaining > 0
+                        ? `${remaining} ${remaining === 1 ? "skill" : "skills"} to go`
+                        : "Earned"}
+                    </span>
+                  </p>
                 </div>
-                <p className="hero-reward-caption">The {chapter.name} tee</p>
               </div>
-            </section>
-            <div className="overview">
-              <section className="card overview-card">
-                <ShirtImage
-                  tier={current}
-                  view="back"
-                  className="overview-shirt"
-                  alt=""
-                />
+            </div>
+          )}
+          {page === "Clubhouse" && <ClubHero state={state} childId={childId} />}
+          {page === "Rewards" && (
+            <RewardStage
+              state={state}
+              childId={childId}
+              role={role}
+              commit={commit}
+              focus={rewardFocus}
+              view={rewardView}
+              setView={setRewardView}
+              onExplore={exploreTier}
+            />
+          )}
+          {title && (
+            <>
+              <div className="page-head">
                 <div>
-                  <span className="eyebrow">Next reward</span>
-                  <strong>The {chapter.name} tee</strong>
-                  <span className="sub">
-                    {remaining > 0
-                      ? "Made for the ones who did it."
-                      : "Earned. Made for the ones who did it."}
-                  </span>
-                  <button
-                    className="text-button"
-                    onClick={() => navigate("Rewards")}
-                  >
-                    See rewards <ArrowRight size={14} />
-                  </button>
+                  <h1>{title[0]}</h1>
+                  <p>{title[1]}</p>
                 </div>
+              </div>
+              <TierRail
+                state={state}
+                childId={childId}
+                selected={tier}
+                onSelect={setTier}
+              />
+            </>
+          )}
+          {page === "Activity" && (
+            <div className="page-head">
+              <div>
+                <span className="eyebrow">Activity</span>
+                <h1>{child.first}’s skill story</h1>
+                <p>What happened, when, and who saw it.</p>
+              </div>
+              <div className="page-head-actions">
+                <button className="button mint compact" onClick={exportProgress}>
+                  Export JSON
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+      <main>
+        {saveError && (
+          <div role="alert" className="warning">
+            {saveError}
+          </div>
+        )}
+        {page === "Clubhouse" && (
+          <Club
+            state={state}
+            childId={childId}
+            role={role}
+            commit={clubCommit}
+          />
+        )}
+        {page === "My journey" && (
+          <>
+            <div className="stat-strip">
+              <section className="stat-tile tile-sky">
+                <span className="eyebrow">Skills</span>
+                <strong className="stat-value">
+                  <CountUp value={total} />
+                  <small>/ {catalog.length}</small>
+                </strong>
+                <b>skills unlocked</b>
+                <small>
+                  {ready} ready to explore · {chaptersDone} of 4 chapters
+                  complete
+                </small>
               </section>
               <ClubSummary
                 state={state}
                 childId={childId}
                 onOpen={() => navigate("Clubhouse")}
               />
-              <section className="card overview-card">
-                <div>
-                  <span className="eyebrow">Latest unlock</span>
-                  <strong>
-                    {recent.length
-                      ? catalog.find((s) => s.id === recent[0].skillId).title
-                      : "Your first “I did it” is ahead."}
-                  </strong>
-                  <span className="sub">
-                    {recent.length
-                      ? `${recent[0].coach} verified this on ${date(recent[0].at)}.`
-                      : "Choose a skill with your coach to get started."}
-                  </span>
-                  <button
-                    className="text-button"
-                    onClick={() => navigate("Activity")}
-                  >
-                    Your timeline <ArrowRight size={14} />
-                  </button>
-                </div>
-              </section>
+              <button
+                className="stat-tile tile-lime"
+                onClick={() => navigate("Activity")}
+              >
+                <span className="eyebrow">Latest unlock</span>
+                <strong className="stat-title">
+                  {recent.length
+                    ? catalog.find((s) => s.id === recent[0].skillId).title
+                    : "Your first “I did it” is ahead."}
+                </strong>
+                <small>
+                  {recent.length
+                    ? `${recent[0].coach} verified this on ${date(recent[0].at)}.`
+                    : "Choose a skill with your coach to get started."}
+                </small>
+                <span className="text-button">
+                  Your timeline <ArrowRight size={14} />
+                </span>
+              </button>
             </div>
             <div className="section-heading">
               <div>
@@ -524,10 +550,7 @@ function App() {
               state={state}
               childId={childId}
               selected={tier}
-              onSelect={(id) => {
-                setTier(id);
-                navigate("Achievements");
-              }}
+              onSelect={exploreTier}
             />
             <div className="section-heading">
               <div>
@@ -540,10 +563,7 @@ function App() {
               </div>
               <button
                 className="text-button"
-                onClick={() => {
-                  setTier(current);
-                  navigate("Achievements");
-                }}
+                onClick={() => exploreTier(current)}
               >
                 All achievements <ArrowRight size={16} />
               </button>
@@ -583,12 +603,6 @@ function App() {
                 </div>
               </div>
             )}
-            <TierRail
-              state={state}
-              childId={childId}
-              selected={tier}
-              onSelect={setTier}
-            />
             <section className="catalog-head">
               <div className="catalog-title">
                 <div>
@@ -678,31 +692,33 @@ function App() {
                   );
                   return (
                     <div
-                      className={`card bonus-card ${done ? "done" : ""}`}
+                      className={`bonus-card ${done ? "done" : ""}`}
                       key={b.id}
                     >
-                      <div>
-                        <h3>{b.title}</h3>
-                        <p>{b.criteria}</p>
-                        {role === "Coach" ? (
-                          <button
-                            disabled={done}
-                            onClick={() =>
+                      <h3>{b.title}</h3>
+                      <p>{b.criteria}</p>
+                      {role === "Coach" ? (
+                        <button
+                          disabled={done}
+                          onClick={(e) => {
+                            const el = e.currentTarget;
+                            if (
                               commit(
                                 { type: "bonus", childId, bonusId: b.id },
                                 "Bonus added.",
                               )
-                            }
-                            className="text-button"
-                          >
-                            {done ? "Earned" : "Verify bonus"}
-                          </button>
-                        ) : (
-                          <span className={done ? "status status-earned" : "subtle"}>
-                            {done ? "Earned" : "Explore with your coach"}
-                          </span>
-                        )}
-                      </div>
+                            )
+                              sparkFrom(el);
+                          }}
+                          className="text-button"
+                        >
+                          {done ? "Earned" : "Verify bonus"}
+                        </button>
+                      ) : (
+                        <span className={done ? "status status-earned" : "subtle"}>
+                          {done ? "Earned" : "Explore with your coach"}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -712,14 +728,13 @@ function App() {
         )}
         {page === "Rewards" && (
           <>
-            <RewardsShowcase
+            <RewardCollection
               state={state}
               childId={childId}
-              role={role}
-              commit={commit}
-              onExplore={(id) => {
-                setTier(id);
-                navigate("Achievements");
+              focus={rewardFocus}
+              onFocus={(id) => {
+                setRewardFocus(id);
+                setRewardView("front");
               }}
             />
             <p className="fulfillment-note">
@@ -736,7 +751,6 @@ function App() {
                 return (
                   <article className="timeline-item" key={a.id}>
                     <Badge
-                      category={s.category}
                       label={skillNumber(s.id)}
                       state="earned"
                       className="badge-sm"
@@ -792,19 +806,31 @@ function App() {
           </section>
         )}
       </main>
-      <footer>
-        <span>
-          THE LAB <b>·</b> LEARN. ADAPT. BUILD.
-        </span>
-        <span>
-          Synthetic demo data · saved on this browser only
-          <button
-            onClick={() => setResetOpen(true)}
-            aria-label="Reset demo data"
-          >
-            Reset
-          </button>
-        </span>
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <img
+              src={`${import.meta.env.BASE_URL}lab-white.svg`}
+              alt="The LAB"
+            />
+            <p>Stronger kids. Closer families. Every day.</p>
+          </div>
+          <div className="footer-meta">
+            <span>Synthetic demo data · saved on this browser only</span>
+            <button
+              onClick={() => setResetOpen(true)}
+              aria-label="Reset demo data"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+        <img
+          className="footer-watermark"
+          src={`${import.meta.env.BASE_URL}lab-white.svg`}
+          alt=""
+          aria-hidden="true"
+        />
       </footer>
       {selected && (
         <SkillDialog
@@ -898,29 +924,31 @@ function focusTier(state, childId) {
   );
   return open ? open.tier : currentTier(state, childId);
 }
-function RewardsShowcase({ state, childId, role, commit, onExplore }) {
-  const [focus, setFocus] = useState(() => focusTier(state, childId));
-  const [view, setView] = useState("front");
-  useEffect(() => {
-    setFocus(focusTier(state, childId));
-    setView("front");
-  }, [childId]);
-  const status = (t) => {
-    const p = tierProgress(state, childId, t.id);
-    const reward = state.rewards.find(
-      (r) => r.childId === childId && r.tier === t.id,
-    );
-    const locked =
-      t.id > 1 && !tierProgress(state, childId, t.id - 1).complete;
-    return {
-      p,
-      reward,
-      locked,
-      name: reward && !reward.review ? "earned" : locked ? "locked" : "progress",
-    };
+function rewardStatus(state, childId, t) {
+  const p = tierProgress(state, childId, t.id);
+  const reward = state.rewards.find(
+    (r) => r.childId === childId && r.tier === t.id,
+  );
+  const locked = t.id > 1 && !tierProgress(state, childId, t.id - 1).complete;
+  return {
+    p,
+    reward,
+    locked,
+    name: reward && !reward.review ? "earned" : locked ? "locked" : "progress",
   };
+}
+function RewardStage({
+  state,
+  childId,
+  role,
+  commit,
+  focus,
+  view,
+  setView,
+  onExplore,
+}) {
   const t = tiers[focus - 1];
-  const { p, reward, locked, name } = status(t);
+  const { p, reward, locked, name } = rewardStatus(state, childId, t);
   const remaining = p.total - p.count;
   const lead = reward?.review
     ? "A corrected record put this shirt under review. A coach will recheck it."
@@ -932,96 +960,97 @@ function RewardsShowcase({ state, childId, role, commit, onExplore }) {
           ? "One more skill. Then it’s yours."
           : `${remaining} more skills. Then it’s yours.`;
   return (
-    <section className="trophy-case">
-      <div
-        className="stage"
-        style={{ "--tier-color": t.color }}
-        data-state={name}
-      >
-        <div className="stage-art">
-          <span className="stage-glow" />
-          <span className="stage-number" aria-hidden="true">
-            0{t.id}
-          </span>
-          <ShirtImage tier={t.id} view={view} className="stage-shirt" eager />
-          <div className="stage-flip" role="group" aria-label="Shirt view">
-            <button
-              aria-pressed={view === "front"}
-              onClick={() => setView("front")}
-            >
-              Front
-            </button>
-            <button
-              aria-pressed={view === "back"}
-              onClick={() => setView("back")}
-            >
-              Back
-            </button>
+    <div className="stage" data-state={name}>
+      <div className="stage-copy">
+        <h1 className="eyebrow">Rewards</h1>
+        <span className="stage-kicker">
+          Tier {t.id} ·{" "}
+          {reward
+            ? reward.review
+              ? "Under review"
+              : reward.status
+            : locked
+              ? "Locked"
+              : "In progress"}
+        </span>
+        <h2 className={name === "earned" ? "shiny" : undefined}>
+          The {t.name} tee
+        </h2>
+        <p className="stage-word">{t.word}</p>
+        <p className="stage-lead">{lead}</p>
+        <div className="stage-progress">
+          <div>
+            <b>
+              {p.count} of {p.total} skills
+            </b>
+            <span>
+              {p.complete ? "Chapter complete" : `in the ${t.name} chapter`}
+            </span>
           </div>
+          <Meter
+            value={p.count}
+            max={p.total}
+            color={t.color}
+            label={`${t.name} chapter progress`}
+            className="on-dark"
+          />
         </div>
-        <div className="stage-copy">
-          <span className="eyebrow">
-            Tier {t.id} ·{" "}
-            {reward
-              ? reward.review
-                ? "Under review"
-                : reward.status
-              : locked
-                ? "Locked"
-                : "In progress"}
-          </span>
-          <h2>The {t.name} tee</h2>
-          <p className="stage-word">{t.word}</p>
-          <p className="stage-lead">{lead}</p>
-          <div className="stage-progress">
-            <div>
-              <b>
-                {p.count} of {p.total} skills
-              </b>
-              <span>
-                {p.complete ? "Chapter complete" : `in the ${t.name} chapter`}
-              </span>
-            </div>
-            <Meter
-              value={p.count}
-              max={p.total}
-              color={t.color}
-              label={`${t.name} chapter progress`}
-              className="on-dark"
-            />
+        {reward && !reward.review ? (
+          <RewardControls reward={reward} role={role} commit={commit} />
+        ) : (
+          <div className="stage-actions">
+            <button className="button cyan" onClick={() => onExplore(t.id)}>
+              {locked ? `Explore ${t.name} skills` : "Explore this chapter"}
+            </button>
           </div>
-          {reward && !reward.review ? (
-            <RewardControls reward={reward} role={role} commit={commit} />
-          ) : (
-            <div className="stage-actions">
-              <button className="button cyan" onClick={() => onExplore(t.id)}>
-                {locked ? `Explore ${t.name} skills` : "Explore this chapter"}
-              </button>
-            </div>
-          )}
-          <p className="stage-specs">
-            Youth athletic crewneck · Two-color screen print · {t.id}-stripe
-            sleeve rank · Earned, never sold
-          </p>
+        )}
+      </div>
+      <div className="stage-art">
+        <ShirtImage tier={t.id} view={view} className="stage-shirt" eager />
+        <div className="stage-flip" role="group" aria-label="Shirt view">
+          <button
+            aria-pressed={view === "front"}
+            onClick={() => setView("front")}
+          >
+            Front
+          </button>
+          <button
+            aria-pressed={view === "back"}
+            onClick={() => setView("back")}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function RewardCollection({ state, childId, focus, onFocus }) {
+  return (
+    <section className="collection-section">
+      <div className="section-heading">
+        <div>
+          <h2>The collection</h2>
+          <p>Four chapters. Four exclusive shirts. Earned, never given.</p>
         </div>
       </div>
       <div className="collection" role="group" aria-label="Shirt collection">
         {tiers.map((c) => {
-          const s = status(c);
+          const s = rewardStatus(state, childId, c);
           return (
             <button
               key={c.id}
               className={`collection-card ${s.name} ${focus === c.id ? "selected" : ""}`}
               style={{ "--tier-color": c.color }}
               aria-pressed={focus === c.id}
-              onClick={() => {
-                setFocus(c.id);
-                setView("front");
-              }}
+              onClick={() => onFocus(c.id)}
             >
-              <span className="collection-number" aria-hidden="true">
-                0{c.id}
-              </span>
+              {s.name === "earned" && (
+                <Glare
+                  once={focus === c.id}
+                  key={focus === c.id ? "focus" : "rest"}
+                />
+              )}
               <ShirtImage
                 tier={c.id}
                 view="front"
@@ -1029,6 +1058,7 @@ function RewardsShowcase({ state, childId, role, commit, onExplore }) {
                 eager
               />
               <span className="collection-meta">
+                <span className="collection-number">TIER 0{c.id}</span>
                 <strong>{c.name}</strong>
                 <span>
                   {s.reward
@@ -1046,9 +1076,14 @@ function RewardsShowcase({ state, childId, role, commit, onExplore }) {
           );
         })}
       </div>
+      <p className="stage-specs">
+        Youth athletic crewneck · Two-color screen print · Sleeve stripes mark
+        the tier · Earned, never sold
+      </p>
     </section>
   );
 }
+
 function TierRail({ state, childId, selected, onSelect }) {
   return (
     <div className="tier-rail">
@@ -1080,15 +1115,10 @@ function TierRail({ state, childId, selected, onSelect }) {
 }
 function SkillCard({ skill, earned, eligible, state, childId, onClick }) {
   const status = skillStatus(state, childId, skill, earned, eligible);
-  const meta = categoryMeta[skill.category] ?? categoryMeta["Course skills"];
   return (
-    <button
-      className={`skill-card state-${status}`}
-      style={{ "--cat": meta.color }}
-      onClick={onClick}
-    >
+    <button className={`skill-card state-${status}`} onClick={onClick}>
+      <MoveArt skillId={skill.id} />
       <Badge
-        category={skill.category}
         label={skillNumber(skill.id)}
         state={earned ? "earned" : eligible ? "open" : "locked"}
       />
@@ -1197,7 +1227,11 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
     };
     try {
       apply(state, action);
-      if (commit(action, `${child.first} unlocked ${skill.title}!`)) onClose();
+      const from = e.nativeEvent.submitter ?? e.currentTarget;
+      if (commit(action, `${child.first} unlocked ${skill.title}!`)) {
+        sparkFrom(from, { count: 16, radius: 84, size: 20 });
+        onClose();
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -1206,7 +1240,6 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
     <Modal title={skill.title} onClose={onClose}>
       <div className="dialog-head">
         <Badge
-          category={skill.category}
           label={skillNumber(skill.id)}
           state={earned ? "earned" : eligible ? "open" : "locked"}
           className="badge-lg"
@@ -1258,7 +1291,7 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
       {earned ? (
         <div className="earned-proof">
           <div>
-            <strong>Unlocked by {child.first}</strong>
+            <strong className="shiny">Unlocked by {child.first}</strong>
             <p>
               {award.coach} · {date(award.at)}
               {typeof award.value === "number"

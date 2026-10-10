@@ -14,7 +14,8 @@ import {
   seasonKey,
   stationFromInput,
 } from "./club.js";
-import { Meter, stationMeta } from "./ui.jsx";
+import { Meter } from "./ui.jsx";
+import { CountUp, sparkFrom } from "./motion.jsx";
 import "./club.css";
 
 function QRCard({ station }) {
@@ -62,18 +63,46 @@ function QRCard({ station }) {
 export function ClubSummary({ state, childId, onOpen }) {
   const stats = clubStats(state, childId);
   return (
-    <button className="card overview-card club-summary" onClick={onOpen}>
-      <span className="overview-body">
-        <span className="eyebrow">Clubhouse</span>
-        <b>{stats.total} lifetime stars</b>
-        <small>
-          {stats.classes} classes · {stats.visits} station check-ins
-        </small>
-        <span className="text-button">
-          Open Clubhouse <ArrowRight size={14} />
-        </span>
+    <button className="stat-tile tile-mint club-summary" onClick={onOpen}>
+      <span className="eyebrow">Clubhouse</span>
+      <strong className="stat-value">
+        <CountUp value={stats.total} />
+      </strong>
+      <b>lifetime stars</b>
+      <small>
+        {stats.classes} classes · {stats.visits} station check-ins
+      </small>
+      <span className="text-button">
+        Open Clubhouse <ArrowRight size={14} />
       </span>
     </button>
+  );
+}
+
+export function ClubHero({ state, childId }) {
+  const stats = clubStats(state, childId);
+  return (
+    <div className="hero club-hero">
+      <div className="hero-copy">
+        <h1 className="eyebrow">Clubhouse</h1>
+        <h2>
+          Every try <em>counts here.</em>
+        </h2>
+        <p className="lead">
+          Show up. Try something brave. Cheer someone on. There’s more than one
+          way to be a ninja.
+        </p>
+      </div>
+      <div className="star-total">
+        <strong>
+          <CountUp value={stats.total} />
+        </strong>
+        <span>lifetime stars</span>
+        {stats.balance !== stats.total && (
+          <small>{stats.balance} available to spend</small>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -137,6 +166,11 @@ export default function Club({ state, childId, role, commit }) {
         ? "Recorded. Their effort counts."
         : "Sent to your trainer. Stars arrive after confirmation.",
     );
+  // Stars land immediately only when a coach records them.
+  const award = (e, kind, extra) => {
+    const el = e.currentTarget;
+    if (record(kind, extra) && role === "Coach") sparkFrom(el);
+  };
   const rows = club.events
     .filter((e) => e.childId === childId)
     .slice()
@@ -157,25 +191,7 @@ export default function Club({ state, childId, role, commit }) {
   const next = stats.badges.filter((b) => !b.earned).slice(0, 1)[0];
   return (
     <div className="club">
-      <section className="hero club-hero">
-        <div className="hero-copy">
-          <h2>
-            Every try <em>counts here.</em>
-          </h2>
-          <p className="lead">
-            Show up. Try something brave. Cheer someone on. There’s more than
-            one way to be a ninja.
-          </p>
-        </div>
-        <div className="hero-ring">
-          <div className="star-total">
-            <strong>{stats.total}</strong>
-            <span>lifetime stars</span>
-            <small>{stats.balance} available to spend</small>
-          </div>
-        </div>
-      </section>
-      <div className="card club-stats">
+      <div className="club-stats">
         {[
           [stats.classes, "class stars"],
           [stats.visits, "station stamps"],
@@ -227,7 +243,7 @@ export default function Club({ state, childId, role, commit }) {
               <button
                 className="button navy"
                 disabled={!!attendance}
-                onClick={() => record("class")}
+                onClick={(e) => award(e, "class")}
               >
                 {attendance
                   ? attendance.status === "approved"
@@ -279,7 +295,7 @@ export default function Club({ state, childId, role, commit }) {
                   ))}
                 </select>
               </label>
-              <button className="button cyan" onClick={() => record("visit")}>
+              <button className="button cyan" onClick={(e) => award(e, "visit")}>
                 I tried this station · +2 stars
               </button>
             </section>
@@ -324,16 +340,15 @@ export default function Club({ state, childId, role, commit }) {
               return (
                 <button
                   key={s.id}
-                  style={{
-                    "--station-color": stationMeta[s.id]?.color ?? s.color,
-                  }}
                   onClick={() => {
                     setStation(s.id);
                     setFeedback(`${s.name} selected in the check-in form.`);
                   }}
                 >
                   <h4>{s.name}</h4>
-                  <b>{visits} tries</b>
+                  <strong>
+                    {visits} <span>tries</span>
+                  </strong>
                   <small>{completions} trainer-confirmed completions</small>
                 </button>
               );
@@ -606,7 +621,8 @@ export default function Club({ state, childId, role, commit }) {
               <button
                 className="button navy"
                 disabled={!roster.length}
-                onClick={() => {
+                onClick={(e) => {
+                  const el = e.currentTarget;
                   const actions = roster
                     .filter(
                       (id) =>
@@ -645,8 +661,10 @@ export default function Club({ state, childId, role, commit }) {
                     });
                   if (!actions.length)
                     setFeedback("Everyone selected already has a class star.");
-                  else if (commit(actions))
+                  else if (commit(actions)) {
                     setFeedback("Class stars awarded to the selected roster.");
+                    sparkFrom(el);
+                  }
                 }}
               >
                 Give selected kids a class star
@@ -656,7 +674,7 @@ export default function Club({ state, childId, role, commit }) {
                 {shoutouts.map((s) => (
                   <button
                     key={s}
-                    onClick={() => record("praise", { category: s })}
+                    onClick={(e) => award(e, "praise", { category: s })}
                   >
                     {s}
                     <b>+3</b>
@@ -695,7 +713,7 @@ export default function Club({ state, childId, role, commit }) {
               </label>
               <button
                 className="button cyan"
-                onClick={() => record("complete")}
+                onClick={(e) => award(e, "complete")}
               >
                 Confirm completion · +5 stars
               </button>

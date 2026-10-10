@@ -1,0 +1,146 @@
+/* Motion pieces (motion.jsx). The global reduced-motion rule in styles.css
+   already stops every animation and transition here. */
+
+/* Spark layer: above dialogs (200) and toasts. */
+.spark-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.count-up {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   GLARE: a light sweep across the parent
+   ============================================ */
+
+.glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    -45deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 58%
+  );
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  background-position: 100% 100%;
+  mix-blend-mode: soft-light;
+}
+
+@media (hover: hover) {
+  .glare {
+    transition: background-position 0.75s ease;
+  }
+
+  :hover > .glare {
+    background-position: 0% 0%;
+  }
+}
+
+.glare-once {
+  animation: glare-sweep 1.1s ease 0.25s 1 both;
+}
+
+@keyframes glare-sweep {
+  from {
+    background-position: 100% 100%;
+  }
+  to {
+    background-position: 0% 0%;
+  }
+}
+
+/* ============================================
+   FOIL: iridescent sheen on earned skill tiles
+   ============================================ */
+
+.badge-earned::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(34, 188, 237, 0.4) 38%,
+    rgba(194, 230, 219, 0.5) 46%,
+    rgba(161, 226, 247, 0.45) 54%,
+    transparent 66%
+  );
+  background-size: 260% 260%;
+  background-position: 90% 90%;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  transition: background-position 0.9s ease;
+}
+
+.badge-earned .badge-label {
+  z-index: 1;
+}
+
+@media (hover: hover) {
+  :hover > .badge-earned::after {
+    background-position: 10% 10%;
+  }
+}
+
+/* The large tile in the skill dialog sweeps once when it opens. */
+.badge-lg.badge-earned::after {
+  animation: foil-sweep 1.4s ease 0.2s 1 both;
+}
+
+@keyframes foil-sweep {
+  from {
+    background-position: 90% 90%;
+  }
+  to {
+    background-position: 10% 10%;
+  }
+}
+
+/* ============================================
+   SHINY TEXT: a band of light across the type
+   ============================================ */
+
+.shiny {
+  --shine: var(--cyan);
+  background: linear-gradient(
+    110deg,
+    currentColor 42%,
+    var(--shine) 50%,
+    currentColor 58%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shiny 4.5s ease-in-out 0.6s infinite;
+}
+
+/* Sweep takes the first 40% of the cycle, then holds. */
+@keyframes shiny {
+  0% {
+    background-position: 100% 0;
+  }
+  40%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+@media print {
+  .spark-layer,
+  .glare {
+    display: none;
+  }
+}

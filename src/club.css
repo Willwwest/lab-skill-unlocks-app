@@ -1,11 +1,14 @@
 .club {
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .club h3 {
-  font-size: 19px;
-  font-weight: 700;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
   color: var(--navy);
 }
 
@@ -25,9 +28,7 @@
   display: block;
 }
 
-/* Hero */
-
-/* The star total is the hero's one big number: type, not a medallion. */
+/* Star total: the masthead's one big number. */
 .star-total {
   display: grid;
   gap: 6px;
@@ -37,62 +38,68 @@
 .star-total strong {
   font-family: Argentum, "Work Sans", sans-serif;
   font-weight: 800;
-  font-size: 88px;
-  line-height: 0.9;
+  font-size: 128px;
+  line-height: 0.85;
   letter-spacing: -0.03em;
   color: var(--gold);
+  text-shadow: 0 18px 40px rgba(2, 3, 15, 0.35);
 }
 
-.star-total span {
+.star-total > span {
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #fff;
+  margin-top: 8px;
 }
 
 .star-total small {
-  font-size: 13px;
-  color: #aeb5d8;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.72);
 }
 
-/* Stats */
-
-/* One stat strip with dividers instead of four floating tiles. */
+/* Stats: one joined strip of the website's pastel tiles. */
 .club-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: var(--r-card);
+  overflow: hidden;
 }
 
 .club-stats article {
-  padding: 18px 22px;
+  padding: 24px 28px;
   display: grid;
-  gap: 2px;
+  gap: 4px;
   align-content: start;
+  background: var(--sky);
 }
 
-.club-stats article + article {
-  border-left: 1px solid var(--line);
+.club-stats article:nth-child(2) {
+  background: var(--mint);
+}
+
+.club-stats article:nth-child(3) {
+  background: var(--lime);
+}
+
+.club-stats article:nth-child(4) {
+  background: #dfe8fb;
 }
 
 .club-stats strong {
   font-family: Argentum, "Work Sans", sans-serif;
   font-weight: 800;
-  font-size: 30px;
-  color: var(--navy);
-  line-height: 1;
-  margin-bottom: 6px;
+  font-size: 48px;
+  color: var(--ink);
+  line-height: 0.95;
 }
 
 .club-stats b {
   display: block;
-  font-size: 14px;
-  color: var(--navy);
-}
-
-.club-stats small {
-  font-size: 12px;
-  color: var(--text-3);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 /* Tabs */
@@ -100,18 +107,20 @@
 .club-tabs {
   display: inline-flex;
   gap: 4px;
-  padding: 4px;
+  padding: 5px;
   border-radius: 999px;
-  background: #e7eaf2;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   justify-self: start;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 .club-tabs button {
-  padding: 9px 16px;
+  padding: 10px 18px;
   border-radius: 999px;
   background: transparent;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 14px;
   color: var(--text-2);
   transition: background 0.15s, color 0.15s;
@@ -122,9 +131,8 @@
 }
 
 .club-tabs button[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--navy);
-  box-shadow: var(--shadow-sm);
+  background: var(--navy);
+  color: #fff;
 }
 
 /* Panels + forms */
@@ -132,11 +140,11 @@
 .club-two {
   display: grid;
   grid-template-columns: 1.15fr 1fr;
-  gap: 16px;
+  gap: 18px;
 }
 
 .club-panel {
-  padding: 24px;
+  padding: 28px;
   min-width: 0;
 }
 
@@ -199,6 +207,7 @@
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-top: 18px;
 }
 
 .club-section-title > span {
@@ -213,20 +222,51 @@
   margin: 12px 0 !important;
 }
 
+/* Next milestone: an ink card carrying the logo's A, like the website. */
 .club-milestone {
-  background: linear-gradient(180deg, #fff7e3, #fff 70%);
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 14px;
+  background: var(--ink);
+  border-color: transparent;
+  color: #fff;
+}
+
+.club-milestone::before {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 330px;
+  right: -90px;
+  bottom: -80px;
+  background: var(--chevron) no-repeat center / contain;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.club-milestone > * {
+  position: relative;
+}
+
+.club-milestone .eyebrow {
+  color: var(--gold);
 }
 
 .club-milestone h3 {
-  font-family: Argentum, "Work Sans", sans-serif;
-  font-weight: 800;
-  font-size: 30px;
-  letter-spacing: -0.02em;
+  font-size: 36px;
+  color: var(--cyan);
+}
+
+.club-milestone p {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.club-milestone .meter {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .club progress {
@@ -236,16 +276,20 @@
 }
 
 .club-callout {
-  background: #e3f4ee;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 14px 16px;
-  margin-top: 16px;
-  color: #1d6b53;
+  padding: 16px 18px;
+  margin-top: auto;
 }
 
 .club-callout p {
   font-size: 13px;
-  color: inherit;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.club-callout b {
+  color: #fff;
 }
 
 /* Stations */
@@ -253,32 +297,43 @@
 .club-stations {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .club-stations button {
   text-align: left;
-  background: var(--surface);
-  border: 1.5px solid var(--line);
-  border-radius: 18px;
-  padding: 18px;
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-card);
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  box-shadow: inset 4px 0 0 var(--station-color);
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .club-stations button:hover {
+  background: #fff;
   border-color: var(--line-strong);
   transform: translateY(-2px);
-  box-shadow: inset 4px 0 0 var(--station-color), var(--shadow-md);
+  box-shadow: var(--shadow-md);
 }
 
-.club-stations b {
-  font-size: 14px;
+.club-stations strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 36px;
+  line-height: 1;
   color: var(--navy);
+  margin-top: 8px;
+}
+
+.club-stations strong span {
+  font-family: "Work Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
 }
 
 .club-stations small {
@@ -288,7 +343,7 @@
 }
 
 .club-block-heading {
-  margin-top: 4px;
+  margin-top: 18px;
 }
 
 /* Milestones */
@@ -296,8 +351,8 @@
 .club-badges {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 40px;
-  padding: 6px 24px;
+  column-gap: 44px;
+  padding: 6px 28px;
 }
 
 .club-badges article {
@@ -305,7 +360,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 6px 12px;
-  padding: 14px 0;
+  padding: 16px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -314,7 +369,7 @@
 }
 
 .club-badges h4 {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.3;
 }
 
@@ -331,12 +386,12 @@
   grid-row: 1;
   grid-column: 2;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #8a5d00;
 }
 
 .club-badges article.earned p {
-  color: #1d6b53;
+  color: var(--royal-bright);
   font-weight: 700;
 }
 
@@ -357,7 +412,7 @@
 .club-ledger > div > b {
   font-family: Argentum, "Work Sans", sans-serif;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--navy);
 }
 
@@ -372,7 +427,7 @@
 .club-crowns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .club-crowns article {
@@ -382,15 +437,17 @@
 }
 
 .club-crowns strong {
-  font-size: 20px;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 24px;
   color: var(--navy);
   overflow-wrap: anywhere;
 }
 
 .club-feedback {
-  background: #e3f4ee;
-  color: #1d6b53;
-  padding: 12px 16px;
+  background: var(--mint);
+  color: var(--ink);
+  padding: 14px 18px;
   border-radius: 14px;
   font-weight: 600;
   font-size: 14px;
@@ -407,22 +464,22 @@
   gap: 10px;
   align-items: center;
   text-align: left;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 14px;
-  background: #fff7e3;
-  border: 1.5px solid #ffe7b0;
+  background: var(--lime);
+  border: 1.5px solid transparent;
   font-weight: 600;
   color: var(--navy);
   transition: border-color 0.15s;
 }
 
 .club-praise button:hover {
-  border-color: var(--gold);
+  border-color: var(--mint-deep);
 }
 
 .club-praise b {
   margin-left: auto;
-  color: #9a6b00;
+  color: #8a5d00;
 }
 
 .club-claim {
@@ -501,7 +558,7 @@
   display: block;
   font-family: Argentum, "Work Sans", sans-serif;
   font-weight: 800;
-  font-size: 24px;
+  font-size: 28px;
   color: var(--navy);
 }
 
@@ -535,14 +592,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .club-stats article:nth-child(3) {
-    border-left: 0;
-  }
-
-  .club-stats article:nth-child(n + 3) {
-    border-top: 1px solid var(--line);
-  }
-
   .club-stations {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -562,17 +611,22 @@
     text-align: left;
   }
 
+  .star-total strong {
+    font-size: 84px;
+  }
+
   .club-panel {
-    padding: 18px;
+    padding: 20px;
   }
 
   .club-stations {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .club-badges {
     grid-template-columns: 1fr;
-    padding: 4px 18px;
+    padding: 4px 20px;
   }
 
   .club-badges article:nth-last-child(2) {
@@ -580,7 +634,11 @@
   }
 
   .club-stats article {
-    padding: 14px 16px;
+    padding: 18px 18px;
+  }
+
+  .club-stats strong {
+    font-size: 38px;
   }
 
   .club-tabs {
@@ -612,7 +670,15 @@
   }
 
   .club-stations button {
-    padding: 14px;
+    padding: 16px;
+  }
+
+  .club-stations strong {
+    font-size: 30px;
+  }
+
+  .club-milestone h3 {
+    font-size: 30px;
   }
 
   .club-claim .button {

@@ -102,3 +102,20 @@ Decorative icons and badge-like "bubbles" were removed so the brand, type and re
 - **Rewards:** the EARNED/LOCKED seals and spec pills are gone; specs are one line of text.
 
 Previous files are in `design-v3-backup/`. The two UI test assertions that relied on the nav count and the uppercase "UNLOCKED" chip were updated. Domain and React tests pass and the production build passes. The new design was checked in headless Chrome at 1440, 1000 and 390 px; the captures in `screenshots/` still show v3.
+
+## UI v5: website alignment (October 10, 2026)
+
+The app now uses the visual language of https://thelab.life/ instead of a dashboard template.
+
+- **Masthead panel:** every page opens on an inset, rounded royal-to-navy gradient panel with the square-dot halftone and the outlined LEARN / ADAPT / BUILD lettering. The app bar floats over it and turns into an ink capsule on scroll. Page titles, the tier rail (Achievements, Coach desk), the Clubhouse star total and the Rewards stage live inside it.
+- **Cutouts break the frame:** the home shirt and the Rewards stage shirt extend below the bottom edge of the panel, and collection shirts rise out of the top of their cards. The low-alpha contact shadow in `public/shirts/*.webp` was feathered toward the image edges so it no longer shows as a grey box on white.
+- **Website surfaces:** pastel stat tiles (sky `#A1E2F7`, mint `#C2E6DB`, lime `#F0FEE0`) joined into one strip on Home, Clubhouse and the bonus achievements. Ink cards with the logo's A as a faint overlay for the tier rail and the Clubhouse milestone. A full-bleed ink footer with a slanted top edge and the LAB logo as a watermark.
+- **Fewer colors:** the five rainbow category hues and the hexagon patches are gone. Skill numbers sit in rounded tiles: brand gradient when earned, pale cyan when open, an outlined numeral when locked. Tier colors are now used only for tier names and progress.
+- **Buttons** follow the site: cyan primary, mint secondary.
+- Home's three overview cards became the stat strip, and the hero stats moved into it.
+
+Previous files are in `design-v4-backup/`. 51 domain tests and 7 React interaction tests pass, and the production build passes. Checked in headless Chrome at 1440 and 390 px, as Athlete (Theo) and as Coach (Maya).
+
+### Movement pictograms on skill cards
+
+Each skill card shows a faded pictogram of the movement behind its content (`src/moves.jsx`). The 18 poses are hang, monkey bars, wall catch, wall top-out, balance, stepping stones, landing, roll, shot, dribble, course, rings, cargo net, precision jump, rope, vault, pass and personal project. Each pose is a set of joint coordinates with its equipment drawn alongside. `skillPose` maps all 55 skill ids to a pose. The figures sit at 10% opacity (6% when locked) and fade out toward the text, rising slightly on hover. To use photography instead, swap `MoveArt` for an image per skill. The card CSS already handles opacity and the fade.

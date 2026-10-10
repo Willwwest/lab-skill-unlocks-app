@@ -1,23 +1,6 @@
 import React from "react";
 import { tiers } from "./domain";
-
-export const categoryMeta = {
-  "Grip & traverse": { color: "#22bced", slug: "grip" },
-  "Warped wall": { color: "#f25c9a", slug: "wall" },
-  Movement: { color: "#34c98a", slug: "movement" },
-  Basketball: { color: "#ff9a1f", slug: "basketball" },
-  "Course skills": { color: "#9b7bff", slug: "course" },
-};
-
-export const stationMeta = {
-  grip: categoryMeta["Grip & traverse"],
-  wall: categoryMeta["Warped wall"],
-  movement: categoryMeta.Movement,
-  court: categoryMeta.Basketball,
-  course: categoryMeta["Course skills"],
-};
-
-const HEX = "M50 3 L91 26.5 V73.5 L50 97 L9 73.5 V26.5 Z";
+import { useCountUp } from "./motion.jsx";
 
 export function Ring({
   value = 0,
@@ -31,7 +14,8 @@ export function Ring({
 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  const shown = useCountUp(value, { round: false });
+  const pct = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
   return (
     <div className={`ring ${className}`.trim()} style={{ width: size, height: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
@@ -80,26 +64,29 @@ export function Meter({ value = 0, max = 1, color, label, className = "" }) {
 }
 
 /*
- * Skill patch: a hexagon in the category color carrying the skill number.
- * Earned patches are filled, open ones outlined, locked ones dashed.
+ * Skill number tile, set like a jersey number. Earned tiles use the brand
+ * gradient, open ones pale cyan, locked ones an outlined numeral.
  */
-export function Badge({ category, label, state = "open", className = "" }) {
-  const meta = categoryMeta[category] ?? categoryMeta["Course skills"];
+export function Badge({ label, state = "open", className = "" }) {
   return (
-    <span
-      className={`badge badge-${state} ${className}`.trim()}
-      style={{ "--cat": meta.color }}
-      aria-hidden="true"
-    >
-      <svg className="badge-shape" viewBox="0 0 100 100">
-        <path className="badge-hex" d={HEX} />
-      </svg>
+    <span className={`badge badge-${state} ${className}`.trim()} aria-hidden="true">
       <span className="badge-label">{label}</span>
     </span>
   );
 }
 
 export const skillNumber = (id) => id.replace(/^S/, "");
+
+/* The site's outlined LEARN / ADAPT / BUILD lettering, used as a backdrop. */
+export function OutlineWords({ className = "" }) {
+  return (
+    <span className={`outline-words ${className}`.trim()} aria-hidden="true">
+      <span>LEARN</span>
+      <span>ADAPT</span>
+      <span>BUILD</span>
+    </span>
+  );
+}
 
 /*
  * Shirt photography: cutouts of the four concept mockups in
