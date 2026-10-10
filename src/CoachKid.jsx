@@ -39,6 +39,7 @@ import {
   stationName,
 } from "./coachkit.jsx";
 import { date } from "./format.js";
+import { plain, standard } from "./skillcopy.js";
 
 function Section({ title, aside, children, className = "" }) {
   return (
@@ -733,8 +734,10 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
               {skill.id} · Tier {skill.tier} · {stationName(stationFor(skill))}
             </span>
             <h2>{skill.title}</h2>
-            <p className="assess-criteria">{skill.criteria}</p>
-            <p className="assess-setup">{skill.setup}</p>
+            <p className="assess-criteria">{plain[skill.id] ?? skill.criteria}</p>
+            <p className="assess-setup">
+              {standard(skill.criteria)} · {skill.setup}
+            </p>
             {skill.target && (
               <div className="assess-measure">
                 <span className="eyebrow">

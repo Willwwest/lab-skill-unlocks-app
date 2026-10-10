@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ClipboardCheck,
   Home,
-  Lock,
   Search,
   Shirt,
   Star,
@@ -46,6 +45,8 @@ import Family, { MomentsGallery } from "./Family.jsx";
 import { emptyFloor, validFloor } from "./floor.js";
 import { clearPhotos } from "./media.js";
 import { familyOf } from "./roster.js";
+import { SkillAbout, SkillHero, SkillPath } from "./SkillDetail.jsx";
+import { firstStep } from "./paths.js";
 
 // Read on demand so tests (and in-app links) can change the URL.
 const params = { has: (k) => new URLSearchParams(window.location.search).has(k) };
@@ -958,6 +959,7 @@ function App() {
           state={state}
           onClose={() => setSelected(null)}
           commit={commit}
+          onOpenSkill={setSelected}
         />
       )}
       {resetOpen && (
@@ -1273,7 +1275,7 @@ function SkillCard({ skill, earned, eligible, state, childId, onClick }) {
     </button>
   );
 }
-function Modal({ title, onClose, children }) {
+function Modal({ title, header, className = "", onClose, children }) {
   const ref = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -1325,7 +1327,7 @@ function Modal({ title, onClose, children }) {
       }}
     >
       <section
-        className="modal"
+        className={`modal ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
@@ -1339,13 +1341,13 @@ function Modal({ title, onClose, children }) {
         >
           <X size={18} />
         </button>
-        <h2 id="dialog-title">{title}</h2>
+        {header ?? <h2 id="dialog-title">{title}</h2>}
         {children}
       </section>
     </div>
   );
 }
-function SkillDialog({ skill, child, role, state, onClose, commit }) {
+function SkillDialog({ skill, child, role, state, onClose, commit, onOpenSkill }) {
   const [value, setValue] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [note, setNote] = useState("");
@@ -1358,6 +1360,16 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
     (a) => a.childId === child.id && a.skillId === skill.id && !a.revoked,
   );
   const status = skillStatus(state, child.id, skill, earned, eligible);
+  // Moving along the prerequisite path swaps the skill in place.
+  useEffect(() => {
+    setValue("");
+    setConfirmed(false);
+    setNote("");
+    setSecondDate("");
+    setProject("");
+    setError("");
+    document.querySelector(".skill-modal")?.scrollTo?.(0, 0);
+  }, [skill.id]);
   function verify(e) {
     e.preventDefault();
     const action = {
@@ -1383,40 +1395,27 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
     }
   }
   return (
-    <Modal title={skill.title} onClose={onClose}>
-      <div className="dialog-head">
-        <Badge
-          label={skillNumber(skill.id)}
-          state={earned ? "earned" : eligible ? "open" : "locked"}
-          className="badge-lg"
+    <Modal
+      title={skill.title}
+      onClose={onClose}
+      className="skill-modal"
+      header={
+        <SkillHero
+          skill={skill}
+          child={child}
+          state={state}
+          status={status}
+          award={award}
         />
-        <div>
-          <span className="skill-meta">
-            {skill.id} · Tier {skill.tier} · {skill.category}
-          </span>
-          <StatusChip status={status} />
-        </div>
-      </div>
-      <p className="dialog-criteria">{skill.criteria}</p>
-      <div className="setup-box">
-        <strong>Sample setup</strong>
-        <p>{skill.setup}</p>
-      </div>
-      {skill.prerequisites.length > 0 && (
-        <div className="prerequisites">
-          <strong>Build these skills first</strong>
-          {skill.prerequisites.map((id) => (
-            <div key={id}>
-              {earnedIds(state, child.id).includes(id) ? (
-                <Check size={15} className="done" aria-label="Done" />
-              ) : (
-                <Lock size={15} aria-label="Not yet" />
-              )}
-              {catalog.find((s) => s.id === id).title}
-            </div>
-          ))}
-        </div>
-      )}
+      }
+    >
+      <SkillAbout skill={skill} />
+      <SkillPath
+        skill={skill}
+        state={state}
+        childId={child.id}
+        onOpen={onOpenSkill}
+      />
       {!earned && eligible && (
         <button
           className="button outline goal-button"
@@ -1547,11 +1546,19 @@ function SkillDialog({ skill, child, role, state, onClose, commit }) {
         </form>
       ) : (
         <div className="coach-prompt">
-          <p>
-            {eligible
-              ? "Ready to work on this? Ask your coach to watch your next attempt."
-              : "Work with your coach on the prerequisites first."}
-          </p>
+          {eligible ? (
+            <p>Ready to work on this? Ask your coach to watch your next attempt.</p>
+          ) : (
+            firstStep(state, child.id, skill.id) && (
+              <button
+                className="text-button"
+                onClick={() => onOpenSkill(firstStep(state, child.id, skill.id))}
+              >
+                Start with {firstStep(state, child.id, skill.id).title}{" "}
+                <ArrowRight size={16} />
+              </button>
+            )
+          )}
         </div>
       )}
     </Modal>

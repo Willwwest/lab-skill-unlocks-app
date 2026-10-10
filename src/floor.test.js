@@ -176,3 +176,17 @@ test("ready skills list a kid's goals first and respect the station", () => {
   assert.equal(ready[0].id, s.goals.theo[0]);
   assert.ok(readySkills(s, "theo", "court").every((x) => x.category === "Basketball"));
 });
+
+test("prerequisite paths list every ancestor in order and the first step to try", async () => {
+  const { ancestry, opens, firstStep } = await import("./paths.js");
+  const { plain } = await import("./skillcopy.js");
+  const { catalog } = await import("./domain.js");
+  assert.deepEqual(ancestry("X03").map((l) => l.map((s) => s.id)), [["S02"], ["M02"], ["A03"], ["X02"]]);
+  // Two starting skills share a level; M09 needs S07, so it comes after.
+  assert.deepEqual(ancestry("A11").map((l) => l.map((s) => s.id)), [["S06", "S07"], ["M09"]]);
+  assert.deepEqual(opens("S02").map((s) => s.id), ["M02", "M05", "A07"]);
+  const s = base();
+  assert.equal(firstStep(s, "theo", "X03").id, "M02");
+  assert.equal(firstStep(s, "theo", "S01"), null);
+  assert.ok(catalog.every((x) => plain[x.id]), "every skill has a plain description");
+});
