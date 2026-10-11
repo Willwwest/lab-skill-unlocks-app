@@ -553,6 +553,7 @@ function Stepper({ value, onChange, unit }) {
           min="0"
           step="1"
           aria-label={`Result in ${unit}`}
+          placeholder="0"
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />

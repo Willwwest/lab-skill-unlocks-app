@@ -2220,3 +2220,131 @@ main.cc-main {
     border-color: var(--text-3);
   }
 }
+
+/* ---------- Phones ---------- */
+/* Rows with a label and controls wrap instead of squeezing the label. */
+.cc-row {
+  flex-wrap: wrap;
+}
+.cc-row > span {
+  flex: 1 1 180px;
+}
+@media (max-width: 899px) {
+  .cc-main {
+    padding: 16px 14px 96px;
+  }
+  .cc-card {
+    padding: 16px;
+  }
+  .cc-view {
+    gap: 14px;
+  }
+  .cc-view-head h1,
+  .cc-hello h1 {
+    font-size: 26px;
+  }
+  .cc-view-head .cc-select,
+  .cc-view-head .cc-select select {
+    width: 100%;
+  }
+  .cc-row .inline-form {
+    flex: 1 1 100%;
+  }
+  .cc-row .inline-form .button {
+    min-height: 44px;
+  }
+  .cc-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cc-stats-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cc-stat {
+    padding: 12px 14px;
+  }
+  .cc-stat strong {
+    font-size: 26px;
+  }
+  .cc-stat span {
+    font-size: 12px;
+  }
+  /* Schedule blocks: time and count on one line, the action full width. */
+  .cc-block {
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+  }
+  .cc-block-time {
+    grid-column: 1;
+  }
+  .cc-block-count {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: right;
+  }
+  .cc-block > div {
+    grid-column: 1 / -1;
+  }
+  .cc-block .button {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 44px;
+  }
+  .cc-toolbar .button {
+    flex: 1 1 auto;
+  }
+  .cc-toolbar .cc-scan {
+    flex: 0 0 48px;
+  }
+  .tile-btn {
+    min-width: 78px;
+    padding: 0 10px;
+  }
+  .cc-table {
+    font-size: 13px;
+  }
+  .cc-tr {
+    grid-template-columns: 1.6fr 1fr 1fr 0.8fr;
+  }
+  .stepper {
+    gap: 12px;
+  }
+  .stepper > button {
+    width: 64px;
+    height: 64px;
+  }
+  .stepper input {
+    width: 96px;
+    font-size: 48px;
+  }
+  .sheet-buttons .button {
+    flex: 1 1 auto;
+  }
+  .kp-head {
+    padding: 18px 16px 16px;
+  }
+  .kp-section {
+    margin: 0 16px;
+  }
+  .kp-care,
+  .kp-birthday {
+    margin: 12px 16px 0;
+  }
+  .kp-foot {
+    padding: 16px 16px 0;
+  }
+}
+.stepper input::placeholder {
+  color: var(--line-strong);
+}
+/* The app sets 16px on every input for touch screens (stops iOS zoom);
+   the stepper's number is meant to be big. */
+@media (pointer: coarse) {
+  .stepper label input {
+    font-size: 56px !important;
+  }
+}
+@media (pointer: coarse) and (max-width: 899px) {
+  .stepper label input {
+    font-size: 48px !important;
+  }
+}

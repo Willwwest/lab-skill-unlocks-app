@@ -534,9 +534,9 @@ function ClassView({ ops, now }) {
         </div>
         <BlockPicker ops={ops} now={now} kinds={["class"]} />
       </div>
-      <div className="cc-stats">
+      <div className="cc-stats cc-stats-3">
         <Stat value={`${confirmed.length}/${roster.length}`} label="confirmed" />
-        <Stat value={waiting.length} label="checked in, not confirmed" tone={waiting.length ? "warn" : ""} />
+        <Stat value={waiting.length} label="checked in" tone={waiting.length ? "warn" : ""} />
         <Stat value={roster.length - confirmed.length - waiting.length} label="not here yet" />
       </div>
       <div className="cc-toolbar">

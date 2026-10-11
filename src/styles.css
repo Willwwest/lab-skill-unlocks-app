@@ -2299,6 +2299,18 @@ main {
     padding: 9px 12px;
   }
 
+  /* Parents and coaches get extra tabs; the pill scrolls rather than
+     pushing the athlete and view pickers off the screen. */
+  .primary-nav {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
   .nav-label {
     position: absolute;
     width: 1px;
