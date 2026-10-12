@@ -42,6 +42,9 @@ import { LayoutGrid, Users } from "lucide-react";
 const CoachCenter = lazy(() => import("./Coach.jsx"));
 const Kiosk = lazy(() => import("./Kiosk.jsx"));
 import Family, { MomentsGallery } from "./Family.jsx";
+import Login from "./Login.jsx";
+import { SESSION_KEY, formatPhone, loadSession, signOut } from "./auth.js";
+import { families } from "./roster.js";
 import { emptyFloor, validFloor } from "./floor.js";
 import { clearPhotos } from "./media.js";
 import { familyOf } from "./roster.js";
@@ -120,15 +123,23 @@ function App() {
     }
   });
   const [saveError, setSaveError] = useState("");
-  const [role, setRole] = useState(() => (params.has("coach") ? "Coach" : "Athlete"));
-  const [childId, setChildId] = useState("theo");
+  const [session, setSession] = useState(() => {
+    try {
+      return loadSession(localStorage);
+    } catch {
+      return null;
+    }
+  });
+  const start = startFor(session);
+  const [role, setRole] = useState(start.role);
+  const [childId, setChildId] = useState(start.childId);
   const [page, setPage] = useState(() =>
-    params.has("coach")
+    session?.kind === "staff" && params.has("coach")
       ? "Coach center"
       : new URLSearchParams(window.location.search).has("station") ||
     new URLSearchParams(window.location.search).has("class")
       ? "Clubhouse"
-      : "My journey",
+      : start.page,
   );
   const [tier, setTier] = useState(() => currentTier(state, "theo"));
   const [filter, setFilter] = useState("All skills");
@@ -166,6 +177,20 @@ function App() {
   }, [state]);
   // Other tabs on this device (the kiosk, a second coach view) write the
   // same record; pick up their saves.
+  // Signing in or out in another tab applies here too.
+  useEffect(() => {
+    const onSession = (e) => {
+      if (e.key !== SESSION_KEY) return;
+      const s = loadSession(localStorage);
+      const next = startFor(s);
+      setSession(s);
+      setRole(next.role);
+      setChildId(next.childId);
+      setPage(next.page);
+    };
+    window.addEventListener("storage", onSession);
+    return () => window.removeEventListener("storage", onSession);
+  }, []);
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key !== key || !e.newValue) return;
@@ -242,6 +267,19 @@ function App() {
       notify(e.message, true);
       return false;
     }
+  }
+  // A parent sees their own kids; staff see everyone.
+  const kids =
+    session?.kind === "guardian"
+      ? people.filter((p) => familyKids(session).includes(p.id))
+      : people;
+  const views = session?.kind === "staff" ? ["Coach", "Parent", "Athlete"] : ["Parent", "Athlete"];
+  function doSignOut() {
+    signOut(localStorage);
+    setSession(null);
+    setSelected(null);
+    setRole("Athlete");
+    setPage("My journey");
   }
   function chooseChild(id) {
     setChildId(id);
@@ -369,14 +407,31 @@ function App() {
         <Kiosk state={state} setState={setState} />
       </Suspense>
     );
-  if (page === "Coach center")
+  if (!session)
+    return (
+      <Login
+        onSignedIn={(s) => {
+          const next = startFor(s);
+          setSession(s);
+          setRole(next.role);
+          setChildId(next.childId);
+          setTier(currentTier(state, next.childId));
+          setRewardFocus(focusTier(state, next.childId));
+          setPage(next.page);
+          window.scrollTo?.(0, 0);
+        }}
+      />
+    );
+  if (page === "Coach center" && session.kind === "staff")
     return (
       <Suspense fallback={<div className="cc-loading" />}>
         <CoachCenter
           state={state}
           setState={setState}
+          account={session}
+          onSignOut={doSignOut}
           onExit={() => {
-            setRole("Athlete");
+            setRole("Coach");
             setPage("My journey");
           }}
         />
@@ -431,7 +486,7 @@ function App() {
                 value={childId}
                 onChange={(e) => chooseChild(e.target.value)}
               >
-                {people.map((p) => (
+                {kids.map((p) => (
                   <option value={p.id} key={p.id}>
                     {p.first}
                   </option>
@@ -440,9 +495,9 @@ function App() {
               <ChevronDown size={14} className="caret" />
             </label>
             <label className="chip-select role-chip">
-              <span className="sr-only">Demo view</span>
+              <span className="sr-only">View as</span>
               <select
-                aria-label="Demo view"
+                aria-label="View as"
                 value={role}
                 onChange={(e) => {
                   setRole(e.target.value);
@@ -451,8 +506,10 @@ function App() {
                     setPage("My journey");
                 }}
               >
-                {["Athlete", "Parent", "Coach"].map((r) => (
-                  <option key={r}>{r}</option>
+                {views.map((r) => (
+                  <option key={r} value={r}>
+                    {r === "Athlete" ? "Kid view" : r}
+                  </option>
                 ))}
               </select>
               <ChevronDown size={14} className="caret" />
@@ -936,6 +993,10 @@ function App() {
             <p>Stronger kids. Closer families. Every day.</p>
           </div>
           <div className="footer-meta">
+            <span className="account-line">
+              Signed in as {session.name} · {formatPhone(session.phone)}
+              <button onClick={doSignOut}>Sign out</button>
+            </span>
             <span>Synthetic demo data · saved on this browser only</span>
             <button
               onClick={() => setResetOpen(true)}
@@ -1053,6 +1114,16 @@ function App() {
       )}
     </div>
   );
+}
+const familyKids = (session) =>
+  families.find((f) => f.id === session?.familyId)?.kids ?? [];
+// Where an account lands after signing in.
+function startFor(session) {
+  if (session?.kind === "staff")
+    return { role: "Coach", childId: "theo", page: "Coach center" };
+  if (session?.kind === "guardian")
+    return { role: "Parent", childId: familyKids(session)[0] ?? "theo", page: "My journey" };
+  return { role: "Athlete", childId: "theo", page: "My journey" };
 }
 function focusTier(state, childId) {
   const open = state.rewards.find(

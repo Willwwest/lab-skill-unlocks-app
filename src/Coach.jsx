@@ -1138,6 +1138,20 @@ function AdminView({ ops, now }) {
         </div>
       </section>
       <section className="cc-card">
+        <div className="cc-card-head">
+          <h2>Shared gym iPad</h2>
+          <label className="check">
+            <input type="checkbox" checked={ops.shared} onChange={(e) => ops.setShared(e.target.checked)} />
+            Use this device as a shared iPad
+          </label>
+        </div>
+        <p className="cc-muted">
+          {ops.shared
+            ? `Signed in as ${ops.owner?.name}. Coaches switch with their 4-digit PIN, and it locks after 10 idle minutes.`
+            : "This device uses your own sign-in. Turn this on for an iPad that several coaches share."}
+        </p>
+      </section>
+      <section className="cc-card">
         <h2>Front desk</h2>
         <div className="cc-empty-actions">
           <a className="button cyan compact" href="?kiosk" target="_blank" rel="noreferrer">
@@ -1165,14 +1179,26 @@ function AdminView({ ops, now }) {
 
 /* ---------- Shell ---------- */
 
-export default function CoachCenter({ state: rawState, setState, onExit }) {
+export default function CoachCenter({ state: rawState, setState, onExit, account, onSignOut }) {
   const state = useMemo(() => ({ ...rawState, floor: rawState.floor ?? emptyFloor() }), [rawState]);
   const now = useNow();
-  const [coach, setCoach] = useState(() => staff.find((s) => s.id === readDevice().staffId) ?? null);
-  const [locked, setLocked] = useState(() => {
+  // A coach's own phone uses their sign-in. A shared gym iPad is signed in
+  // once by the head coach; coaches then switch with their 4-digit PIN.
+  const owner = staff.find((s) => s.id === account?.staffId) ?? null;
+  const [shared, setSharedState] = useState(() => !!readDevice().shared);
+  const [deviceCoach, setCoach] = useState(() => staff.find((s) => s.id === readDevice().staffId) ?? null);
+  const [lockedState, setLocked] = useState(() => {
     const d = readDevice();
     return !d.staffId || !d.active || Date.now() - d.active > LOCK_AFTER;
   });
+  const coach = shared ? deviceCoach : owner;
+  const locked = shared ? lockedState : false;
+  const setShared = (on) => {
+    setSharedState(on);
+    writeDevice({ shared: on, staffId: owner?.id ?? null, active: Date.now() });
+    setCoach(owner);
+    setLocked(false);
+  };
   const [tab, setTab] = useState("now");
   const [tabArg, setTabArg] = useState(null);
   const [blockId, setBlockId] = useState(() => defaultBlock(new Date()).id);
@@ -1290,6 +1316,9 @@ export default function CoachCenter({ state: rawState, setState, onExit }) {
     simulate,
     assess: (childId, skillId) => setAssess({ childId, skillId }),
     camera: (opts) => setCamera(opts),
+    shared,
+    setShared,
+    owner,
   };
   if (!coach || locked)
     return (
@@ -1326,17 +1355,24 @@ export default function CoachCenter({ state: rawState, setState, onExit }) {
           </button>
           {menu && (
             <div className="cc-menu" role="menu">
-              <button role="menuitem" onClick={() => { setLocked(true); setMenu(false); }}>
-                <Lock size={16} /> Lock
-              </button>
-              <button role="menuitem" onClick={() => { setCoach(null); setLocked(true); setMenu(false); writeDevice({ staffId: null }); }}>
-                Switch coach
-              </button>
+              {shared && (
+                <>
+                  <button role="menuitem" onClick={() => { setLocked(true); setMenu(false); }}>
+                    <Lock size={16} /> Lock
+                  </button>
+                  <button role="menuitem" onClick={() => { setCoach(null); setLocked(true); setMenu(false); writeDevice({ staffId: null }); }}>
+                    Switch coach
+                  </button>
+                </>
+              )}
               <a role="menuitem" href="?kiosk" target="_blank" rel="noreferrer" onClick={() => setMenu(false)}>
                 Front desk kiosk
               </a>
               <button role="menuitem" onClick={onExit}>
                 Leave coach center
+              </button>
+              <button role="menuitem" onClick={onSignOut}>
+                Sign out of this device
               </button>
             </div>
           )}

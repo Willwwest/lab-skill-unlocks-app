@@ -7,9 +7,12 @@ import { families } from "./roster.js";
 
 const saved = () => JSON.parse(localStorage.getItem("lab-skill-unlocks-v1"));
 
-async function signIn(user, name = "Coach Sam", pin = "2222") {
-  await user.click(await screen.findByRole("button", { name: new RegExp(name) }));
-  for (const d of pin) await user.click(screen.getByRole("button", { name: d, exact: true }));
+function signInAs(phone) {
+  localStorage.setItem("lab-session", JSON.stringify({ phone, since: Date.now(), expires: Date.now() + 86400000 }));
+}
+const SAM = "+16025550151";
+// On a coach's own device the phone sign-in is enough; no PIN step.
+async function signIn() {
   await screen.findByRole("navigation", { name: "Coach sections" });
 }
 
@@ -42,9 +45,11 @@ describe("front desk kiosk", () => {
 describe("coach center", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/?coach");
-    render(<App />);
+    signInAs(SAM);
   });
-  it("needs the right PIN", async () => {
+  it("on a shared iPad, needs the right PIN to switch coaches", async () => {
+    localStorage.setItem("lab-coach-device", JSON.stringify({ shared: true }));
+    render(<App />);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Coach Sam/ }));
     for (const d of "1234") await user.click(screen.getByRole("button", { name: d, exact: true }));
@@ -52,8 +57,9 @@ describe("coach center", () => {
     expect(screen.queryByRole("navigation", { name: "Coach sections" })).toBeNull();
   });
   it("records a station try in one tap, signed by the coach, with undo", async () => {
+    render(<App />);
     const user = userEvent.setup();
-    await signIn(user);
+    await signIn();
     await user.click(screen.getByRole("button", { name: /Station/ }));
     await user.click(screen.getByRole("button", { name: "Everyone" }));
     await user.click(screen.getAllByRole("button", { name: "Tried +2" })[0]);
@@ -69,8 +75,9 @@ describe("coach center", () => {
     await waitFor(() => expect(saved().club.events.filter((e) => e.kind === "visit")).toHaveLength(0));
   });
   it("finds a kid, gives a shoutout and verifies a measured skill", async () => {
+    render(<App />);
     const user = userEvent.setup();
-    await signIn(user);
+    await signIn();
     await user.click(screen.getByRole("button", { name: /Kids/ }));
     await user.type(screen.getByRole("textbox", { name: "Search kids" }), "parker");
     await user.click(screen.getByRole("button", { name: /Theo Parker/ }));
@@ -92,8 +99,9 @@ describe("coach center", () => {
     expect(award.coach).toBe("Coach Sam");
   });
   it("keeps head-coach tools from other coaches", async () => {
+    render(<App />);
     const user = userEvent.setup();
-    await signIn(user);
+    await signIn();
     expect(screen.queryByRole("button", { name: /Head coach/ })).toBeNull();
   });
 });

@@ -6,9 +6,21 @@ import { App } from "./main.jsx";
 
 const skillButton = (id) =>
   screen.getByRole("button", { name: new RegExp(`${id}.*TIER`, "i") });
+// Signed in as the head coach, who can view as coach, parent or kid.
+const HEAD_COACH = "+16025550153";
+function signInAs(phone) {
+  localStorage.setItem("lab-session", JSON.stringify({ phone, since: Date.now(), expires: Date.now() + 86400000 }));
+}
+async function leaveCoachCenter(user) {
+  await user.click(await screen.findByRole("button", { name: /Coach Alex/ }));
+  await user.click(screen.getByRole("menuitem", { name: "Leave coach center" }));
+}
+async function asKid(user) {
+  await user.selectOptions(screen.getByRole("combobox", { name: "View as" }), "Athlete");
+}
 async function coach(user) {
   await user.selectOptions(
-    screen.getByRole("combobox", { name: "Demo view" }),
+    screen.getByRole("combobox", { name: "View as" }),
     "Coach",
   );
   await user.click(
@@ -16,12 +28,16 @@ async function coach(user) {
   );
 }
 describe("redesigned app interactions", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
+    window.history.replaceState({}, "", "/");
+    signInAs(HEAD_COACH);
     render(<App />);
+    await leaveCoachCenter(userEvent.setup());
   });
   it("keeps athlete skill verification unavailable and supports next-goal selection", async () => {
     const user = userEvent.setup();
+    await asKid(user);
     await user.click(
       screen.getByRole("button", { name: /Explore my next skills/i }),
     );
@@ -70,7 +86,7 @@ describe("redesigned app interactions", () => {
       );
     }
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo view" }),
+      screen.getByRole("combobox", { name: "View as" }),
       "Parent",
     );
     await user.click(
@@ -104,13 +120,16 @@ describe("redesigned app interactions", () => {
 });
 
 describe("Clubhouse participation flows", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
     window.history.replaceState({}, "", "/");
+    signInAs(HEAD_COACH);
     render(<App />);
+    await leaveCoachCenter(userEvent.setup());
   });
   it("holds athlete check-ins for trainer approval, then updates their passport", async () => {
     const user = userEvent.setup();
+    await asKid(user);
     await user.click(
       screen.getByRole("button", { name: "Clubhouse", exact: true }),
     );
@@ -125,7 +144,7 @@ describe("Clubhouse participation flows", () => {
         .disabled,
     ).toBe(true);
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo view" }),
+      screen.getByRole("combobox", { name: "View as" }),
       "Coach",
     );
     await user.click(
@@ -151,7 +170,7 @@ describe("Clubhouse participation flows", () => {
   it("gives the entire selected roster one class star with repeat protection", async () => {
     const user = userEvent.setup();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo view" }),
+      screen.getByRole("combobox", { name: "View as" }),
       "Coach",
     );
     await user.click(
@@ -181,7 +200,7 @@ describe("Clubhouse participation flows", () => {
   it("generates six real QR signs with station-specific links and no athlete identity", async () => {
     const user = userEvent.setup();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "Demo view" }),
+      screen.getByRole("combobox", { name: "View as" }),
       "Coach",
     );
     await user.click(

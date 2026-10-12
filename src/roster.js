@@ -3,11 +3,13 @@
 
 // Demo sign-in only. PINs on a shared device are a convenience lock, not
 // authentication; production needs real staff accounts.
+// Phone numbers use the 555-0100 to 555-0199 block, which is reserved for
+// fiction and never assigned.
 export const staff = [
-  { id: "jordan", name: "Coach Jordan", initials: "CJ", pin: "1111", head: false },
-  { id: "sam", name: "Coach Sam", initials: "CS", pin: "2222", head: false },
-  { id: "priya", name: "Coach Priya", initials: "CP", pin: "3333", head: false },
-  { id: "alex", name: "Coach Alex", initials: "CA", pin: "9999", head: true },
+  { id: "jordan", name: "Coach Jordan", initials: "CJ", pin: "1111", head: false, phone: "+16025550150" },
+  { id: "sam", name: "Coach Sam", initials: "CS", pin: "2222", head: false, phone: "+16025550151" },
+  { id: "priya", name: "Coach Priya", initials: "CP", pin: "3333", head: false, phone: "+16025550152" },
+  { id: "alex", name: "Coach Alex", initials: "CA", pin: "9999", head: true, phone: "+16025550153" },
 ];
 
 const palette = ["#C2E6DB", "#DCD3FC", "#FBE4B7", "#C9EEFA", "#FFD9D1", "#E2F5C4", "#D9E3FF"];
@@ -111,6 +113,11 @@ export const families = Object.entries(guardians).map(([id, guardian], i) => ({
   guardian,
   // Printed on the family pass for manual entry at the front desk.
   pin: String(4000 + i * 137).slice(-4),
+  // Every guardian who can sign in with their phone.
+  guardians: [
+    { name: guardian, phone: `+1602555${String(101 + i).padStart(4, "0")}` },
+    ...(id === "parker" ? [{ name: "Jamie Parker", phone: "+16025550140" }] : []),
+  ],
   kids: Object.entries(kidInfo)
     .filter(([, info]) => info.family === id)
     .map(([kid]) => kid),

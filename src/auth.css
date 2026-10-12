@@ -1,0 +1,211 @@
+/* Sign-in: one card on the brand gradient, sized for a phone first. */
+.signin {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  background: var(--grad-deep);
+  color: #fff;
+}
+.signin-inner {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+}
+.signin-logo {
+  height: 40px;
+  width: auto;
+}
+.signin-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px 24px 24px;
+  border-radius: 24px;
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 30px 80px rgba(9, 13, 25, 0.4);
+}
+.signin-card form {
+  display: grid;
+  gap: 16px;
+}
+.signin-card h1 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 1.05;
+  color: var(--navy);
+}
+.signin-lead {
+  color: var(--text-2);
+  font-size: 16px;
+  margin-top: -6px;
+}
+.signin-field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+.signin-phone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.signin-phone:focus-within,
+.signin-code:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(34, 188, 237, 0.25);
+}
+.signin-phone input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.signin-code {
+  min-height: 64px;
+  padding: 0 16px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 16px;
+  outline: none;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  color: var(--navy);
+}
+.signin-go {
+  min-height: 56px;
+  font-size: 17px;
+}
+.signin-error {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff1ec;
+  color: #8a2c14;
+  font-size: 14px;
+  font-weight: 600;
+}
+.signin-demo {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #e6f8fe;
+  color: var(--navy);
+  font-size: 14px;
+}
+.signin-demo b {
+  letter-spacing: 0.12em;
+}
+.signin-fine {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+}
+.signin-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cyan-deep);
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+}
+.signin-resend {
+  justify-self: center;
+  min-height: 44px;
+  font-size: 15px;
+}
+.signin-resend:disabled {
+  color: var(--text-3);
+  opacity: 1;
+}
+.signin-accounts {
+  width: 100%;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+}
+.signin-accounts summary {
+  cursor: pointer;
+  text-align: center;
+  font-weight: 600;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.signin-accounts ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.signin-accounts button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.signin-accounts button span {
+  font-size: 13px;
+  opacity: 0.8;
+}
+@media (hover: hover) and (pointer: fine) {
+  .signin-accounts button:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+}
+
+/* Signed-in account line in the footer. */
+.account-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.account-line button {
+  min-height: 36px;
+}
+/* The app forces 16px inputs on touch screens; these two are meant to be big. */
+@media (pointer: coarse) {
+  .signin-card .signin-code {
+    font-size: 28px !important;
+  }
+  .signin-phone input {
+    font-size: 20px !important;
+  }
+}
+/* Inputs size to the card, not to their character count. */
+.signin-card form > * {
+  min-width: 0;
+}
+.signin-code {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.signin-phone input::placeholder,
+.signin-code::placeholder {
+  color: #b3b9cc;
+  opacity: 1;
+}

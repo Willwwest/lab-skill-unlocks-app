@@ -163,3 +163,15 @@ A floor tool for coaches on a tablet or phone, a check-in kiosk for the front de
 Everything is still local to one browser. A kiosk tablet and a coach phone do not share check-ins, photos or stars until there is a backend with staff accounts, server-side rules, private photo storage and a signed, rotating family pass. PINs are a device lock, not authentication. Parent notifications are not sent.
 
 Validation: 70 domain/club/floor tests and 13 React interaction tests pass (`npm.cmd test`, `npm.cmd run test:ui`); production build passes. Checked in headless Chrome at 390 × 844, 820 × 1180 and 1180 × 820, including the photo flow with Chrome's fake camera through to the parent Family page.
+
+## Phone sign-in (October 12, 2026)
+
+The app opens on a sign-in page. Parents and coaches enter their phone number and a 6-digit code. There are no passwords.
+
+- **Who you are comes from your number.** A guardian's number opens their own family: the athlete picker lists only their kids, and the view picker offers Parent and Kid view. A staff number opens the Coach Center and can also view as Parent or Kid. Numbers that aren't on file are told to ask the front desk.
+- **Sessions last 90 days** on that browser. Signing out is in the footer and in the Coach Center menu.
+- **Code rules:** codes expire after 5 minutes, a new code can be sent after 30 seconds, and 5 wrong tries lock the number for 10 minutes. The code field uses `autocomplete="one-time-code"`, so phones offer to fill it from the text.
+- **Coaches on their own phone** skip the PIN. **A shared gym iPad** is set up by the head coach (Head coach › Shared gym iPad); coaches then switch with their 4-digit PIN and it locks after 10 idle minutes.
+- **The front desk kiosk** (`?kiosk`) does not sign in. In production it would be a registered device.
+
+Demo: no text is sent; the code appears on screen. Demo numbers are listed under "Demo accounts" on the sign-in page (all in the fictional 555-0100–0199 range). `src/auth.js` holds the rules and a demo code service; a real texting service (for example Supabase phone auth with Twilio Verify) replaces `demoCodes` once LAB has those accounts.

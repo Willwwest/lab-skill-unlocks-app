@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js",
+    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js",
     "preview": "vite preview --host 127.0.0.1",
     "test:ui": "vitest run",
     "dev:lan": "vite --host 0.0.0.0"
