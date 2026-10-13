@@ -14,13 +14,14 @@ import {
   seasonKey,
   sessionName,
   stationFromInput,
+  points,
 } from "./club.js";
 import { Meter } from "./ui.jsx";
+import { currency } from "./gym.js";
 import { useCountUp, sparkFrom } from "./motion.jsx";
 import { num, plural, word, date, dayLabel } from "./format.js";
 import "./club.css";
 
-const points = { class: 5, visit: 2, complete: 5, praise: 3 };
 const statusText = {
   approved: "Confirmed",
   pending: "Waiting for trainer",
@@ -29,10 +30,14 @@ const statusText = {
 };
 const eventLabel = (e) =>
   e.kind === "class"
-    ? "Class star"
-    : e.kind === "praise"
-      ? e.category
-      : `${stations.find((s) => s.id === e.station)?.name} · ${e.kind === "visit" ? "I tried it" : "I completed it"}`;
+    ? "Class check-in"
+    : e.kind === "open"
+      ? "Open gym check-in"
+      : e.kind === "bonus"
+        ? `Bonus pick from ${e.coach}`
+        : e.kind === "praise"
+          ? e.category
+          : `${stations.find((s) => s.id === e.station)?.name} · ${e.kind === "visit" ? "I tried it" : "I completed it"}`;
 // Long lists show the latest entries first, then offer the rest.
 const PAGE = 20;
 
@@ -93,13 +98,14 @@ function QRCard({ station }) {
 
 export function ClubSummary({ state, childId, onOpen }) {
   const stats = clubStats(state, childId);
+  const cur = currency(people.find((p) => p.id === childId));
   return (
     <button className="stat-tile tile-mint club-summary" onClick={onOpen}>
       <span className="eyebrow">Clubhouse</span>
       <strong className="stat-value">
         <Stars value={stats.total} />
       </strong>
-      <b>lifetime stars</b>
+      <b>lifetime {cur.many}</b>
       <small>
         {plural(stats.classes, "class", "classes")} ·{" "}
         {plural(stats.visits, "station check-in", "station check-ins")}
@@ -113,6 +119,7 @@ export function ClubSummary({ state, childId, onOpen }) {
 
 export function ClubHero({ state, childId }) {
   const stats = clubStats(state, childId);
+  const cur = currency(people.find((p) => p.id === childId));
   return (
     <div className="hero club-hero">
       <div className="hero-copy">
@@ -129,7 +136,7 @@ export function ClubHero({ state, childId }) {
         <strong>
           <Stars value={stats.total} />
         </strong>
-        <span>lifetime stars</span>
+        <span>lifetime {cur.many}</span>
         {stats.balance !== stats.total && (
           <small>{num(Math.max(0, stats.balance))} available to spend</small>
         )}
@@ -141,6 +148,7 @@ export function ClubHero({ state, childId }) {
 export default function Club({ state, childId, role, commit }) {
   const club = state.club ?? emptyClub();
   const child = people.find((p) => p.id === childId);
+  const cur = currency(child);
   const stats = clubStats(state, childId);
   const [tab, setTab] = useState("My passport");
   const [session, setSession] = useState(sessions()[0].id);
@@ -200,7 +208,7 @@ export default function Club({ state, childId, role, commit }) {
       { type: "record", kind, station, session, note, ...extra },
       role === "Coach"
         ? "Recorded. Their effort counts."
-        : "Sent to your trainer. Stars arrive after confirmation.",
+        : `Sent to your trainer. ${cur.many} arrive after confirmation.`,
     );
   // Stars land immediately only when a coach records them.
   const award = (e, kind, extra) => {
@@ -230,7 +238,7 @@ export default function Club({ state, childId, role, commit }) {
     <div className="club">
       <div className="club-stats">
         {[
-          [stats.classes, "class star", "class stars"],
+          [stats.classes, "class", "classes"],
           [stats.visits, "station stamp", "station stamps"],
           [stats.days, "gym day", "gym days"],
           [
@@ -249,7 +257,7 @@ export default function Club({ state, childId, role, commit }) {
         {[
           "My passport",
           "Station crowns",
-          "Star rewards",
+          "Rewards",
           ...(role === "Coach" ? ["Trainer tools"] : []),
         ].map((t) => (
           <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
@@ -288,9 +296,9 @@ export default function Club({ state, childId, role, commit }) {
               >
                 {attendance
                   ? attendance.status === "approved"
-                    ? "Class star earned"
+                    ? "Checked in"
                     : "Attendance awaiting trainer"
-                  : "Check into this class · +5 stars"}
+                  : `Check into this class · +5 ${cur.many}`}
               </button>
               <form
                 onSubmit={(e) => {
@@ -341,8 +349,11 @@ export default function Club({ state, childId, role, commit }) {
                   ))}
                 </select>
               </label>
-              <button className="button cyan" onClick={(e) => award(e, "visit")}>
-                I tried this station · +2 stars
+              <button
+                className="button cyan"
+                onClick={(e) => award(e, "visit")}
+              >
+                I tried this station · +2 {cur.many}
               </button>
             </section>
             <section className="card club-panel club-milestone">
@@ -367,7 +378,7 @@ export default function Club({ state, childId, role, commit }) {
                   <b>100 tries. All heart.</b>
                   <br />
                   100 confirmed station check-ins earns a special badge and 100
-                  bonus stars.
+                  bonus {cur.many}.
                 </p>
               </div>
             </section>
@@ -424,7 +435,7 @@ export default function Club({ state, childId, role, commit }) {
                 </p>
                 <small>
                   {b.bonus
-                    ? `+${plural(b.bonus, "star", "stars")}`
+                    ? `+${plural(b.bonus, cur.one, cur.many)}`
                     : "First badge"}
                 </small>
               </article>
@@ -516,9 +527,7 @@ export default function Club({ state, childId, role, commit }) {
               </form>
             )}
             {role === "Athlete" && !profile.optIn && (
-              <p>
-                Ask your parent or trainer to join a crown challenge.
-              </p>
+              <p>Ask your parent or trainer to join a crown challenge.</p>
             )}
           </section>
           <div className="club-crowns">
@@ -549,11 +558,11 @@ export default function Club({ state, childId, role, commit }) {
           </div>
         </>
       )}
-      {tab === "Star rewards" && (
+      {tab === "Rewards" && (
         <>
           <section className="card club-panel">
             <h3>
-              {plural(Math.max(0, stats.balance), "star", "stars")} to spend
+              {plural(Math.max(0, stats.balance), cur.one, cur.many)} to spend
             </h3>
             <p>
               {num(stats.skillPoints)} from skill badges +{" "}
@@ -571,14 +580,14 @@ export default function Club({ state, childId, role, commit }) {
             {prizes.map((p) => (
               <article className="card club-panel" key={p.id}>
                 <h3>{p.name}</h3>
-                <strong>{plural(p.cost, "star", "stars")}</strong>
+                <strong>{plural(p.cost, cur.one, cur.many)}</strong>
                 <button
                   className="button navy"
                   disabled={role === "Athlete" || stats.balance < p.cost}
                   onClick={() =>
                     send(
                       { type: "redeem", prizeId: p.id },
-                      "Reward requested. Your stars are reserved.",
+                      `Reward requested. Your ${cur.many} are reserved.`,
                     )
                   }
                 >
@@ -619,7 +628,7 @@ export default function Club({ state, childId, role, commit }) {
                         onClick={() =>
                           send(
                             { type: "cancel", id: r.id },
-                            "Request cancelled; stars released.",
+                            `Request cancelled; ${cur.many} released.`,
                           )
                         }
                       >
@@ -782,9 +791,7 @@ export default function Club({ state, childId, role, commit }) {
               >
                 Confirm completion · +5 stars
               </button>
-              <p className="club-hint">
-                Once per station per class.
-              </p>
+              <p className="club-hint">Once per station per class.</p>
             </section>
           </div>
           <section className="card club-panel">
@@ -832,9 +839,7 @@ export default function Club({ state, childId, role, commit }) {
           </section>
           <section className="card club-panel">
             <h3>Station QR signs</h3>
-            <p>
-              Codes open a station-specific check-in.
-            </p>
+            <p>Codes open a station-specific check-in.</p>
             <p className="club-hint">
               Scans record on the phone that scanned. This demo has no shared
               server, so they won’t reach this screen.
@@ -898,15 +903,17 @@ export default function Club({ state, childId, role, commit }) {
         </>
       )}
       <details className="card club-panel club-rules">
-        <summary>How stars work</summary>
+        <summary>How {cur.many} work</summary>
         <div className="club-rule-grid">
           {[
             ["+5", "One confirmed class"],
+            ["+5", "Checked into open gym by a coach"],
+            ["+10", "Bonus pick from a coach · 3 per coach per class"],
             ["+2", "Trying a station / class"],
             ["+3", "Trainer recognition · max 3/day"],
             ["+5", "Confirmed completion / station / class"],
             ["20–50", "New verified skill · by tier"],
-            ["Milestones", "Bonus stars for classes, tries and gym days"],
+            ["Milestones", `Bonus ${cur.many} for classes, tries and gym days`],
           ].map(([n, label]) => (
             <div key={label}>
               <b>{n}</b>
@@ -914,9 +921,7 @@ export default function Club({ state, childId, role, commit }) {
             </div>
           ))}
         </div>
-        <p>
-          A scan requests credit; a trainer confirms it.
-        </p>
+        <p>A scan requests credit; a trainer confirms it.</p>
       </details>
     </div>
   );

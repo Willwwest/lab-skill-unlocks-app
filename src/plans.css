@@ -1,0 +1,404 @@
+/* Plans & crew. Layout only; every value is a design token. */
+
+.pl {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: var(--ds-space-6);
+  align-items: start;
+  padding-bottom: var(--ds-space-12);
+}
+
+/* Block list */
+.pl-rail {
+  position: sticky;
+  top: calc(var(--nav-h, 64px) + var(--ds-space-6));
+  display: grid;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+.pl-rail > .ds-eyebrow {
+  padding: 0 var(--ds-space-1) var(--ds-space-1);
+}
+.pl-block {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: var(--ds-space-1) var(--ds-space-3);
+  align-items: center;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  text-align: left;
+  transition: border-color var(--ds-fast), box-shadow var(--ds-fast), background var(--ds-fast);
+}
+.pl-block[aria-current="true"] {
+  border-color: var(--ds-navy);
+  box-shadow: inset 4px 0 0 var(--ds-cyan), var(--ds-shadow-sm);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pl-block:not([aria-current="true"]):hover {
+    border-color: var(--ds-border-strong);
+    box-shadow: var(--ds-shadow-sm);
+  }
+}
+.pl-time {
+  display: grid;
+  grid-row: span 2;
+  align-self: start;
+  line-height: 1.15;
+}
+.pl-time b {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-h3);
+  color: var(--ds-navy);
+}
+.pl-time small,
+.pl-block-main small {
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-3);
+}
+.pl-block-main {
+  display: grid;
+  min-width: 0;
+}
+.pl-block-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ds-text);
+}
+.pl-block-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+.pl-stack {
+  display: flex;
+}
+.pl-stack .ds-coach + .ds-coach {
+  margin-left: calc(var(--ds-space-1) * -1);
+}
+
+/* Editor */
+.pl-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ds-space-8);
+  min-width: 0;
+}
+.pl-head {
+  gap: var(--ds-space-6);
+}
+.pl-head .ds-h2 {
+  font-size: var(--ds-text-h1);
+  margin-top: var(--ds-space-1);
+}
+.pl-head-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--ds-space-4);
+  flex-wrap: wrap;
+}
+.pl-head-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.pl-head .pl-stack .ds-coach {
+  box-shadow: 0 0 0 2px var(--ds-surface-ink);
+}
+
+/* Rotation timeline, to scale */
+.pl-rot {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+.pl-rot > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 0 var(--ds-space-2);
+  min-width: 0;
+  padding: var(--ds-space-3);
+  background: var(--st);
+  color: var(--ds-navy);
+}
+.pl-rot > span:first-child {
+  border-radius: var(--ds-radius-sm) 0 0 var(--ds-radius-sm);
+}
+.pl-rot > span:last-child {
+  border-radius: 0 var(--ds-radius-sm) var(--ds-radius-sm) 0;
+}
+.pl-rot b {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ds-navy);
+  color: var(--ds-text-on-ink);
+  font-size: var(--ds-text-label);
+}
+.pl-rot small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Station names get two lines before they truncate. */
+.pl-rot em {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.2;
+}
+.pl-rot em {
+  font-style: normal;
+  font-weight: 700;
+  font-size: var(--ds-text-small);
+}
+.pl-rot small {
+  font-size: var(--ds-text-label);
+  font-weight: 600;
+  opacity: 0.75;
+}
+.pl-rot .pl-rot-free {
+  grid-template-columns: minmax(0, 1fr);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ds-gray-700);
+  color: var(--ds-text-on-ink-2);
+}
+
+/* Crew */
+.pl-crew {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: var(--ds-space-3);
+}
+/* Name and controls share a row when there is room; otherwise the
+   controls drop to their own row instead of squeezing the name. */
+.pl-coach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.pl-coach-name {
+  display: grid;
+  flex: 1 1 96px;
+  min-width: 0;
+}
+.pl-coach-name b,
+.pl-coach-name small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pl-coach-name b {
+  font-size: var(--ds-text-body);
+}
+.pl-coach-name small {
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-3);
+}
+.pl-coach-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  margin-left: auto;
+}
+
+/* Dashed "add" tiles */
+.pl-add {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--ds-space-1);
+  min-height: 96px;
+  padding: var(--ds-space-5);
+  border-radius: var(--ds-radius-lg);
+  border: 2px dashed var(--ds-border-strong);
+  color: var(--ds-text-2);
+  text-align: center;
+  transition: border-color var(--ds-fast), color var(--ds-fast), background var(--ds-fast);
+}
+.pl-add small {
+  color: var(--ds-text-3);
+}
+button.pl-add:hover {
+  border-color: var(--ds-cyan);
+  color: var(--ds-navy);
+  background: var(--ds-surface);
+}
+.pl-add-coach {
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-items: stretch;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-height: 0;
+  padding: var(--ds-space-4);
+}
+.pl-add-coach .ds-select select {
+  background: var(--ds-surface);
+}
+
+/* Stations */
+.pl-stations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: var(--ds-space-4);
+}
+.pl-station {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-shadow-sm);
+}
+.pl-station-band {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-height: 60px;
+  padding: var(--ds-space-2) var(--ds-space-2) var(--ds-space-2) var(--ds-space-4);
+  background: var(--st);
+  color: var(--ds-navy);
+}
+.pl-station-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ds-navy);
+  color: var(--ds-text-on-ink);
+  font-family: var(--ds-font-display);
+  font-weight: 800;
+}
+.pl-station-when {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  min-width: 0;
+  font-size: var(--ds-text-small);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pl-station-when b {
+  font-size: var(--ds-text-h3);
+  line-height: 1;
+}
+.pl-station-tools {
+  display: flex;
+}
+.pl-station-tools .ds-iconbtn {
+  width: 36px;
+  height: 36px;
+  color: var(--ds-navy);
+}
+.pl-station-body {
+  display: grid;
+  align-content: start;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-5);
+}
+.pl-focus {
+  color: var(--ds-text-2);
+  line-height: 1.45;
+}
+.pl-skills {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding-top: var(--ds-space-4);
+  border-top: 1px solid var(--ds-border);
+}
+.pl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.pl-none {
+  font-size: var(--ds-text-small);
+  color: var(--ds-text-3);
+}
+.pl-more {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  min-height: 36px;
+  font-size: var(--ds-text-small);
+  font-weight: 700;
+  color: var(--ds-cyan-ink);
+}
+.pl-more[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* Below laptop width the block list becomes a row of cards above the
+   editor, so the editor keeps the full width. */
+@media (max-width: 1180px) {
+  .pl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pl-rail {
+    position: static;
+    display: flex;
+    gap: var(--ds-space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(var(--ds-space-1) * -1);
+    padding: var(--ds-space-1);
+  }
+  .pl-rail > .ds-eyebrow {
+    display: none;
+  }
+  .pl-block {
+    flex: none;
+    width: 240px;
+  }
+}
+@media (max-width: 420px) {
+  .pl-station-band {
+    gap: var(--ds-space-2);
+    padding-left: var(--ds-space-3);
+  }
+  .pl-station-when b {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .pl-head .ds-h2 {
+    font-size: var(--ds-text-h2);
+  }
+  /* The timeline keeps numbers only; the station cards carry the names. */
+  .pl-rot > span {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    padding: var(--ds-space-2) var(--ds-space-1);
+  }
+  .pl-rot em,
+  .pl-rot .pl-rot-free small {
+    display: none;
+  }
+  .pl-rot b {
+    grid-row: auto;
+  }
+  .pl-rot .pl-rot-free em {
+    display: block;
+    font-size: var(--ds-text-label);
+  }
+  .pl-block {
+    width: 210px;
+  }
+}

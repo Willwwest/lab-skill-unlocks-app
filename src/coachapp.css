@@ -1,0 +1,1826 @@
+/* ============================================
+   COACH FLOOR
+   Same shell as the kid and parent app: the floating bar with pill
+   navigation (an ink tab bar on phones), the gradient masthead with the dot
+   field, pastel stat tiles and ink highlight cards. Each screen's status and
+   main action live in the masthead; a copy of the action docks at the
+   bottom once the masthead scrolls away.
+   ============================================ */
+
+.cf {
+  --t-first: #ff3d8b;
+  --t-week: #ff8a1f;
+  --t-month: #f2b01e;
+  --t-sixty: #8b5cf6;
+  --lavender: #dfe5fb;
+  background: var(--surface-2);
+}
+
+/* ---------- App bar additions ---------- */
+.cf .appbar-controls {
+  position: relative;
+}
+.cf-me-wrap {
+  position: relative;
+}
+.cf-me {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.cf-me-mark {
+  background: var(--cyan);
+  color: var(--ink);
+}
+.cf-menu {
+  top: calc(100% + 10px);
+  z-index: 60;
+}
+.cf-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cf-live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 0 4px rgba(34, 188, 237, 0.25);
+  animation: cf-pulse 1.6s ease-in-out infinite;
+}
+.cf-live b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.cf-live.is-warn {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--ink);
+}
+.cf-live.is-warn i {
+  background: var(--ink);
+  box-shadow: none;
+}
+@keyframes cf-pulse {
+  50% {
+    box-shadow: 0 0 0 7px rgba(34, 188, 237, 0);
+  }
+}
+
+/* ---------- Masthead hero ---------- */
+.cf-masthead .masthead-inner {
+  padding-top: 26px;
+  padding-bottom: 72px;
+}
+.cf-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "copy aside"
+    "actions aside";
+  column-gap: 40px;
+  align-items: center;
+}
+.cf-hero.no-aside {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "copy"
+    "actions";
+}
+.cf-hero-copy {
+  grid-area: copy;
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding-top: 18px;
+  min-width: 0;
+}
+.cf-hero h1 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  font-size: clamp(40px, 5.6vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.cf-hero h1 em {
+  font-style: normal;
+  color: var(--sky);
+}
+/* The lead always holds two lines (three on phones), so the hero keeps
+   its height when a tab or step swaps in a shorter or longer lead. */
+.cf-hero .lead {
+  font-size: 18px;
+  line-height: 1.45;
+  min-height: calc(2em * 1.45);
+  color: rgba(255, 255, 255, 0.86);
+  max-width: 52ch;
+}
+@media (max-width: 480px) {
+  /* Titles stay on one line on phones. */
+  .cf-hero h1 {
+    font-size: clamp(30px, 9.4vw, 40px);
+  }
+  .cf-hero .lead {
+    font-size: 16px;
+    min-height: calc(3em * 1.45);
+  }
+}
+.cf-hero-aside {
+  grid-area: aside;
+  justify-self: end;
+}
+.cf-hero-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding-top: 24px;
+}
+.cf-hero-actions .button {
+  min-height: 54px;
+  padding: 15px 28px;
+}
+.cf-hero-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--gold);
+}
+
+/* The next block, as a glass card on the masthead. */
+.cf-next {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  width: min(380px, 100%);
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.cf-next h2 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-size: 32px;
+  line-height: 1.05;
+}
+.cf-next p {
+  color: rgba(255, 255, 255, 0.82);
+}
+.cf-next-status {
+  font-weight: 700;
+  color: var(--sky) !important;
+}
+.cf-next .button {
+  margin-top: 12px;
+}
+.cf-next.phase-live {
+  box-shadow: inset 0 0 0 2px var(--cyan);
+}
+.cf-next.is-owed {
+  background: rgba(242, 176, 30, 0.16);
+  border-color: rgba(242, 176, 30, 0.5);
+}
+.cf-next.is-owed .eyebrow {
+  color: var(--gold);
+}
+
+/* Big ring, big number and the rotation timer. */
+.cf-bigring .ring-content,
+.cf-timer .ring-content {
+  gap: 4px;
+}
+.cf-bigring strong,
+.cf-timer strong,
+.cf-bignum strong {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.cf-bigring strong {
+  font-size: 54px;
+}
+.cf-bigring small,
+.cf-timer small,
+.cf-bignum small {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+}
+.cf-ring-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sky);
+}
+.cf-timer strong {
+  font-size: 58px;
+}
+.cf-timer-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sky);
+}
+.cf-timer.is-warn strong,
+.cf-timer.is-warn .cf-timer-label {
+  color: var(--gold);
+}
+.cf-timer.is-warn .ring {
+  animation: cf-throb 1s ease-in-out infinite;
+}
+@keyframes cf-throb {
+  50% {
+    transform: scale(1.03);
+  }
+}
+.cf-bignum {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 176px;
+}
+.cf-bignum strong {
+  font-size: 120px;
+  color: #fff;
+}
+.cf-bignum.gold strong {
+  color: var(--gold);
+  text-shadow: 0 10px 40px rgba(242, 176, 30, 0.35);
+}
+
+/* Class steps and manager tabs, as pills on the masthead. */
+.cf-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cf-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 7px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+}
+.cf-steps li span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 800;
+}
+.cf-steps li.done {
+  color: rgba(255, 255, 255, 0.85);
+}
+.cf-steps li.done span {
+  background: var(--mint);
+  color: #0e5a44;
+}
+.cf-steps li.now {
+  background: #fff;
+  color: var(--navy);
+}
+.cf-steps li.now span {
+  background: var(--navy);
+  color: #fff;
+}
+.cf-hero-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cf-hero-tabs button {
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.cf-hero-tabs button[aria-selected="true"] {
+  background: #fff;
+  color: var(--navy);
+}
+
+/* Search: white on the masthead, outlined in the page. */
+.cf-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(620px, 100%);
+  min-height: 60px;
+  padding: 0 10px 0 20px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text-3);
+  box-shadow: 0 16px 40px -20px rgba(2, 3, 15, 0.6);
+}
+.cf-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 18px;
+  color: var(--text);
+  outline: none;
+}
+.cf-search button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--text-2);
+}
+.cf-search:focus-within {
+  box-shadow: 0 0 0 4px rgba(34, 188, 237, 0.45), 0 16px 40px -20px rgba(2, 3, 15, 0.6);
+}
+.cf-main .cf-search {
+  box-shadow: none;
+  border: 1px solid var(--line-strong);
+  min-height: 52px;
+}
+.cf-main .cf-search input {
+  font-size: 16px;
+}
+.cf-pill-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: #fff;
+}
+.cf-pill-select select {
+  appearance: none;
+  min-height: 48px;
+  padding: 0 40px 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+}
+.cf-pill-select select option {
+  color: var(--text);
+}
+.cf-pill-select svg {
+  position: absolute;
+  right: 16px;
+  pointer-events: none;
+}
+
+/* ---------- Page body ---------- */
+.cf-main {
+  display: grid;
+  /* One track that never grows past the page, whatever a child wants. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-content: start;
+  padding-top: 32px;
+}
+.cf-section {
+  margin: 18px 0 0;
+  flex-wrap: wrap;
+}
+.cf-section h2 {
+  font-size: 32px;
+}
+.cf-strip .stat-tile {
+  padding: 24px 28px;
+}
+.cf-strip .stat-value {
+  font-size: 52px;
+}
+.cf-strip .stat-tile b {
+  font-size: 15px;
+}
+.cf-strip.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.tile-lavender {
+  background: var(--lavender);
+}
+.cf-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.cf-hint {
+  flex: 1 1 200px;
+}
+.cf-empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-2);
+}
+
+/* ---------- Today ---------- */
+.cf-timeline {
+  display: grid;
+  gap: 10px;
+}
+.cf-slot {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  text-align: left;
+  border-left: 5px solid transparent;
+}
+.cf-slot.phase-done {
+  opacity: 0.55;
+}
+.cf-slot.is-mine {
+  border-left-color: var(--cyan);
+}
+.cf-slot.phase-live {
+  background: linear-gradient(90deg, #e9f8fe, #fff 60%);
+}
+@media (hover: hover) and (pointer: fine) {
+  button.cf-slot:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+}
+button.cf-slot {
+  transition: box-shadow 0.15s, transform 0.15s var(--ease-out);
+}
+.cf-slot-time {
+  display: grid;
+  gap: 2px;
+}
+.cf-slot-time b {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+.cf-slot-time small {
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cf-slot-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.cf-slot-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-slot-title b {
+  font-size: 18px;
+}
+.cf-slot-body small {
+  color: var(--text-2);
+  font-size: 14px;
+}
+.cf-slot-go {
+  color: var(--cyan-deep);
+}
+.cf-livetag,
+.cf-role {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cf-livetag {
+  background: var(--cyan);
+  color: var(--ink);
+}
+.cf-role {
+  background: var(--surface-2);
+  color: var(--navy);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.cf-role.r-head {
+  background: var(--navy);
+  color: #fff;
+  box-shadow: none;
+}
+.cf-crew {
+  display: flex;
+}
+.cf-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--sky);
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 800;
+  border: 2px solid #fff;
+}
+.cf-crew .cf-mark + .cf-mark {
+  margin-left: -8px;
+}
+.cf-mark.r-head {
+  background: var(--navy);
+  color: #fff;
+}
+.cf-mark.r-attendant {
+  background: var(--mint);
+}
+.cf-cover {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 4px 0;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.cf-cover > span {
+  margin-right: 6px;
+}
+.cf-cover .chip[aria-pressed="true"],
+.chip.cf-hit[aria-pressed="true"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* ---------- Kid identity ---------- */
+.cf-face {
+  display: inline-grid;
+  flex: none;
+  padding: 3px;
+  border-radius: 50%;
+}
+.cf-face .kid-avatar {
+  display: grid;
+}
+.cf-face.ring-first {
+  box-shadow: 0 0 0 3px var(--t-first);
+}
+.cf-face.ring-week {
+  box-shadow: 0 0 0 3px var(--t-week);
+}
+.cf-face.ring-month {
+  box-shadow: 0 0 0 3px var(--t-month);
+}
+.cf-face.ring-sixty {
+  box-shadow: 0 0 0 3px var(--t-sixty);
+}
+.cf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.cf-tags small {
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cf-tenure,
+.cf-level,
+.cf-tier,
+.cf-flag,
+.cf-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cf-tenure.t-first {
+  background: var(--t-first);
+  color: #fff;
+}
+.cf-tenure.t-week {
+  background: var(--t-week);
+  color: #fff;
+}
+.cf-tenure.t-month {
+  background: #fdeec7;
+  color: #6b4a00;
+}
+.cf-tenure.t-sixty {
+  background: #ece4fe;
+  color: #4b2a9e;
+}
+/* Levels stay neutral so the only colors on a kid are how new they are. */
+.cf-level {
+  background: #fff;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.cf-tier {
+  background: color-mix(in srgb, var(--tier) 16%, #fff);
+  color: var(--navy);
+}
+.cf-tier::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tier);
+}
+.cf-flag {
+  background: #fff1d6;
+  color: #7a4b00;
+}
+.cf-flag.f-pastDue,
+.cf-flag.f-inactive {
+  background: #ffe3e0;
+  color: #9b1c12;
+}
+.cf-ok {
+  background: #e3f6ee;
+  color: #0e5a44;
+}
+.cf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.cf-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cf-legend .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.dot.t-first {
+  background: var(--t-first);
+}
+.dot.t-week {
+  background: var(--t-week);
+}
+.dot.t-month {
+  background: var(--t-month);
+}
+.dot.t-sixty {
+  background: var(--t-sixty);
+}
+.cf-levelpick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #7a4b00;
+}
+.cf-levelpick button {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  font-weight: 800;
+  color: var(--navy);
+}
+.cf-levelpick button[aria-pressed="true"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+/* ---------- Kid rows ---------- */
+.cf-rows {
+  display: grid;
+  gap: 10px;
+}
+.cf-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.4fr) auto;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 14px 16px 14px 14px;
+}
+.cf-row-who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  text-align: left;
+}
+.cf-row-who > span {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.cf-row-who b {
+  font-size: 17px;
+}
+.cf-last {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.cf-row .cf-levelpick {
+  grid-column: 1;
+  grid-row: 2;
+  padding-left: 72px;
+}
+.cf-row .cf-skill-line,
+.cf-row .cf-row-none {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.cf-row .cf-got {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  min-height: 52px;
+}
+.cf-row-none {
+  color: var(--text-3);
+  font-size: 14px;
+}
+.cf-skill-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.cf-skill-line > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cf-skill-line small {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan-deep);
+}
+.cf-skill-line b {
+  font-size: 16px;
+  color: var(--navy);
+}
+.cf-skill-line > span > span {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+/* ---------- Open gym ---------- */
+.cf-results {
+  padding: 18px;
+  display: grid;
+  gap: 18px;
+}
+.cf-family {
+  display: grid;
+  gap: 8px;
+}
+.cf-family-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cf-family-head b {
+  font-size: 17px;
+  color: var(--navy);
+}
+.cf-family-head small {
+  color: var(--text-3);
+}
+.cf-family-head .text-button {
+  margin-left: auto;
+}
+.cf-family-kids {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 8px;
+}
+.cf-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 14px 8px 10px;
+  border-radius: var(--r-sm);
+  border: 2px solid var(--line);
+  background: #fff;
+  text-align: left;
+}
+.cf-pick[aria-pressed="true"] {
+  border-color: var(--cyan);
+  background: #ecf9fe;
+}
+.cf-pick:disabled {
+  opacity: 0.55;
+}
+.cf-pick-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.cf-pick-text small {
+  color: var(--text-3);
+}
+.cf-check {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 2px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+}
+[aria-pressed="true"] > .cf-check,
+.cf-pick:disabled .cf-check {
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+.cf-waiting-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+.cf-waiting {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 14px 8px 12px;
+  transition: transform 0.15s var(--ease-out), box-shadow 0.15s;
+}
+.cf-waiting b {
+  font-size: 14px;
+}
+.cf-waiting small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.cf-waiting small.is-late {
+  color: #b45309;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cf-waiting:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* Docked action bar, above the phone tab bar. */
+.cf-dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 45;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 22px;
+  border-radius: 22px;
+  background: rgba(9, 13, 25, 0.94);
+  color: #fff;
+  box-shadow: 0 18px 40px -16px rgba(2, 3, 15, 0.6);
+  animation: cf-rise 0.2s var(--ease-out);
+}
+.cf-dock > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+.cf-dock small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cf-dock b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cf-dock-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cf-dock .cf-hero-warn {
+  display: none;
+}
+.cf-dock .button {
+  min-height: 50px;
+}
+@keyframes cf-rise {
+  from {
+    transform: translate(-50%, 16px);
+    opacity: 0;
+  }
+}
+
+/* ---------- Bonus picks: the ink highlight card ---------- */
+.cf-bonus {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 28px;
+  background: var(--ink);
+  border-color: transparent;
+  color: #fff;
+}
+.cf-bonus::before {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 330px;
+  right: -90px;
+  bottom: -80px;
+  background: var(--chevron) no-repeat center / contain;
+  opacity: 0.05;
+  pointer-events: none;
+}
+.cf-bonus > * {
+  position: relative;
+}
+.cf-bonus .eyebrow {
+  color: var(--gold);
+}
+.cf-bonus h3 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-size: 32px;
+  line-height: 1.05;
+  color: var(--cyan);
+}
+.cf-bonus p {
+  color: rgba(255, 255, 255, 0.76);
+}
+.cf-given {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-given span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 999px;
+  background: rgba(242, 176, 30, 0.16);
+  font-weight: 700;
+}
+.cf-bonus-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.cf-bonus-kid {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 12px 4px 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid transparent;
+  color: #fff;
+  font-size: 13px;
+}
+.cf-bonus-kid[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: rgba(242, 176, 30, 0.14);
+}
+.cf-bonus-kid:disabled {
+  opacity: 0.35;
+}
+.cf-bonus > .button {
+  min-height: 52px;
+}
+.cf-leader h3 {
+  font-size: 40px;
+}
+
+/* ---------- Attendance ---------- */
+.cf-hits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-att-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
+  gap: 12px;
+}
+.cf-att {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cf-att.is-in {
+  border-color: var(--cyan);
+  background: #f3fbfe;
+}
+.cf-att-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  text-align: left;
+}
+.cf-att-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.cf-att-text b {
+  font-size: 16px;
+}
+.cf-att .cf-levelpick {
+  padding-left: 70px;
+}
+
+/* ---------- Groups and stations, in each station's color ---------- */
+.cf-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.cf-count button {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  font-weight: 800;
+  color: var(--navy);
+}
+.cf-count button[aria-pressed="true"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.cf-board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(230px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+}
+.cf-group {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 0 14px 16px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cf-group.is-target {
+  border-color: var(--cyan);
+  border-style: dashed;
+}
+.cf-group.is-over {
+  border-color: var(--cyan);
+  background: #ecf9fe;
+}
+.cf-group header,
+.cf-station header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 -14px;
+  padding: 14px;
+  background: var(--station);
+}
+.cf-group header > span:last-child,
+.cf-station header > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cf-group header b,
+.cf-station header b {
+  font-size: 16px;
+  color: var(--navy);
+}
+.cf-group header small,
+.cf-station header small {
+  font-size: 13px;
+  color: rgba(9, 13, 25, 0.68);
+  font-weight: 600;
+}
+.cf-group-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: var(--navy);
+  color: #fff;
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-size: 30px;
+  line-height: 1;
+}
+.cf-group-num.small {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  margin-left: auto;
+}
+.cf-group-station {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cf-group-station > span:last-child {
+  display: grid;
+}
+.cf-group-station small {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.cf-station-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--station) 70%, #fff);
+  color: var(--navy);
+  font-size: 18px;
+  font-weight: 800;
+}
+.cf-station header .cf-station-icon {
+  background: #fff;
+}
+.cf-group-focus {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.cf-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.cf-field select,
+.cf-field textarea,
+.cf-plan-row select,
+.cf-plan-row input {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+.cf-field textarea {
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.cf-field.wide {
+  font-size: 13px;
+}
+.cf-group-kids {
+  display: grid;
+  gap: 6px;
+}
+.cf-kidchip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 3px 10px 3px 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  text-align: left;
+  cursor: grab;
+  transition: background 0.15s, transform 0.15s var(--ease-out);
+}
+.cf-kidname {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+.cf-kidname small {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cf-kidchip[aria-pressed="true"] {
+  background: var(--navy);
+  color: #fff;
+  transform: scale(1.02);
+}
+.cf-kidchip[aria-pressed="true"] small {
+  color: rgba(255, 255, 255, 0.7);
+}
+.cf-movehere {
+  justify-self: stretch;
+}
+.cf-stations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.cf-station {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 0 14px 16px;
+  overflow: hidden;
+}
+.cf-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cf-namechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 2px 2px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 14px;
+  font-weight: 700;
+}
+.cf-next-group {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cf-upnext {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+.cf-upnext .eyebrow {
+  color: var(--cyan-deep);
+}
+
+/* ---------- Panels and lines ---------- */
+.cf-wrap-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.cf-panel {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+.cf-panel h3 {
+  font-family: Argentum, "Work Sans", sans-serif;
+  font-size: 22px;
+  color: var(--navy);
+}
+.cf-lines {
+  display: grid;
+  gap: 8px;
+}
+.cf-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  text-align: left;
+}
+.cf-line > span {
+  color: var(--text-2);
+}
+.cf-line > em,
+.cf-line > small,
+.cf-line > .cf-tags {
+  margin-left: auto;
+}
+.cf-mini-badge {
+  --size: 38px;
+}
+.cf-skill {
+  justify-content: space-between;
+}
+.cf-skill .cf-skill-line {
+  flex: 1 1 260px;
+}
+.cf-skill-acts {
+  display: flex;
+  gap: 8px;
+}
+.cf-takeover {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #fff6e0;
+  border-color: #f6d891;
+}
+
+/* ---------- Kid sheet ---------- */
+.cf-sheet {
+  gap: 16px;
+}
+.cf-sheet h3 {
+  font-size: 15px;
+  color: var(--text-2);
+}
+.cf-sheet-who {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cf-sheet-who > div {
+  display: grid;
+  gap: 8px;
+}
+.cf-sheet-who p {
+  color: var(--text-2);
+}
+.cf-sheet-level {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- Team table ---------- */
+.cf-table {
+  overflow-x: auto;
+}
+.cf-table .cc-tr {
+  grid-template-columns: 1.8fr repeat(6, minmax(70px, 1fr));
+  align-items: center;
+  min-width: 720px;
+}
+.cf-coachcell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.cf-coachcell .cf-mark {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+
+/* ---------- Plans ---------- */
+.cf-plans {
+  display: grid;
+  gap: 16px;
+}
+.cf-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.cf-plan-head > span:nth-child(2) {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.cf-plan h4 {
+  font-size: 14px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+.cf-plan-cols {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(340px, 1.7fr);
+  gap: 28px;
+}
+.cf-plan-cols > div {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.cf-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cf-plan-row input {
+  flex: 1;
+  min-width: 0;
+}
+.cf-plan-station {
+  display: grid;
+  gap: 6px;
+  padding: 10px 10px 10px 12px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--station) 30%, #fff);
+}
+.cf-plan-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--navy);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+.cf-plan-skills summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan-deep);
+  padding-left: 38px;
+}
+.cf-plan-skills .cf-hits {
+  padding: 10px 0 4px 38px;
+}
+
+/* ---------- Tablet ---------- */
+@media (max-width: 1100px) {
+  .cf-row {
+    grid-template-columns: minmax(200px, 1fr) minmax(200px, 1.2fr) auto;
+  }
+  .cf-wrap-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 900px) {
+  .cf-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "aside"
+      "actions";
+    row-gap: 22px;
+  }
+  .cf-hero-aside {
+    justify-self: start;
+  }
+  .cf-strip.four {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cf-me-name,
+  .cf-live-name {
+    display: none;
+  }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 760px) {
+  .cf-masthead .masthead-inner {
+    padding: 12px 18px 52px;
+  }
+  .cf-hero .lead {
+    font-size: 16px;
+  }
+  .cf-hero-actions {
+    padding-top: 4px;
+  }
+  .cf-hero-actions .button {
+    flex: 1 1 auto;
+  }
+  .cf-search {
+    min-height: 54px;
+  }
+  .cf-search input {
+    font-size: 16px;
+  }
+  .cf-next {
+    width: 100%;
+  }
+  .cf-bigring .ring,
+  .cf-timer .ring {
+    width: 150px !important;
+    height: 150px !important;
+  }
+  .cf-bigring strong {
+    font-size: 42px;
+  }
+  .cf-timer strong {
+    font-size: 40px;
+  }
+  .cf-bignum {
+    justify-items: start;
+  }
+  .cf-bignum strong {
+    font-size: 84px;
+  }
+  .cf-steps {
+    border-radius: 20px;
+  }
+  .cf-steps li {
+    font-size: 13px;
+    padding: 6px 10px 6px 6px;
+  }
+  .cf-main {
+    padding: 22px 12px 120px;
+    gap: 14px;
+  }
+  .cf-section h2 {
+    font-size: 26px;
+  }
+  .cf-strip .stat-tile {
+    padding: 18px;
+  }
+  .cf-strip .stat-value {
+    font-size: 40px;
+  }
+  .cf-slot {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 14px;
+  }
+  .cf-slot-time b {
+    font-size: 20px;
+  }
+  .cf-slot .cf-crew {
+    grid-column: 2 / -1;
+  }
+  .cf-slot-go {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .cf-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+  .cf-row .cf-levelpick {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding-left: 0;
+  }
+  .cf-row .cf-skill-line,
+  .cf-row .cf-row-none {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .cf-row .cf-got {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 12px 16px;
+  }
+  .cf-att .cf-levelpick {
+    padding-left: 0;
+  }
+  .cf-board {
+    grid-template-columns: 1fr;
+  }
+  .cf-family-kids {
+    grid-template-columns: 1fr;
+  }
+  .cf-pick {
+    flex-wrap: wrap;
+  }
+  .cf-pick .cf-tags {
+    width: 100%;
+    padding-left: 42px;
+  }
+  .cf-plan-cols {
+    grid-template-columns: 1fr;
+  }
+  .cf-plan-row {
+    flex-wrap: wrap;
+  }
+  .cf-dock {
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-left: 16px;
+  }
+  .cf-dock > span:first-child small {
+    display: none;
+  }
+  .cf-bonus {
+    padding: 22px 18px;
+  }
+  .cf-bonus h3 {
+    font-size: 26px;
+  }
+}
+
+/* ---------- Test-pass fixes ---------- */
+/* Toasts drop in just under the floating bar, clear of the bottom tab bar
+   and the dock. */
+.cf .cc-toast {
+  top: calc(var(--gutter) + var(--nav-h) + 12px + env(safe-area-inset-top, 0px));
+  bottom: auto;
+  z-index: 70;
+}
+.cf-dock .button.navy {
+  background: var(--cyan);
+  color: var(--ink);
+}
+@media (max-width: 760px) {
+  /* Four tiles stay two by two. */
+  .cf-strip.four .stat-tile:last-child {
+    grid-column: auto;
+  }
+  /* Pill rows scroll sideways instead of wrapping. */
+  .cf-hero-tabs,
+  .cf-steps {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cf-hero-tabs button,
+  .cf-steps li {
+    flex: none;
+    white-space: nowrap;
+  }
+  /* Plans: crew rows on one line, station rows stack the description. */
+  .cf-plan-head {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+  .cf-plan-head .cf-crew {
+    width: 100%;
+  }
+  .cf-plan-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    flex-wrap: nowrap;
+  }
+  .cf-plan-station .cf-plan-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+  }
+  .cf-plan-station .cf-plan-row input {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+  .cf-plan-row select {
+    min-width: 0;
+    width: 100%;
+  }
+  .cf-plan-skills summary,
+  .cf-plan-skills .cf-hits {
+    padding-left: 0;
+  }
+  /* The team table becomes one card per coach. */
+  .cf-table .cc-tr {
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    padding: 14px 0;
+  }
+  .cf-table .cc-th {
+    display: none;
+  }
+  .cf-table .cf-coachcell {
+    grid-column: 1 / -1;
+  }
+  .cf-table [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 2px;
+  }
+}
+
+/* ---------- Review fixes ---------- */
+.cf-owed {
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.cf-owed > span {
+  display: grid;
+  gap: 6px;
+}
+.cf-owed h3 {
+  font-size: 26px;
+}
+@media (max-width: 760px) {
+  .ring.cf-bigring {
+    width: 150px !important;
+    height: 150px !important;
+  }
+  .cf-owed {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
+  /* Two live actions in the dock: drop the label and the icons. */
+  .cf-dock:has(.cf-dock-acts .button + .button) > span:first-child {
+    display: none;
+  }
+  .cf-dock:has(.cf-dock-acts .button + .button) {
+    padding-left: 10px;
+  }
+  .cf-dock-acts {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .cf-dock .button {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  .cf-dock:has(.cf-dock-acts .button + .button) .cf-dock-acts .button {
+    flex: 1;
+  }
+}
+@media (max-width: 380px) {
+  .cf-dock .button svg {
+    display: none;
+  }
+}
+/* Smallest phones (320px). */
+@media (max-width: 380px) {
+  .cf-strip,
+  .cf-strip.four {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .cf-strip .stat-tile {
+    padding: 14px;
+  }
+  .cf-strip .stat-value {
+    font-size: 34px;
+  }
+  .cf-strip .stat-tile .eyebrow {
+    letter-spacing: 0.06em;
+    font-size: 10px;
+  }
+  .cf-strip .stat-tile b {
+    font-size: 13px;
+  }
+  .cf-count {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .cf-count button {
+    width: 40px;
+    height: 40px;
+  }
+  .cf-toolbar > * {
+    max-width: 100%;
+  }
+  .cf-main {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}

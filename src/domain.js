@@ -362,7 +362,10 @@ function seededSkills(childId) {
   const i = extraKids.findIndex((k) => k.id === childId);
   if (i < 0) return [];
   const tier1 = catalog.filter((s) => s.tier === 1);
-  const count = [3, 8, 5, 1, 6, 10, 2, 4, 10, 6, 9, 0, 7, 10, 4, 10, 5, 10, 0, 3, 10][i];
+  const count = [
+    3, 8, 5, 1, 6, 10, 2, 4, 10, 6, 9, 0, 7, 10, 4, 10, 5, 10, 0, 3, 10, 2, 6,
+    0, 3, 4, 9, 10, 10, 5, 7, 10, 3, 8, 1,
+  ][i];
   const list = tier1.slice(0, count);
   if (count < 10) return list;
   const done = new Set(list.map((s) => s.id));
@@ -428,16 +431,18 @@ export function validateState(value) {
 }
 export function load(storage) {
   try {
-    const x = JSON.parse(storage.getItem(key));
-    return validateState(x)
-      ? reconcile({
-          ...x,
-          goals: x.goals && typeof x.goals === "object" ? x.goals : {},
-        })
-      : seed();
+    return loadValue(JSON.parse(storage.getItem(key)));
   } catch {
     return seed();
   }
+}
+export function loadValue(x) {
+  return validateState(x)
+    ? reconcile({
+        ...x,
+        goals: x.goals && typeof x.goals === "object" ? x.goals : {},
+      })
+    : seed();
 }
 export function apply(state, action) {
   if (action.type === "reset") return seed();

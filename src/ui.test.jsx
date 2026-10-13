@@ -9,14 +9,26 @@ const skillButton = (id) =>
 // Signed in as the head coach, who can view as coach, parent or kid.
 const HEAD_COACH = "+16025550153";
 function signInAs(phone) {
-  localStorage.setItem("lab-session", JSON.stringify({ phone, since: Date.now(), expires: Date.now() + 86400000 }));
+  localStorage.setItem(
+    "lab-session",
+    JSON.stringify({
+      phone,
+      since: Date.now(),
+      expires: Date.now() + 86400000,
+    }),
+  );
 }
 async function leaveCoachCenter(user) {
   await user.click(await screen.findByRole("button", { name: /Coach Alex/ }));
-  await user.click(screen.getByRole("menuitem", { name: "Leave coach center" }));
+  await user.click(
+    screen.getByRole("menuitem", { name: "Kid and parent views" }),
+  );
 }
 async function asKid(user) {
-  await user.selectOptions(screen.getByRole("combobox", { name: "View as" }), "Athlete");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "View as" }),
+    "Athlete",
+  );
 }
 async function coach(user) {
   await user.selectOptions(
@@ -160,9 +172,9 @@ describe("Clubhouse participation flows", () => {
     await user.click(
       screen.getByRole("button", { name: "My passport", exact: true }),
     );
-    expect(
-      screen.getByRole("button", { name: "Class star earned" }).disabled,
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "Checked in" }).disabled).toBe(
+      true,
+    );
     expect(
       screen.getByRole("button", { name: /Monkey bars & rings 1 try/ }),
     ).toBeTruthy();

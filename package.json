@@ -6,22 +6,28 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js",
+    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js src/gym.test.js src/insights.test.js src/ds.test.js src/layout.test.js src/staffing.test.js",
     "preview": "vite preview --host 127.0.0.1",
     "test:ui": "vitest run",
+    "format": "prettier --write \"src/**/*.{js,jsx}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx}\"",
     "dev:lan": "vite --host 0.0.0.0"
   },
   "dependencies": {
+    "echarts": "^6.1.0",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "jsdom": "^29.1.1",
+    "prettier": "3.9.10",
     "vite": "^7.2.0",
     "vitest": "^4.1.11"
   }

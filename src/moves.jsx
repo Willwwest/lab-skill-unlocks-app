@@ -161,7 +161,11 @@ const poses = {
     props: (
       <>
         <path d="M10 112 H110" strokeWidth="4" />
-        <path d="M98 104 C110 80 100 50 74 42" strokeWidth="3" strokeDasharray="3 7" />
+        <path
+          d="M98 104 C110 80 100 50 74 42"
+          strokeWidth="3"
+          strokeDasharray="3 7"
+        />
         <path d="M78 36 L72 42 L79 47" strokeWidth="3" />
       </>
     ),
@@ -308,7 +312,10 @@ const poses = {
     ],
     props: (
       <>
-        <path d="M64 0 C61 30 67 60 63 90 C61 100 64 106 62 112" strokeWidth="4" />
+        <path
+          d="M64 0 C61 30 67 60 63 90 C61 100 64 106 62 112"
+          strokeWidth="4"
+        />
         <path d="M30 112 H96" strokeWidth="3.5" />
       </>
     ),
@@ -327,7 +334,10 @@ const poses = {
     ],
     props: (
       <>
-        <path d="M40 82 H90 M40 82 V112 M90 82 V112 M40 96 H90" strokeWidth="4" />
+        <path
+          d="M40 82 H90 M40 82 V112 M90 82 V112 M40 96 H90"
+          strokeWidth="4"
+        />
         <path d="M6 112 H116" strokeWidth="4" />
         <path d="M108 50 H118 M110 74 H118" strokeWidth="3" />
       </>
@@ -367,7 +377,10 @@ const poses = {
     ],
     props: (
       <>
-        <path d="M30 12 L24 6 M28 24 H20 M90 12 L96 6 M92 24 H100" strokeWidth="3" />
+        <path
+          d="M30 12 L24 6 M28 24 H20 M90 12 L96 6 M92 24 H100"
+          strokeWidth="3"
+        />
         <path d="M20 112 H100" strokeWidth="4" />
       </>
     ),
@@ -395,7 +408,9 @@ const skillPose = {
   project: ["X18"],
 };
 const poseFor = Object.fromEntries(
-  Object.entries(skillPose).flatMap(([pose, ids]) => ids.map((id) => [id, pose])),
+  Object.entries(skillPose).flatMap(([pose, ids]) =>
+    ids.map((id) => [id, pose]),
+  ),
 );
 
 const line = (points) => `M${points.map((p) => p.join(" ")).join(" L")}`;
@@ -429,7 +444,14 @@ export function MoveArt({ skillId, pose, className = "" }) {
     >
       <defs>
         {/* Near-side shapes cut a thin gap out of what sits behind them. */}
-        <mask id={`${id}-far`} maskUnits="userSpaceOnUse" x="-10" y="-10" width="140" height="140">
+        <mask
+          id={`${id}-far`}
+          maskUnits="userSpaceOnUse"
+          x="-10"
+          y="-10"
+          width="140"
+          height="140"
+        >
           <rect x="-10" y="-10" width="140" height="140" fill="#fff" />
           <g stroke="#000">
             <path d={spinePath(p)} strokeWidth={TORSO + GAP * 2} />
@@ -438,7 +460,14 @@ export function MoveArt({ skillId, pose, className = "" }) {
           </g>
           {head}
         </mask>
-        <mask id={`${id}-near`} maskUnits="userSpaceOnUse" x="-10" y="-10" width="140" height="140">
+        <mask
+          id={`${id}-near`}
+          maskUnits="userSpaceOnUse"
+          x="-10"
+          y="-10"
+          width="140"
+          height="140"
+        >
           <rect x="-10" y="-10" width="140" height="140" fill="#fff" />
           {head}
         </mask>
@@ -453,7 +482,13 @@ export function MoveArt({ skillId, pose, className = "" }) {
         <path d={leg(1)} strokeWidth={LEG} />
         <path d={arm(1)} strokeWidth={ARM} />
       </g>
-      <circle cx={p.head[0]} cy={p.head[1]} r="8" fill="currentColor" stroke="none" />
+      <circle
+        cx={p.head[0]}
+        cy={p.head[1]}
+        r="8"
+        fill="currentColor"
+        stroke="none"
+      />
     </svg>
   );
 }

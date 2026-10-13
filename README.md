@@ -175,3 +175,73 @@ The app opens on a sign-in page. Parents and coaches enter their phone number an
 - **The front desk kiosk** (`?kiosk`) does not sign in. In production it would be a registered device.
 
 Demo: no text is sent; the code appears on screen. Demo numbers are listed under "Demo accounts" on the sign-in page (all in the fictional 555-0100–0199 range). `src/auth.js` holds the rules and a demo code service; a real texting service (for example Supabase phone auth with Twilio Verify) replaces `demoCodes` once LAB has those accounts.
+
+## Coach floor MVP (October 12, 2026, `dev` branch)
+
+Built from the Oct 10 call (Travis and Charlie) and the Oct 12 kickoff. Coaches are the users for now; parents see nothing new. Staff now sign in to **My day**, and the older tabbed Coach Center moved to the menu under **More tools**.
+
+- **My day:** the coach's own blocks and their role in each (head coach, station coach, open gym), the live or next block with one button to start it, who works every block today, and "Covering for someone?" for picking up any block. Classes that ended while the coach still owes bonus picks show first.
+- **Open gym:** one search box (name, last name, parent name, family PIN or any part of a parent's phone) that lists the whole family and checks several siblings in at once. Kids checked in at the front desk but not yet on the floor are listed with how long they've waited. Past due and "not at the front desk" are flagged but don't block the check-in, and they go on the manager's front-desk list. Each kid shows their next skill with a one-tap **Got it**. End of shift: 3 bonus picks.
+- **Head coach, one class:** four steps.
+  1. *Attendance:* tap kids in, mark every front-desk arrival at once, search anyone, and set beginner/intermediate/advanced the first time.
+  2. *Groups:* sorted by age first, then level. The age rule (placeholder: a 5-year-old only with 6-year-olds, 7–12 within two years, teens within three) adds groups rather than mixing ages. Kids can be dragged or tapped between groups, and a coach is suggested for each station.
+  3. *Class:* a shared rotation timer that flashes and beeps 90 seconds before each rotation, plus Rotate now and End class.
+  4. *Wrap-up:* bonus picks by coach and skills unlocked.
+- **Station coach:** the group currently at their station, each kid's next skill there (the head coach's chosen skills for the week come first), one-tap Got it, the next group, then bonus picks.
+- **Colors:** only tenure gets color (first visit, first week, first 30 days, first 60 days). Levels are neutral chips.
+- **Points:** Lab Coins under 10 and XP from 10. 5 for a class or open-gym check-in, 20–50 for a skill, 10 for each bonus pick (3 per coach per class).
+- **Manage (gym manager):** *Team* shows per coach their check-ins, desk-to-floor wait, how many minutes after the start attendance got done, skills unlocked and bonus picks. *Front desk* shows today's flags. *Members* takes a pasted Spark export (`first,last,status,past_due,joined`). *Plans & crew* holds the weekly stations, skills to push and minutes per rotation, and who works each block.
+
+Code: `src/gym.js` (rules, tested in `src/gym.test.js`), `src/CoachApp.jsx` and `src/coachapp.css` (UI, tested in `src/coachapp.test.jsx`). The coach floor uses the same shell as the kid and parent app: the floating bar with pill navigation (Today, Floor, Kids, Team or Plans), the gradient masthead, pastel stat tiles and ink highlight cards. A live class stays pinned in the bar.
+
+Browser check: with `npm run dev` running, `node scripts/coach-e2e.mjs` drives Chrome through every coach flow at phone, tablet and desktop sizes (head coach to bonus picks, station, open gym, manager, permissions, kiosk and the kid and parent views), checks results, console errors and sideways overflow, and saves screenshots to `e2e-out/`.
+
+The roster now has 38 synthetic kids, 27 families and 7 coaches, including a mixed-age homeschool class (10:00–11:00) to show the grouping.
+
+Demo logins: Coach Jordan (head coach, homeschool and foundations), Coach Sam (station coach), Coach Priya (open gym), and Coach Alex (manager). Use **Simulate front-desk arrivals** in the coach menu, or the kiosk tab, to stand in for Spark/ABC check-ins.
+
+Still not done: data stays in one browser. Tabs on one device share it, separate phones don't, so a station coach on their own phone won't see the head coach's groups until there's a shared backend. A Spark import only updates kids already on the roster. The age rule, station counts and point values are placeholders until the gym confirms them.
+
+## Gym floor TV board (October 12, 2026)
+
+Open `?tv` on the TVs in the gym. It's a 3D model of the building, built from the walkthrough photos and the coaches' Ninja Rotation Map, with every zone lit by what it's doing right now:
+
+- **Gold:** a class is using the zone. A floating halo, the class name, and, once the class is running in Coach center, the group at that zone and a countdown to the next rotation.
+- **Mint:** free for open gym. If a class will take the zone within 30 minutes, it says so ("class 3:30").
+- **Red:** the station is paused by the head coach, with the reason.
+- Shared spaces (café, lounge, golf, Little ninjas, arcade, front desk) get small grey labels. Outside opening hours everything reads closed, and the rail shows when the doors open.
+
+The right rail shows the clock, each class in session with its zones, how many zones are free, paused stations, and the next three blocks. A spotlight card in the lower left tours the training zones every 10 seconds with a real photo of each (`public/floor/*.webp`), and the camera leans toward the toured zone. Tap a zone to hold it for 45 seconds. Drag to orbit and scroll to zoom. Moving the mouse shows **Whole floor** and **Edit floor**. Reduced-motion turns off the sway and pulse.
+
+Zone status comes from the same records as the rest of the app: the day's schedule (`club.js`), class plans and running rotations (`gym.js`), and station pauses (`floor.js`). A zone takes part in classes through its station (grip, wall, movement, court or course). The rig is split so a class can hold L1–L3 while open gym uses L4–L6.
+
+**Rotating and notes:** every zone has a facing. **Rotate** in the editor (or the R key) turns the tile a quarter turn about its center, and its 3D model turns with it. An arrow on the plan shows which way walls, the court, screens and rooms face. A zone can also carry a short note for the TV. The treadmill and bike games use one to explain that the game speeds up as you run or pedal faster, and their 3D model shows treadmills and bikes facing TVs whose games scroll at each rider's pace. Tapping any zone on the TV flies the camera to it.
+
+**Reshaping the floor:** at `?tv&edit` (or **Edit floor**), the head coach drags zones to move them, drags the corner to resize, nudges with the arrow keys, and sets each zone's name, rotation-map code, 3D model and class station. Changes save with one **Save floor plan** into the same browser record; any board open in another tab on that device updates straight away. Other coaches see the editor locked. **Reset to the original plan** restores the first-pass layout.
+
+The first-pass layout is an estimate from photos, not a survey: the default layout follows the walkthrough video (front door, merch divider, front desk with the fitness room behind it, interactive games then Little ninjas to the left). The current default is the head coach's corrected plan, with the front door in the south-east corner. Sizes are traced from the editor, in feet on a 190 × 240 ft footprint. **Preview any time of day** with `?tv&at=15:40`.
+
+Files: `src/layout.js` (plan, validation and zone status, tested in `src/layout.test.js`), `src/floorScene.js` (three.js scene), `src/FloorTV.jsx`, `src/LayoutEditor.jsx`, `src/floortv.css`. Zone and scene colors are design tokens (`--ds-zone-*`, `--ds-scene-*`). three.js loads only on `?tv`, in its own chunk (about 147 KB gzipped). `scripts/floor-e2e.mjs` checks the board at 1080p (class, open gym, class soon, closed), the head-coach edit-and-save flow, the locked editor, and laptop and phone widths.
+
+Photos with identifiable people were left out, because `public/` is published to the public Pages repo. The golf simulator has no photo yet.
+
+Like the rest of the prototype, state lives in browser storage. A TV shows the records saved on that TV's own browser, so a live install needs the shared backend listed under the prototype boundaries.
+
+## Coach staffing and the owner level (October 12, 2026, `dev` branch)
+
+From Ally's and Natalie's feedback. A **Shifts** item in the coach bar opens it; a gold count shows requests waiting on a manager.
+
+- **Three levels.** Coach, gym manager and owner. The owners, Charlie and Ally Mitchell (demo numbers 602-555-0157 and 0158), set the rules, standing hours and who manages, and are never booked into a block. Managers decide requests and fix gaps. Coaches see their own shift, requests and time split.
+- **Right now / By the hour.** Every coach's status worked out from shifts, the day's crews, floaters and breaks: in class, open gym, floating, on break, available or off. The hour view is a half-hour grid with the current slot ringed.
+- **Breaks.** A coach books a break from open slots only. A break that overlaps another coach's break is refused (the owner sets how many may overlap; default 1), as is one inside their own block or outside their shift.
+- **Staffing check.** Each block against the class minimum (3), open-gym minimum (1), a required floater per class, and kids per coach (1:8, 1:5 when a class has a kid 6 or under, 1:10 at open gym). Kids come from the class roster or check-ins, or a manager's expected headcount for open gym. Gaps offer the best-fit free coaches to add for the day.
+- **Requests.** Cover a block, a day off, or different hours. Free coaches can volunteer to cover; a manager approves or declines with a reply. Approvals change that day only and flow into My day, the class runner and station suggestions (`crewOn` in `gym.js`). Plans & crew still edits the weekly crew.
+- **Time portfolios.** Each coach's target split across ninja classes, open gym and floater, at least 10% each (owner setting), shown against what's booked today. Fill-in suggestions favor the coach furthest under target for that kind of work.
+
+Code: `src/staffing.js` (rules, tested in `src/staffing.test.js`), `src/Staffing.jsx` and `src/staffing.css` (screens, design tokens only). Data lives in `state.staffing` in the same browser save.
+
+Placeholders until the gym confirms them: shift times, the three modalities, ratios, break limit and floater window (10 minutes either side of a class). Like everything else here, requests and approvals only reach other people once there's a shared backend.
+
+### Gym map in the coach app, owners edit
+
+The 3D gym floor board (`?tv`) now opens inside the coach app from the coach menu (**Gym map**), with a **Back to the app** button. Everyone on staff can look at it. Only Charlie and Ally Mitchell, the owners, see **Edit floor** and can save or reset the floor plan; anyone else opening `?tv&edit` sees the editor locked. The rule lives in `applyLayout` (`src/layout.js`), and sign-in now carries the owner flag (`src/auth.js`). On a phone the map's tools sit under the class rail so they can be tapped.

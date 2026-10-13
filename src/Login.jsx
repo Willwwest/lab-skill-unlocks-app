@@ -6,8 +6,24 @@ import "./auth.css";
 const demoAccounts = [
   { phone: "+16025550101", label: "Dana Parker", note: "Parent of Theo" },
   { phone: "+16025550102", label: "Chris Brooks", note: "Parent of Maya" },
-  { phone: "+16025550151", label: "Coach Sam", note: "Coach" },
-  { phone: "+16025550153", label: "Coach Alex", note: "Head coach" },
+  {
+    phone: "+16025550150",
+    label: "Coach Jordan",
+    note: "Head coach, homeschool class",
+  },
+  {
+    phone: "+16025550151",
+    label: "Coach Sam",
+    note: "Station coach, homeschool class",
+  },
+  {
+    phone: "+16025550152",
+    label: "Coach Priya",
+    note: "Open gym and stations",
+  },
+  { phone: "+16025550153", label: "Coach Alex", note: "Gym manager" },
+  { phone: "+16025550157", label: "Charlie Mitchell", note: "Owner" },
+  { phone: "+16025550158", label: "Ally Mitchell", note: "Owner" },
 ];
 
 export default function Login({ onSignedIn, storage = localStorage }) {
@@ -63,12 +79,18 @@ export default function Login({ onSignedIn, storage = localStorage }) {
   return (
     <div className="signin">
       <div className="signin-inner">
-        <img className="signin-logo" src={`${import.meta.env.BASE_URL}lab-white.svg`} alt="The LAB" />
+        <img
+          className="signin-logo"
+          src={`${import.meta.env.BASE_URL}lab-white.svg`}
+          alt="The LAB"
+        />
         <section className="signin-card" aria-labelledby="signin-title">
           {step === "phone" ? (
             <form onSubmit={send} noValidate>
               <h1 id="signin-title">Sign in</h1>
-              <p className="signin-lead">We’ll text you a 6-digit code. No password needed.</p>
+              <p className="signin-lead">
+                We’ll text you a 6-digit code. No password needed.
+              </p>
               <div className="signin-field">
                 <label htmlFor="signin-phone">Phone number</label>
                 <span className="signin-phone">
@@ -91,10 +113,16 @@ export default function Login({ onSignedIn, storage = localStorage }) {
                   {error}
                 </p>
               )}
-              <button className="button cyan signin-go" disabled={!normalizePhone(phone)}>
+              <button
+                className="button cyan signin-go"
+                disabled={!normalizePhone(phone)}
+              >
                 Text me a code
               </button>
-              <p className="signin-fine">You’ll get one text per sign-in. Message and data rates may apply.</p>
+              <p className="signin-fine">
+                You’ll get one text per sign-in. Message and data rates may
+                apply.
+              </p>
             </form>
           ) : (
             <form
@@ -145,10 +173,18 @@ export default function Login({ onSignedIn, storage = localStorage }) {
                   {error}
                 </p>
               )}
-              <button className="button cyan signin-go" disabled={code.length !== 6 || busy}>
+              <button
+                className="button cyan signin-go"
+                disabled={code.length !== 6 || busy}
+              >
                 Sign in
               </button>
-              <button type="button" className="signin-link signin-resend" disabled={wait > 0} onClick={send}>
+              <button
+                type="button"
+                className="signin-link signin-resend"
+                disabled={wait > 0}
+                onClick={send}
+              >
                 {wait > 0 ? `Send a new code in ${wait}s` : "Send a new code"}
               </button>
             </form>

@@ -17,7 +17,10 @@ export function Ring({
   const shown = useCountUp(value, { round: false });
   const pct = max > 0 ? Math.max(0, Math.min(1, shown / max)) : 0;
   return (
-    <div className={`ring ${className}`.trim()} style={{ width: size, height: size }}>
+    <div
+      className={`ring ${className}`.trim()}
+      style={{ width: size, height: size }}
+    >
       <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle
           cx={size / 2}
@@ -69,7 +72,10 @@ export function Meter({ value = 0, max = 1, color, label, className = "" }) {
  */
 export function Badge({ label, state = "open", className = "" }) {
   return (
-    <span className={`badge badge-${state} ${className}`.trim()} aria-hidden="true">
+    <span
+      className={`badge badge-${state} ${className}`.trim()}
+      aria-hidden="true"
+    >
       <span className="badge-label">{label}</span>
     </span>
   );

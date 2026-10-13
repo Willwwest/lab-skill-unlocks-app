@@ -1,0 +1,499 @@
+/* Staffing screens. Layout only, in design tokens (DESIGN-SYSTEM.md). */
+
+/* Status colors: one per thing a coach can be doing. */
+.st-class {
+  --st: var(--ds-royal);
+}
+.st-open {
+  --st: var(--ds-mint-ink);
+}
+.st-floater {
+  --st: var(--ds-cyan);
+}
+.st-break {
+  --st: var(--ds-gold);
+}
+.st-free {
+  --st: var(--ds-gray-200);
+}
+.st-off {
+  --st: var(--ds-gray-50);
+}
+
+.st-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ds-text-small);
+  color: var(--ds-text-2);
+}
+.st-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.st-swatch {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--st);
+  box-shadow: inset 0 0 0 1px var(--ds-border-strong);
+}
+
+/* Right now */
+.st-now-ink .ds-h2 {
+  font-size: var(--ds-text-h3);
+  line-height: 1.3;
+}
+.st-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--ds-space-3);
+}
+.st-coach {
+  border-left: 6px solid var(--st);
+}
+.st-edge-class {
+  --st: var(--ds-royal);
+}
+.st-edge-open {
+  --st: var(--ds-mint-ink);
+}
+.st-edge-floater {
+  --st: var(--ds-cyan);
+}
+.st-edge-break {
+  --st: var(--ds-gold);
+}
+.st-edge-free {
+  --st: var(--ds-gray-200);
+}
+.st-edge-off {
+  --st: var(--ds-gray-100);
+}
+.st-coach-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+.st-coach-head b,
+.st-coach-head small {
+  display: block;
+}
+.st-coach-head small {
+  color: var(--ds-text-3);
+  font-size: var(--ds-text-small);
+}
+
+/* By the hour */
+.st-grid-card {
+  overflow: hidden;
+}
+/* Positioned so the cells' screen-reader labels stay inside the scroller
+   instead of widening the page on phones. */
+.st-grid-scroll {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.st-grid {
+  border-collapse: separate;
+  border-spacing: 2px;
+  min-width: 100%;
+  font-size: var(--ds-text-label);
+}
+.st-grid th {
+  font-weight: 700;
+  color: var(--ds-text-3);
+  text-align: left;
+  white-space: nowrap;
+  padding: 0 0 var(--ds-space-1);
+}
+.st-grid td {
+  min-width: 22px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--st);
+}
+.st-grid td.st-off {
+  box-shadow: inset 0 0 0 1px var(--ds-border);
+}
+.st-grid .st-grid-now {
+  outline: 2px solid var(--ds-navy);
+  outline-offset: 1px;
+}
+.st-grid thead .st-grid-now {
+  outline: none;
+  color: var(--ds-navy);
+}
+.st-grid-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--ds-surface);
+  padding-right: var(--ds-space-2);
+}
+.st-grid tbody .st-grid-name {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  height: 34px;
+  font-size: var(--ds-text-small);
+  color: var(--ds-text);
+}
+
+.st-list {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+  min-height: var(--ds-target);
+}
+.st-list svg {
+  color: var(--ds-gold);
+}
+
+/* Staffing check */
+.st-blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--ds-space-4);
+}
+.st-block.has-issues {
+  border-color: var(--ds-border-strong);
+}
+.st-block-nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-4);
+  align-items: center;
+  color: var(--ds-text-2);
+  font-size: var(--ds-text-small);
+}
+.st-block-nums b {
+  color: var(--ds-text);
+  font-size: var(--ds-text-body);
+}
+.st-crew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-3);
+}
+.st-crew-mark {
+  display: inline-grid;
+  justify-items: center;
+  gap: 2px;
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-2);
+}
+.st-issues {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ds-text-small);
+}
+.st-issues li {
+  display: flex;
+  gap: var(--ds-space-2);
+  align-items: baseline;
+}
+.st-block-tools {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-border);
+}
+.st-fill {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.st-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.st-inline {
+  display: flex;
+  gap: var(--ds-space-2);
+  align-items: center;
+}
+.st-number {
+  width: 96px;
+  min-height: var(--ds-target);
+  padding: 0 var(--ds-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-muted);
+  font: inherit;
+  font-size: var(--ds-text-body);
+  font-weight: 600;
+  color: var(--ds-text);
+}
+.st-number:focus {
+  outline: none;
+  background: var(--ds-surface);
+  border-color: var(--ds-cyan);
+  box-shadow: 0 0 0 3px var(--ds-focus);
+}
+
+/* Requests */
+.st-requests {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--ds-space-4);
+  align-items: start;
+}
+.st-request-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+.st-request-head b,
+.st-request-head small {
+  display: block;
+}
+.st-request-head small {
+  color: var(--ds-text-3);
+  font-size: var(--ds-text-small);
+}
+.st-request-actions {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.st-quote {
+  margin: 0;
+  color: var(--ds-text-2);
+  font-style: italic;
+}
+.st-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-3);
+}
+
+/* Portfolios */
+.st-pie {
+  display: block;
+  flex: none;
+  transform: rotate(0deg);
+}
+.st-pie-track {
+  fill: none;
+  stroke: var(--ds-gray-100);
+  stroke-width: 6;
+}
+.st-pie-seg {
+  fill: none;
+  stroke: var(--st);
+  stroke-width: 6;
+  transition: stroke-dasharray var(--ds-slow) var(--ds-ease);
+}
+.st-pie-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ds-space-6);
+  align-items: center;
+}
+.st-shares {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-shares li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+.st-share-name b,
+.st-share-name small {
+  display: block;
+}
+.st-share-name small {
+  color: var(--ds-text-3);
+  font-size: var(--ds-text-small);
+}
+.st-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.st-stepper b {
+  min-width: 48px;
+  text-align: center;
+  font-size: var(--ds-text-h3);
+}
+.st-problem {
+  margin: 0;
+  color: var(--ds-bad);
+  font-weight: 600;
+}
+.st-pies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--ds-space-3);
+}
+.st-pie-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--ds-space-2);
+  align-items: center;
+}
+.st-pie-pair {
+  display: flex;
+  justify-content: space-around;
+  gap: var(--ds-space-3);
+}
+.st-pie-pair figure {
+  display: grid;
+  justify-items: center;
+  gap: var(--ds-space-1);
+  margin: 0;
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-3);
+}
+.st-pie-nums {
+  font-size: var(--ds-text-label);
+}
+
+/* My shift */
+.st-timeline {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-timeline li {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+  min-height: var(--ds-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border-left: 6px solid var(--st);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-surface-muted);
+}
+.st-timeline li.is-now {
+  background: var(--ds-info-bg);
+}
+.st-timeline li.is-done {
+  opacity: 0.55;
+}
+.st-time {
+  font-size: var(--ds-text-small);
+  font-weight: 700;
+  color: var(--ds-text-2);
+}
+
+/* Owner */
+.st-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--ds-space-4);
+}
+.st-hours {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.st-hours li {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto auto auto;
+  gap: var(--ds-space-3);
+  align-items: center;
+}
+.st-hours li:has(.ds-seg) {
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+}
+
+@media (max-width: 640px) {
+  .st-blocks,
+  .st-requests,
+  .st-pies,
+  .st-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .st-pie-row {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .st-shares {
+    width: 100%;
+  }
+  .st-timeline li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .st-time {
+    grid-column: 1 / -1;
+  }
+  .st-hours li {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .st-hours li > .ds-coach {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .st-hours li > b {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+  .st-hours li > .ds-field,
+  .st-hours li > span {
+    grid-row: 2;
+  }
+  .st-hours li > .ds-field:first-of-type {
+    grid-column: 1 / 3;
+  }
+  .st-hours li:has(.ds-seg) {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .st-hours li:has(.ds-seg) > .ds-seg {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Count on the Shifts nav item: requests waiting on a manager. */
+.cf .nav-item .nav-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-gold);
+  color: var(--ds-navy);
+  font-size: var(--ds-text-label);
+  font-weight: 800;
+}
+
+/* Six tabs scroll sideways on a phone instead of widening the page. */
+.st-page .cf-hero,
+.st-page .cf-hero-copy {
+  min-width: 0;
+}
+.st-page .cf-hero-tabs {
+  max-width: 100%;
+}

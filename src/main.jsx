@@ -20,6 +20,7 @@ import {
   people,
   bonuses,
   load,
+  loadValue,
   key,
   apply,
   earnedIds,
@@ -29,23 +30,35 @@ import {
   formatResult,
   resultCap,
 } from "./domain";
-import { Badge, Meter, OutlineWords, Ring, ShirtImage, skillNumber } from "./ui.jsx";
+import {
+  Badge,
+  Meter,
+  OutlineWords,
+  Ring,
+  ShirtImage,
+  skillNumber,
+} from "./ui.jsx";
 import DotField from "./DotField.jsx";
 import { CountUp, Glare, reducedMotion, spark, sparkFrom } from "./motion.jsx";
 import { date } from "./format.js";
 import { MoveArt } from "./moves.jsx";
+import "./ds/tokens.css";
 import "./styles.css";
 import Club, { ClubHero, ClubSummary } from "./Club.jsx";
 import { applyClub, validClub, emptyClub } from "./club.js";
 import { LayoutGrid, Users } from "lucide-react";
 // The coach center and kiosk load on demand; they carry the QR decoder.
-const CoachCenter = lazy(() => import("./Coach.jsx"));
+const CoachApp = lazy(() => import("./CoachApp.jsx"));
 const Kiosk = lazy(() => import("./Kiosk.jsx"));
+// The TV floor board carries three.js; only ?tv loads it.
+const FloorTV = lazy(() => import("./FloorTV.jsx"));
+const StyleGuide = lazy(() => import("./ds/StyleGuide.jsx"));
 import Family, { MomentsGallery } from "./Family.jsx";
 import Login from "./Login.jsx";
 import { SESSION_KEY, formatPhone, loadSession, signOut } from "./auth.js";
 import { families } from "./roster.js";
 import { emptyFloor, validFloor } from "./floor.js";
+import { seedGym, validGym, withHistory, withoutHistory } from "./gym.js";
 import { clearPhotos } from "./media.js";
 import { familyOf } from "./roster.js";
 import { SkillAbout, SkillHero, SkillPath } from "./SkillDetail.jsx";
@@ -53,7 +66,9 @@ import { firstStep } from "./paths.js";
 import { plain } from "./skillcopy.js";
 
 // Read on demand so tests (and in-app links) can change the URL.
-const params = { has: (k) => new URLSearchParams(window.location.search).has(k) };
+const params = {
+  has: (k) => new URLSearchParams(window.location.search).has(k),
+};
 
 // Nav icons only render in the phone bottom tab bar.
 const navIcons = {
@@ -96,7 +111,9 @@ const statusLabel = {
 function skillStatus(state, childId, skill, earned, eligible) {
   if (earned) return "earned";
   if (!eligible) return "locked";
-  if (state.practice.some((p) => p.childId === childId && p.skillId === skill.id))
+  if (
+    state.practice.some((p) => p.childId === childId && p.skillId === skill.id)
+  )
     return "practicing";
   if ((state.goals?.[childId] ?? []).includes(skill.id)) return "goal";
   return "open";
@@ -117,9 +134,12 @@ function App() {
         ...saved,
         club: validClub(saved.club) ? saved.club : emptyClub(),
         floor: validFloor(saved.floor) ? saved.floor : emptyFloor(),
+        gym: validGym(saved.gym)
+          ? withHistory(saved.gym)
+          : seedGym(new Date(), { history: true }),
       };
     } catch {
-      return load(null);
+      return { ...load(null), gym: seedGym(new Date(), { history: true }) };
     }
   });
   const [saveError, setSaveError] = useState("");
@@ -137,9 +157,9 @@ function App() {
     session?.kind === "staff" && params.has("coach")
       ? "Coach center"
       : new URLSearchParams(window.location.search).has("station") ||
-    new URLSearchParams(window.location.search).has("class")
-      ? "Clubhouse"
-      : start.page,
+          new URLSearchParams(window.location.search).has("class")
+        ? "Clubhouse"
+        : start.page,
   );
   const [tier, setTier] = useState(() => currentTier(state, "theo"));
   const [filter, setFilter] = useState("All skills");
@@ -154,7 +174,9 @@ function App() {
   const [resetOpen, setResetOpen] = useState(false);
   const [toastPaused, setToastPaused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [rewardFocus, setRewardFocus] = useState(() => focusTier(state, "theo"));
+  const [rewardFocus, setRewardFocus] = useState(() =>
+    focusTier(state, "theo"),
+  );
   const [rewardView, setRewardView] = useState("front");
   const child = people.find((p) => p.id === childId);
   const earned = new Set(earnedIds(state, childId));
@@ -167,7 +189,10 @@ function App() {
   const remaining = chapterProgress.total - chapterProgress.count;
   useEffect(() => {
     try {
-      localStorage.setItem(key, JSON.stringify(state));
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...state, gym: withoutHistory(state.gym) }),
+      );
       setSaveError("");
     } catch {
       setSaveError(
@@ -195,12 +220,15 @@ function App() {
     const onStorage = (e) => {
       if (e.key !== key || !e.newValue) return;
       try {
-        const next = load({ getItem: () => e.newValue });
         const raw = JSON.parse(e.newValue);
+        const next = loadValue(raw);
         setState({
           ...next,
           club: validClub(raw.club) ? raw.club : emptyClub(),
           floor: validFloor(raw.floor) ? raw.floor : emptyFloor(),
+          gym: validGym(raw.gym)
+            ? withHistory(raw.gym)
+            : seedGym(new Date(), { history: true }),
         });
       } catch {
         // Ignore a partial write; the next one will land.
@@ -237,10 +265,7 @@ function App() {
   function dismissToast() {
     if (reducedMotion()) return setToast(null);
     setToast((t) => (t ? { ...t, leaving: true } : t));
-    setTimeout(
-      () => setToast((t) => (t?.leaving ? null : t)),
-      200,
-    );
+    setTimeout(() => setToast((t) => (t?.leaving ? null : t)), 200);
   }
   function commit(action, message) {
     try {
@@ -273,7 +298,10 @@ function App() {
     session?.kind === "guardian"
       ? people.filter((p) => familyKids(session).includes(p.id))
       : people;
-  const views = session?.kind === "staff" ? ["Coach", "Parent", "Athlete"] : ["Parent", "Athlete"];
+  const views =
+    session?.kind === "staff"
+      ? ["Coach", "Parent", "Athlete"]
+      : ["Parent", "Athlete"];
   function doSignOut() {
     signOut(localStorage);
     setSession(null);
@@ -300,7 +328,14 @@ function App() {
           "Activity",
         ]
       : role === "Parent"
-        ? ["My journey", "Clubhouse", "Achievements", "Rewards", "Activity", "Family"]
+        ? [
+            "My journey",
+            "Clubhouse",
+            "Achievements",
+            "Rewards",
+            "Activity",
+            "Family",
+          ]
         : ["My journey", "Clubhouse", "Achievements", "Rewards", "Activity"];
   function clubCommit(actions) {
     try {
@@ -401,6 +436,18 @@ function App() {
         : page === "Clubhouse"
           ? "club"
           : "page";
+  if (params.has("ds"))
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <StyleGuide />
+      </Suspense>
+    );
+  if (params.has("tv"))
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <FloorTV state={state} setState={setState} session={session} />
+      </Suspense>
+    );
   if (params.has("kiosk"))
     return (
       <Suspense fallback={<div className="cc-loading" />}>
@@ -425,7 +472,7 @@ function App() {
   if (page === "Coach center" && session.kind === "staff")
     return (
       <Suspense fallback={<div className="cc-loading" />}>
-        <CoachCenter
+        <CoachApp
           state={state}
           setState={setState}
           account={session}
@@ -521,9 +568,7 @@ function App() {
         className={`masthead masthead-${mastheadKind}`}
         style={{
           "--tier-color":
-            page === "Rewards"
-              ? tiers[rewardFocus - 1].color
-              : chapter.color,
+            page === "Rewards" ? tiers[rewardFocus - 1].color : chapter.color,
         }}
       >
         <div className="masthead-art" aria-hidden="true">
@@ -572,7 +617,10 @@ function App() {
                 >
                   Explore my next skills
                 </button>
-                <button className="hero-link" onClick={() => navigate("Rewards")}>
+                <button
+                  className="hero-link"
+                  onClick={() => navigate("Rewards")}
+                >
                   See the shirts <ArrowRight size={16} />
                 </button>
               </div>
@@ -624,7 +672,10 @@ function App() {
                 <p>What happened, when, and who saw it.</p>
               </div>
               <div className="page-head-actions">
-                <button className="button mint compact" onClick={exportProgress}>
+                <button
+                  className="button mint compact"
+                  onClick={exportProgress}
+                >
                   Export JSON
                 </button>
               </div>
@@ -635,7 +686,9 @@ function App() {
               <div>
                 <span className="eyebrow">Family</span>
                 <h1>{familyOf(childId)?.name ?? "Your family"}</h1>
-                <p>Your check-in pass, photo settings and moments from the floor.</p>
+                <p>
+                  Your check-in pass, photo settings and moments from the floor.
+                </p>
               </div>
             </div>
           )}
@@ -875,7 +928,9 @@ function App() {
                           {done ? "Earned" : "Verify bonus"}
                         </button>
                       ) : (
-                        <span className={done ? "status status-earned" : "subtle"}>
+                        <span
+                          className={done ? "status status-earned" : "subtle"}
+                        >
                           {done ? "Earned" : "Explore with your coach"}
                         </span>
                       )}
@@ -1042,6 +1097,10 @@ function App() {
               className="button navy"
               onClick={() => {
                 commit({ type: "reset" }, "Demo data reset.");
+                setState((x) => ({
+                  ...x,
+                  gym: seedGym(new Date(), { history: true }),
+                }));
                 clearPhotos().catch(() => {});
                 setTier(1);
                 setResetOpen(false);
@@ -1122,7 +1181,11 @@ function startFor(session) {
   if (session?.kind === "staff")
     return { role: "Coach", childId: "theo", page: "Coach center" };
   if (session?.kind === "guardian")
-    return { role: "Parent", childId: familyKids(session)[0] ?? "theo", page: "My journey" };
+    return {
+      role: "Parent",
+      childId: familyKids(session)[0] ?? "theo",
+      page: "My journey",
+    };
   return { role: "Athlete", childId: "theo", page: "My journey" };
 }
 function focusTier(state, childId) {
@@ -1342,7 +1405,11 @@ function SkillCard({ skill, earned, eligible, state, childId, onClick }) {
           Tier {skill.tier} · {skill.category}
         </span>
         <h3>{skill.title}</h3>
-        <p>{skill.target ? formatResult(skill, skill.target) : (plain[skill.id] ?? skill.criteria)}</p>
+        <p>
+          {skill.target
+            ? formatResult(skill, skill.target)
+            : (plain[skill.id] ?? skill.criteria)}
+        </p>
       </div>
     </button>
   );
@@ -1419,7 +1486,15 @@ function Modal({ title, header, className = "", onClose, children }) {
     </div>
   );
 }
-function SkillDialog({ skill, child, role, state, onClose, commit, onOpenSkill }) {
+function SkillDialog({
+  skill,
+  child,
+  role,
+  state,
+  onClose,
+  commit,
+  onOpenSkill,
+}) {
   const [value, setValue] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [note, setNote] = useState("");
@@ -1619,12 +1694,16 @@ function SkillDialog({ skill, child, role, state, onClose, commit, onOpenSkill }
       ) : (
         <div className="coach-prompt">
           {eligible ? (
-            <p>Ready to work on this? Ask your coach to watch your next attempt.</p>
+            <p>
+              Ready to work on this? Ask your coach to watch your next attempt.
+            </p>
           ) : (
             firstStep(state, child.id, skill.id) && (
               <button
                 className="text-button"
-                onClick={() => onOpenSkill(firstStep(state, child.id, skill.id))}
+                onClick={() =>
+                  onOpenSkill(firstStep(state, child.id, skill.id))
+                }
               >
                 Start with {firstStep(state, child.id, skill.id).title}{" "}
                 <ArrowRight size={16} />

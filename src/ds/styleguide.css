@@ -1,0 +1,66 @@
+/* The style guide page (?ds). Tokens only. */
+.sg {
+  display: grid;
+  gap: var(--ds-space-12);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--ds-space-8) var(--ds-space-4) 140px;
+  background: var(--ds-bg);
+  font-family: var(--ds-font-body);
+  color: var(--ds-text);
+}
+.sg-hero h1 {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-display);
+  line-height: 1;
+  color: var(--ds-text-on-ink);
+  max-width: 16ch;
+}
+.sg-hero code {
+  color: var(--ds-sky);
+}
+.sg-group {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.sg-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(132px, 100%), 1fr));
+  gap: var(--ds-space-3);
+}
+.sg-swatch {
+  display: grid;
+  gap: 2px;
+  font-size: var(--ds-text-label);
+}
+.sg-swatch i {
+  height: 56px;
+  margin-bottom: var(--ds-space-1);
+  border-radius: var(--ds-radius-md);
+  box-shadow: inset 0 0 0 1px var(--ds-border);
+}
+.sg-swatch small {
+  color: var(--ds-text-3);
+  font-family: ui-monospace, monospace;
+}
+.sg-type {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.sg-display {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-display);
+  line-height: 1;
+  color: var(--ds-navy);
+}
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: var(--ds-space-4);
+}
+.sg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}

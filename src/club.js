@@ -1,4 +1,9 @@
 import { catalog, earnedIds, people } from "./domain.js";
+import {
+  gymDayKey,
+  gymMinutes as minutesOnGymClock,
+  toMinutes,
+} from "./gym-time.js";
 
 export const stations = [
   {
@@ -55,41 +60,42 @@ export const groups = [
   "6–8 / Developing",
   "9–12 / Developing",
 ];
-export const dayKey = (at = new Date()) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Phoenix",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(at));
+export const dayKey = gymDayKey;
 // The daily schedule. Classes earn a class star; open gym blocks are
 // coach-staffed stations where kids checked in at the front earn stars.
 // Index order is the stored id suffix, so append new blocks at the end.
 const schedule = [
-  { name: "Ninja foundations", kind: "class", start: "15:30", end: "16:30", ages: "6–8", lead: "Coach Jordan" },
-  { name: "Ninja progressions", kind: "class", start: "16:45", end: "17:45", ages: "9–12", lead: "Coach Sam" },
+  {
+    name: "Ninja foundations",
+    kind: "class",
+    start: "15:30",
+    end: "16:30",
+    ages: "6–8",
+    lead: "Coach Jordan",
+  },
+  {
+    name: "Ninja progressions",
+    kind: "class",
+    start: "16:45",
+    end: "17:45",
+    ages: "9–12",
+    lead: "Coach Sam",
+  },
   { name: "Open gym rotation", kind: "open", start: "12:00", end: "15:15" },
   { name: "Evening open gym", kind: "open", start: "18:00", end: "20:00" },
+  {
+    name: "Homeschool ninja",
+    kind: "class",
+    start: "10:00",
+    end: "11:00",
+    ages: "5–12",
+    lead: "Coach Jordan",
+  },
 ];
 export const sessions = (at = new Date()) =>
   schedule.map((s, i) => ({ ...s, id: `${dayKey(at)}:${i}`, index: i }));
 // Minutes since midnight on the gym's clock.
-export const gymMinutes = (at = new Date()) => {
-  const [h, m] = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/Phoenix",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  })
-    .format(new Date(at))
-    .split(":")
-    .map(Number);
-  return h * 60 + m;
-};
-const toMinutes = (hhmm) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-};
+export const gymMinutes = minutesOnGymClock;
 // "live", "upcoming" or "done" for a session at a moment.
 export function sessionPhase(s, at = new Date()) {
   const now = gymMinutes(at);
@@ -130,7 +136,9 @@ export function validClub(c) {
         e &&
         typeof e.id === "string" &&
         people.some((p) => p.id === e.childId) &&
-        ["class", "visit", "complete", "praise"].includes(e.kind) &&
+        ["class", "open", "visit", "complete", "praise", "bonus"].includes(
+          e.kind,
+        ) &&
         ["pending", "approved", "rejected", "revoked"].includes(e.status) &&
         Number.isFinite(Date.parse(e.at)) &&
         typeof e.session === "string" &&
@@ -150,14 +158,26 @@ export function validClub(c) {
     new Set(c.claims.map((r) => r.id)).size === c.claims.length
   );
 }
-// Classes need confirmed attendance; open gym needs a front-desk check-in.
+// Classes need confirmed attendance; open gym needs a front-desk check-in
+// or a coach's open-gym check-in.
 const attended = (state, c, id, block, now) =>
   block.kind === "open"
-    ? isHere(state, id, now)
+    ? isHere(state, id, now) ||
+      approved(c, id).some((e) => e.kind === "open" && e.session === block.id)
     : approved(c, id).some((e) => e.kind === "class" && e.session === block.id);
 const approved = (c, id) =>
   c.events.filter((e) => e.childId === id && e.status === "approved");
-const points = { class: 5, visit: 2, complete: 5, praise: 3 };
+// "open" is a coach checking a kid into open gym; "bonus" is one of the
+// three end-of-class picks each coach gives.
+export const points = {
+  class: 5,
+  open: 5,
+  visit: 2,
+  complete: 5,
+  praise: 3,
+  bonus: 10,
+};
+export const BONUS_PICKS = 3;
 export function clubStats(state, id) {
   const c = state.club ?? emptyClub();
   const events = approved(c, id);
@@ -295,6 +315,9 @@ export function applyClub(state, action, now = new Date()) {
     if (!block) throw Error("Choose a class from today.");
     if (kind === "class" && block.kind === "open")
       throw Error("Open gym has no class star. Check in at the front desk.");
+    if (kind === "open" && block.kind !== "open")
+      throw Error("Check kids into a class from the class roster.");
+    if (["open", "bonus"].includes(kind)) coach();
     if (
       ["visit", "complete"].includes(kind) &&
       !stations.some((s) => s.id === station)
@@ -319,10 +342,23 @@ export function applyClub(state, action, now = new Date()) {
             ? e.station === station
             : kind === "praise"
               ? e.category === category
-              : true),
+              : kind === "bonus"
+                ? e.coach === trainer
+                : true),
       )
     )
       throw Error("Already recorded for this class.");
+    if (
+      kind === "bonus" &&
+      c.events.filter(
+        (e) =>
+          e.kind === "bonus" &&
+          e.session === session &&
+          e.coach === trainer &&
+          !["rejected", "revoked"].includes(e.status),
+      ).length >= BONUS_PICKS
+    )
+      throw Error(`Each coach gives ${BONUS_PICKS} bonus picks per class.`);
     if (
       kind === "praise" &&
       active.filter((e) => e.kind === "praise" && dayKey(e.at) === dayKey(now))
@@ -330,7 +366,7 @@ export function applyClub(state, action, now = new Date()) {
     )
       throw Error("Three recognition awards per day is the limit.");
     if (
-      (["complete", "praise"].includes(kind) ||
+      (["complete", "praise", "bonus"].includes(kind) ||
         (kind === "visit" && role === "Coach")) &&
       !attended(state, c, childId, block, now)
     )

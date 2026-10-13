@@ -7,7 +7,12 @@ export function Avatar({ child, photoId, size = 48, className = "" }) {
   return (
     <span
       className={`kid-avatar ${className}`.trim()}
-      style={{ width: size, height: size, background: child.color, fontSize: size * 0.36 }}
+      style={{
+        width: size,
+        height: size,
+        background: child.color,
+        fontSize: size * 0.36,
+      }}
       aria-hidden="true"
     >
       {url ? <img src={url} alt="" draggable={false} /> : child.initials}
@@ -20,6 +25,10 @@ export function Photo({ id, size = "thumb", alt = "", className = "" }) {
   return url ? (
     <img className={className} src={url} alt={alt} draggable={false} />
   ) : (
-    <span className={`photo-missing ${className}`.trim()} role="img" aria-label={alt || "Photo unavailable"} />
+    <span
+      className={`photo-missing ${className}`.trim()}
+      role="img"
+      aria-label={alt || "Photo unavailable"}
+    />
   );
 }

@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { people, tiers } from "./domain.js";
 import { clock, clubStats, sessions } from "./club.js";
-import { applyFloor, arrival, birthdayIn, classToday, emptyFloor, shirtsToHandOut } from "./floor.js";
+import {
+  applyFloor,
+  arrival,
+  birthdayIn,
+  classToday,
+  emptyFloor,
+  shirtsToHandOut,
+} from "./floor.js";
 import { families, parsePass } from "./roster.js";
 import { Scanner } from "./camera.jsx";
 import { Avatar } from "./photos.jsx";
 import { clockTime } from "./coachkit.jsx";
+import { currency } from "./gym.js";
 import "./coach.css";
 
 const IDLE_AFTER = 9000;
@@ -55,7 +63,9 @@ export default function Kiosk({ state: rawState, setState }) {
         ? families.find((f) => f.kids.includes(hit.childId))
         : null;
     if (!fam) {
-      setError("We couldn’t read that pass. Try again or type your family PIN.");
+      setError(
+        "We couldn’t read that pass. Try again or type your family PIN.",
+      );
       return;
     }
     setFamily(fam);
@@ -70,7 +80,12 @@ export default function Kiosk({ state: rawState, setState }) {
   const kids = family?.kids.map((id) => people.find((p) => p.id === id)) ?? [];
   const checkIn = () => {
     try {
-      const next = applyFloor(state, { type: "checkIn", familyId: family.id, childIds: picked, by: "Front desk" });
+      const next = applyFloor(state, {
+        type: "checkIn",
+        familyId: family.id,
+        childIds: picked,
+        by: "Front desk",
+      });
       setState(next);
       setDone({ kind: "in", ids: picked, state: next });
       navigator.vibrate?.(30);
@@ -92,7 +107,9 @@ export default function Kiosk({ state: rawState, setState }) {
       </header>
       {done ? (
         <section className="kiosk-done" onClick={reset}>
-          <h1>{done.kind === "in" ? "You’re checked in." : "See you next time."}</h1>
+          <h1>
+            {done.kind === "in" ? "You’re checked in." : "See you next time."}
+          </h1>
           <div className="kiosk-kids">
             {done.ids.map((id) => {
               const k = people.find((p) => p.id === id);
@@ -101,14 +118,27 @@ export default function Kiosk({ state: rawState, setState }) {
               const bday = birthdayIn(id);
               return (
                 <article key={id} className="kiosk-kid is-on">
-                  <Avatar child={k} photoId={state.floor.avatars[id]} size={88} />
+                  <Avatar
+                    child={k}
+                    photoId={state.floor.avatars[id]}
+                    size={88}
+                  />
                   <b>{k.first}</b>
                   {done.kind === "in" && (
                     <>
-                      <small>{cls ? `${cls.name} at ${clock(cls.start)}` : "Open gym"}</small>
-                      <small>{clubStats(done.state, id).total} stars so far</small>
+                      <small>
+                        {cls
+                          ? `${cls.name} at ${clock(cls.start)}`
+                          : "Open gym"}
+                      </small>
+                      <small>
+                        {clubStats(done.state, id).total}{" "}
+                        {currency(people.find((p) => p.id === id)).many} so far
+                      </small>
                       {shirts.map((r) => (
-                        <em key={r.id}>{tiers[r.tier - 1].name} tee ready at the desk</em>
+                        <em key={r.id}>
+                          {tiers[r.tier - 1].name} tee ready at the desk
+                        </em>
                       ))}
                       {bday === 0 && <em>Happy birthday!</em>}
                     </>
@@ -133,9 +163,17 @@ export default function Kiosk({ state: rawState, setState }) {
                   className={`kiosk-kid ${on ? "is-on" : ""} ${here ? "is-here" : ""}`}
                   aria-pressed={on}
                   disabled={!!here}
-                  onClick={() => setPicked(on ? picked.filter((x) => x !== k.id) : [...picked, k.id])}
+                  onClick={() =>
+                    setPicked(
+                      on ? picked.filter((x) => x !== k.id) : [...picked, k.id],
+                    )
+                  }
                 >
-                  <Avatar child={k} photoId={state.floor.avatars[k.id]} size={88} />
+                  <Avatar
+                    child={k}
+                    photoId={state.floor.avatars[k.id]}
+                    size={88}
+                  />
                   <b>{k.first}</b>
                   <small>
                     {here
@@ -149,15 +187,32 @@ export default function Kiosk({ state: rawState, setState }) {
             })}
           </div>
           <div className="kiosk-actions">
-            <button className="button cyan kiosk-go" disabled={!picked.length} onClick={checkIn}>
-              Check in {picked.length ? (picked.length === 1 ? people.find((p) => p.id === picked[0]).first : `${picked.length} kids`) : ""}
+            <button
+              className="button cyan kiosk-go"
+              disabled={!picked.length}
+              onClick={checkIn}
+            >
+              Check in{" "}
+              {picked.length
+                ? picked.length === 1
+                  ? people.find((p) => p.id === picked[0]).first
+                  : `${picked.length} kids`
+                : ""}
             </button>
             {kids.some((k) => arrival(state, k.id)) && (
               <button
                 className="button outline-light"
-                onClick={() => checkOut(kids.filter((k) => arrival(state, k.id)).map((k) => k.id))}
+                onClick={() =>
+                  checkOut(
+                    kids.filter((k) => arrival(state, k.id)).map((k) => k.id),
+                  )
+                }
               >
-                Check out {kids.filter((k) => arrival(state, k.id)).map((k) => k.first).join(" & ")}
+                Check out{" "}
+                {kids
+                  .filter((k) => arrival(state, k.id))
+                  .map((k) => k.first)
+                  .join(" & ")}
               </button>
             )}
             <button className="button outline-light" onClick={reset}>
@@ -171,7 +226,9 @@ export default function Kiosk({ state: rawState, setState }) {
             <h1>
               Welcome to <em>The LAB.</em>
             </h1>
-            <p>Hold your family pass up to the camera, or type your family PIN.</p>
+            <p>
+              Hold your family pass up to the camera, or type your family PIN.
+            </p>
             <ul className="kiosk-today">
               {sessions()
                 .slice()
@@ -184,8 +241,18 @@ export default function Kiosk({ state: rawState, setState }) {
             </ul>
           </div>
           <div className="kiosk-scan">
-            <Scanner key={facing} onCode={onCode} facing={facing} hint="Family pass QR" />
-            <button className="text-button light" onClick={() => setFacing(facing === "user" ? "environment" : "user")}>
+            <Scanner
+              key={facing}
+              onCode={onCode}
+              facing={facing}
+              hint="Family pass QR"
+            />
+            <button
+              className="text-button light"
+              onClick={() =>
+                setFacing(facing === "user" ? "environment" : "user")
+              }
+            >
               Switch camera
             </button>
           </div>

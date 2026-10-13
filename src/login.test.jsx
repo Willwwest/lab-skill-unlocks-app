@@ -22,10 +22,15 @@ describe("phone sign-in", () => {
     await user.type(screen.getByLabelText("6-digit code"), code);
     expect(await screen.findByText(/Theo’s/)).toBeTruthy();
     const view = screen.getByRole("combobox", { name: "View as" });
-    expect([...view.options].map((o) => o.value)).toEqual(["Parent", "Athlete"]);
+    expect([...view.options].map((o) => o.value)).toEqual([
+      "Parent",
+      "Athlete",
+    ]);
     const kids = screen.getByRole("combobox", { name: "Select athlete" });
     expect([...kids.options].map((o) => o.value)).toEqual(["theo"]);
-    expect(JSON.parse(localStorage.getItem("lab-session")).phone).toBe("+16025550101");
+    expect(JSON.parse(localStorage.getItem("lab-session")).phone).toBe(
+      "+16025550101",
+    );
   });
   it("turns away numbers that aren't on file", async () => {
     const user = userEvent.setup();
@@ -36,18 +41,23 @@ describe("phone sign-in", () => {
   it("rejects a wrong code and counts the tries", async () => {
     const user = userEvent.setup();
     const code = await textCode(user, "6025550102");
-    await user.type(screen.getByLabelText("6-digit code"), code === "123456" ? "654321" : "123456");
+    await user.type(
+      screen.getByLabelText("6-digit code"),
+      code === "123456" ? "654321" : "123456",
+    );
     expect(screen.getByRole("alert").textContent).toMatch(/4 tries left/);
     expect(localStorage.getItem("lab-session")).toBeNull();
   });
-  it("takes a coach straight to the Coach Center, and signs out", async () => {
+  it("takes a coach straight to their day on the floor, and signs out", async () => {
     const user = userEvent.setup();
     const code = await textCode(user, "6025550151");
     await user.type(screen.getByLabelText("6-digit code"), code);
-    expect(await screen.findByRole("navigation", { name: "Coach sections" })).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: /Coach Sam/ }));
-    await user.click(screen.getByRole("menuitem", { name: "Sign out of this device" }));
-    expect(await screen.findByRole("button", { name: "Text me a code" })).toBeTruthy();
+    expect(await screen.findByText("Today at the gym")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Coach Sam menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
+    expect(
+      await screen.findByRole("button", { name: "Text me a code" }),
+    ).toBeTruthy();
     expect(localStorage.getItem("lab-session")).toBeNull();
   });
 });

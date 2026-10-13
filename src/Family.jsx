@@ -15,13 +15,21 @@ function QR({ text, size = 220, label }) {
   useEffect(() => {
     let live = true;
     QRCode.toString(text, { type: "svg", margin: 2, width: size })
-      .then((svg) => live && setSrc(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`))
+      .then(
+        (svg) =>
+          live &&
+          setSrc(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`),
+      )
       .catch(() => live && setSrc(""));
     return () => {
       live = false;
     };
   }, [text, size]);
-  return src ? <img className="fam-qr" src={src} width={size} height={size} alt={label} /> : <span className="fam-qr" style={{ width: size, height: size }} />;
+  return src ? (
+    <img className="fam-qr" src={src} width={size} height={size} alt={label} />
+  ) : (
+    <span className="fam-qr" style={{ width: size, height: size }} />
+  );
 }
 
 async function download(m, child) {
@@ -36,7 +44,14 @@ async function download(m, child) {
 }
 
 // Photos coaches took, for one kid or a whole family.
-export function MomentsGallery({ state, childIds, role, setState, notify, empty }) {
+export function MomentsGallery({
+  state,
+  childIds,
+  role,
+  setState,
+  notify,
+  empty,
+}) {
   const [open, setOpen] = useState(null);
   const parent = role === "Parent";
   const moments = (state.floor?.moments ?? [])
@@ -61,7 +76,11 @@ export function MomentsGallery({ state, childIds, role, setState, notify, empty 
         {moments.map((m) => {
           const child = people.find((p) => p.id === m.childId);
           return (
-            <button key={m.id} className={`moment ${m.hidden ? "is-hidden" : ""}`} onClick={() => setOpen(m.id)}>
+            <button
+              key={m.id}
+              className={`moment ${m.hidden ? "is-hidden" : ""}`}
+              onClick={() => setOpen(m.id)}
+            >
               <Photo id={m.photoId} alt={m.caption} />
               <span>
                 <b>{m.caption || child.first}</b>
@@ -75,17 +94,32 @@ export function MomentsGallery({ state, childIds, role, setState, notify, empty 
         })}
       </div>
       {current && (
-        <div className="lightbox" role="dialog" aria-modal="true" aria-label={current.caption} onMouseDown={(e) => e.target === e.currentTarget && setOpen(null)}>
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={current.caption}
+          onMouseDown={(e) => e.target === e.currentTarget && setOpen(null)}
+        >
           <figure>
             <Photo id={current.photoId} size="full" alt={current.caption} />
             <figcaption>
               <b>{current.caption}</b>
               <small>
-                {date(current.at)} {clockTime(current.at)} · Taken by {current.coach}
+                {date(current.at)} {clockTime(current.at)} · Taken by{" "}
+                {current.coach}
               </small>
             </figcaption>
             <div className="lightbox-actions">
-              <button className="button mint compact" onClick={() => download(current, people.find((p) => p.id === current.childId))}>
+              <button
+                className="button mint compact"
+                onClick={() =>
+                  download(
+                    current,
+                    people.find((p) => p.id === current.childId),
+                  )
+                }
+              >
                 <Download size={16} /> Save
               </button>
               {parent && (
@@ -94,8 +128,13 @@ export function MomentsGallery({ state, childIds, role, setState, notify, empty 
                     className="button outline-light compact"
                     onClick={() =>
                       act(
-                        { type: current.hidden ? "showMoment" : "hideMoment", id: current.id },
-                        current.hidden ? "Photo shown again." : "Photo hidden from your child’s view.",
+                        {
+                          type: current.hidden ? "showMoment" : "hideMoment",
+                          id: current.id,
+                        },
+                        current.hidden
+                          ? "Photo shown again."
+                          : "Photo hidden from your child’s view.",
                       )
                     }
                   >
@@ -104,7 +143,12 @@ export function MomentsGallery({ state, childIds, role, setState, notify, empty 
                   <button
                     className="button outline-light compact"
                     onClick={() => {
-                      if (act({ type: "deleteMoment", id: current.id }, "Photo deleted.")) {
+                      if (
+                        act(
+                          { type: "deleteMoment", id: current.id },
+                          "Photo deleted.",
+                        )
+                      ) {
                         deletePhoto(current.photoId).catch(() => {});
                         setOpen(null);
                       }
@@ -116,7 +160,11 @@ export function MomentsGallery({ state, childIds, role, setState, notify, empty 
               )}
             </div>
           </figure>
-          <button className="lightbox-close" aria-label="Close photo" onClick={() => setOpen(null)}>
+          <button
+            className="lightbox-close"
+            aria-label="Close photo"
+            onClick={() => setOpen(null)}
+          >
             <X size={24} />
           </button>
         </div>
@@ -137,7 +185,10 @@ export default function Family({ state: rawState, childId, setState, notify }) {
         <div>
           <span className="eyebrow">Family pass</span>
           <h2>{family.name}</h2>
-          <p>Hold this up to the front desk camera when you arrive. It checks in {kids.map((k) => k.first).join(" and ")}.</p>
+          <p>
+            Hold this up to the front desk camera when you arrive. It checks in{" "}
+            {kids.map((k) => k.first).join(" and ")}.
+          </p>
           <p className="fam-pin">
             Family PIN <b>{family.pin}</b>
           </p>
@@ -146,22 +197,39 @@ export default function Family({ state: rawState, childId, setState, notify }) {
               const here = arrival(state, k.id);
               return (
                 <li key={k.id}>
-                  <Avatar child={k} photoId={state.floor.avatars[k.id]} size={32} />
-                  {k.first} · {here ? `checked in at ${clockTime(here.in)}` : "not checked in"}
+                  <Avatar
+                    child={k}
+                    photoId={state.floor.avatars[k.id]}
+                    size={32}
+                  />
+                  {k.first} ·{" "}
+                  {here
+                    ? `checked in at ${clockTime(here.in)}`
+                    : "not checked in"}
                 </li>
               );
             })}
           </ul>
         </div>
-        <QR text={familyCode(family.id)} label={`${family.name} pass QR code`} />
+        <QR
+          text={familyCode(family.id)}
+          label={`${family.name} pass QR code`}
+        />
       </section>
       <section className="card fam-section">
         <h2>Kid passes</h2>
-        <p className="subtle">Coaches scan these at a station to pull up the right kid. Clip one to a bag or water bottle.</p>
+        <p className="subtle">
+          Coaches scan these at a station to pull up the right kid. Clip one to
+          a bag or water bottle.
+        </p>
         <div className="fam-kidpasses">
           {kids.map((k) => (
             <figure key={k.id}>
-              <QR text={kidCode(k.id)} size={132} label={`${k.first}’s pass QR code`} />
+              <QR
+                text={kidCode(k.id)}
+                size={132}
+                label={`${k.first}’s pass QR code`}
+              />
               <figcaption>{k.first}</figcaption>
             </figure>
           ))}
@@ -169,7 +237,10 @@ export default function Family({ state: rawState, childId, setState, notify }) {
       </section>
       <section className="card fam-section">
         <h2>Photos</h2>
-        <p className="subtle">Coaches can photograph a feat or a celebration and share it here. Only your family and LAB staff see these.</p>
+        <p className="subtle">
+          Coaches can photograph a feat or a celebration and share it here. Only
+          your family and LAB staff see these.
+        </p>
         {kids.map((k) => (
           <label className="fam-toggle" key={k.id}>
             <input
@@ -177,8 +248,19 @@ export default function Family({ state: rawState, childId, setState, notify }) {
               checked={photoConsent(state, k.id)}
               onChange={(e) => {
                 try {
-                  setState(applyFloor(state, { type: "consent", childId: k.id, value: e.target.checked, actor: { role: "Parent" } }));
-                  notify(e.target.checked ? `Coaches can photograph ${k.first}.` : `No new photos of ${k.first}.`);
+                  setState(
+                    applyFloor(state, {
+                      type: "consent",
+                      childId: k.id,
+                      value: e.target.checked,
+                      actor: { role: "Parent" },
+                    }),
+                  );
+                  notify(
+                    e.target.checked
+                      ? `Coaches can photograph ${k.first}.`
+                      : `No new photos of ${k.first}.`,
+                  );
                 } catch (err) {
                   notify(err.message, true);
                 }
@@ -196,7 +278,11 @@ export default function Family({ state: rawState, childId, setState, notify }) {
           role="Parent"
           setState={setState}
           notify={notify}
-          empty={<p className="subtle">When a coach takes a photo, it shows up here.</p>}
+          empty={
+            <p className="subtle">
+              When a coach takes a photo, it shows up here.
+            </p>
+          }
         />
       </section>
     </div>

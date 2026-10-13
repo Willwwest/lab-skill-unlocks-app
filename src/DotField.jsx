@@ -37,9 +37,7 @@ export default function DotField({ className = "" }) {
     if (!ctx) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const finePointer = window.matchMedia("(pointer: fine)").matches;
-    const buckets = COLORS.map(() =>
-      Array.from({ length: ALPHAS }, () => []),
-    );
+    const buckets = COLORS.map(() => Array.from({ length: ALPHAS }, () => []));
     let w = 0;
     let h = 0;
     let raf = 0;
@@ -73,18 +71,17 @@ export default function DotField({ className = "" }) {
         const half = (w * 0.5 + 40) / p;
         const depth = 1 - (z - NEAR) / (FAR - NEAR);
         const r = Math.max(0.5, 0.013 * p);
-        for (
-          let x = Math.ceil(-half / STEP) * STEP;
-          x <= half;
-          x += STEP
-        ) {
+        for (let x = Math.ceil(-half / STEP) * STEP; x <= half; x += STEP) {
           const y = height(x, z, t);
           const sy = horizon + (CAM_Y - y) * p;
           if (sy > h + 6) continue;
           const sx = cx + x * p;
           const crest = Math.min(1, Math.max(0, (y + AMP) / (2 * AMP)));
           const alpha = depth ** 1.6 * (0.4 + 0.6 * crest);
-          const ci = Math.min(COLORS.length - 1, Math.floor(crest * COLORS.length));
+          const ci = Math.min(
+            COLORS.length - 1,
+            Math.floor(crest * COLORS.length),
+          );
           const ai = Math.min(ALPHAS - 1, Math.floor(alpha * ALPHAS));
           if (ai > 0) buckets[ci][ai].push(sx, sy, r);
         }
@@ -151,7 +148,8 @@ export default function DotField({ className = "" }) {
     io.observe(canvas);
     document.addEventListener("visibilitychange", start);
     reduce.addEventListener("change", start);
-    if (finePointer) window.addEventListener("pointermove", onPointer, { passive: true });
+    if (finePointer)
+      window.addEventListener("pointermove", onPointer, { passive: true });
 
     return () => {
       cancelAnimationFrame(raf);

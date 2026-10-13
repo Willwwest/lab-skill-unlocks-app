@@ -10,7 +10,14 @@ import {
   people,
   tiers,
 } from "./domain.js";
-import { applyClub, dayKey, isHere, sessions, sessionPhase, stations } from "./club.js";
+import {
+  applyClub,
+  dayKey,
+  isHere,
+  sessions,
+  sessionPhase,
+  stations,
+} from "./club.js";
 import { families, kidInfo } from "./roster.js";
 
 export const emptyFloor = () => ({
@@ -33,9 +40,7 @@ export function validFloor(f) {
     f.presence.every(
       (p) => kid(p.childId) && Number.isFinite(Date.parse(p.in)),
     ) &&
-    f.moments.every(
-      (m) => kid(m.childId) && typeof m.photoId === "string",
-    ) &&
+    f.moments.every((m) => kid(m.childId) && typeof m.photoId === "string") &&
     f.notes.every((n) => kid(n.childId) && typeof n.text === "string") &&
     Object.keys(f.outages).every((id) => stations.some((s) => s.id === id))
   );
@@ -77,7 +82,9 @@ export const stationCategory = {
   course: "Course skills",
 };
 export const stationFor = (skill) =>
-  Object.keys(stationCategory).find((id) => stationCategory[id] === skill.category);
+  Object.keys(stationCategory).find(
+    (id) => stationCategory[id] === skill.category,
+  );
 
 // Skills a kid can be assessed on now, optionally at one station: their
 // own goals first, then the rest of their current tier, then later tiers.
@@ -142,7 +149,13 @@ export function matchKid(child, query) {
   const fam = families.find((f) => f.id === kidInfo[child.id]?.family);
   return [child.name, kidInfo[child.id]?.last, fam?.guardian, fam?.pin]
     .filter(Boolean)
-    .some((v) => v.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)) || v.toLowerCase().startsWith(q));
+    .some(
+      (v) =>
+        v
+          .toLowerCase()
+          .split(/\s+/)
+          .some((w) => w.startsWith(q)) || v.toLowerCase().startsWith(q),
+    );
 }
 
 export function applyFloor(state, action, now = new Date()) {
@@ -173,7 +186,12 @@ export function applyFloor(state, action, now = new Date()) {
         kid(childId);
         if (family && !family.kids.includes(childId))
           throw Error("That athlete is not on this family pass.");
-        if (f.presence.some((p) => p.childId === childId && !p.out && dayKey(p.in) === dayKey(now)))
+        if (
+          f.presence.some(
+            (p) =>
+              p.childId === childId && !p.out && dayKey(p.in) === dayKey(now),
+          )
+        )
           continue;
         f.presence.push({
           id: crypto.randomUUID(),
@@ -189,7 +207,13 @@ export function applyFloor(state, action, now = new Date()) {
           try {
             next = applyClub(
               next,
-              { type: "record", kind: "class", role: "Parent", childId, session: block.id },
+              {
+                type: "record",
+                kind: "class",
+                role: "Parent",
+                childId,
+                session: block.id,
+              },
               now,
             );
           } catch {
@@ -201,7 +225,8 @@ export function applyFloor(state, action, now = new Date()) {
     case "checkOut": {
       for (const childId of action.childIds ?? []) {
         const row = f.presence.find(
-          (p) => p.childId === childId && !p.out && dayKey(p.in) === dayKey(now),
+          (p) =>
+            p.childId === childId && !p.out && dayKey(p.in) === dayKey(now),
         );
         if (row) row.out = at;
       }
@@ -212,7 +237,8 @@ export function applyFloor(state, action, now = new Date()) {
       kid(action.childId);
       if (!photoConsent(state, action.childId))
         throw Error("This family has not given photo consent.");
-      if (typeof action.photoId !== "string") throw Error("Take a photo first.");
+      if (typeof action.photoId !== "string")
+        throw Error("Take a photo first.");
       f.moments.push({
         id: action.id ?? crypto.randomUUID(),
         childId: action.childId,
@@ -238,8 +264,14 @@ export function applyFloor(state, action, now = new Date()) {
       if (!m) throw Error("Photo not found.");
       // The coach who took it can remove a mistake; families and the head
       // coach can always remove one.
-      if (!(actor.role === "Parent" || actor.head || (actor.role === "Coach" && actor.name === m.coach)))
-        throw Error("A parent, the head coach or the photographer removes photos.");
+      if (!(
+        actor.role === "Parent" ||
+        actor.head ||
+        (actor.role === "Coach" && actor.name === m.coach)
+      ))
+        throw Error(
+          "A parent, the head coach or the photographer removes photos.",
+        );
       f.moments = f.moments.filter((x) => x.id !== m.id);
       break;
     }
@@ -313,13 +345,24 @@ export function ensurePresent(s, actor, childId, block, now = new Date()) {
   let next = s;
   if (block.kind === "class") {
     const mine = (next.club?.events ?? []).filter(
-      (e) => e.childId === childId && e.kind === "class" && e.session === block.id,
+      (e) =>
+        e.childId === childId && e.kind === "class" && e.session === block.id,
     );
     if (!mine.some((e) => e.status === "approved")) {
       const pending = mine.find((e) => e.status === "pending");
       next = pending
-        ? coachAct(next, actor, { type: "approve", id: pending.id, childId }, now)
-        : coachAct(next, actor, { type: "record", kind: "class", session: block.id, childId }, now);
+        ? coachAct(
+            next,
+            actor,
+            { type: "approve", id: pending.id, childId },
+            now,
+          )
+        : coachAct(
+            next,
+            actor,
+            { type: "record", kind: "class", session: block.id, childId },
+            now,
+          );
     }
   }
   if (!isHere(next, childId, now))
@@ -331,7 +374,15 @@ export function ensurePresent(s, actor, childId, block, now = new Date()) {
   return next;
 }
 
-export function recordAt(s, actor, block, childId, kind, extra = {}, now = new Date()) {
+export function recordAt(
+  s,
+  actor,
+  block,
+  childId,
+  kind,
+  extra = {},
+  now = new Date(),
+) {
   const next = ensurePresent(s, actor, childId, block, now);
   return coachAct(
     next,

@@ -28,11 +28,14 @@ export function ancestry(id) {
   for (const sid of seen) (levels[depth(sid)] ??= []).push(byId[sid]);
   return levels
     .filter(Boolean)
-    .map((level) => level.sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id)));
+    .map((level) =>
+      level.sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id)),
+    );
 }
 
 // Skills that list this one as a direct prerequisite.
-export const opens = (id) => catalog.filter((s) => s.prerequisites.includes(id));
+export const opens = (id) =>
+  catalog.filter((s) => s.prerequisites.includes(id));
 
 // The earliest unearned prerequisite a kid can try now, or null.
 export function firstStep(state, childId, id) {

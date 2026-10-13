@@ -23,7 +23,11 @@ function useCamera(facing, active = true) {
     }
     navigator.mediaDevices
       .getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: {
+          facingMode: facing,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       })
       .then((s) => {
@@ -62,13 +66,22 @@ const grab = (video) => {
  * Full-screen camera for feat and celebration photos. Falls back to the
  * system camera / photo picker when a live stream is not possible.
  */
-export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing = "environment" }) {
+export function CameraSheet({
+  title,
+  subtitle,
+  onCapture,
+  onClose,
+  initialFacing = "environment",
+}) {
   const [facing, setFacing] = useState(initialFacing);
   const [shot, setShot] = useState(null);
   const [busy, setBusy] = useState(false);
   const { video, error, ready, setReady } = useCamera(facing, !shot);
   const file = useRef(null);
-  const preview = useMemo(() => (shot ? URL.createObjectURL(shot) : null), [shot]);
+  const preview = useMemo(
+    () => (shot ? URL.createObjectURL(shot) : null),
+    [shot],
+  );
   useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -88,7 +101,11 @@ export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing
           <strong>{title}</strong>
           {subtitle && <span>{subtitle}</span>}
         </div>
-        <button className="cam-icon" aria-label="Close camera" onClick={onClose}>
+        <button
+          className="cam-icon"
+          aria-label="Close camera"
+          onClick={onClose}
+        >
           <X size={22} />
         </button>
       </header>
@@ -98,7 +115,10 @@ export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing
         ) : error ? (
           <div className="cam-fallback">
             <p>{error}</p>
-            <button className="button cyan" onClick={() => file.current?.click()}>
+            <button
+              className="button cyan"
+              onClick={() => file.current?.click()}
+            >
               Open the device camera
             </button>
           </div>
@@ -127,7 +147,11 @@ export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing
       <footer className="cam-foot">
         {shot ? (
           <>
-            <button className="button outline-light" onClick={() => setShot(null)} disabled={busy}>
+            <button
+              className="button outline-light"
+              onClick={() => setShot(null)}
+              disabled={busy}
+            >
               Retake
             </button>
             <button
@@ -162,7 +186,9 @@ export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing
               className="cam-icon"
               aria-label="Switch camera"
               disabled={!!error}
-              onClick={() => setFacing(facing === "user" ? "environment" : "user")}
+              onClick={() =>
+                setFacing(facing === "user" ? "environment" : "user")
+              }
             >
               <RefreshCw size={22} />
             </button>
@@ -178,7 +204,12 @@ export function CameraSheet({ title, subtitle, onCapture, onClose, initialFacing
  * BarcodeDetector where it exists and jsQR elsewhere (iOS Safari).
  * Typed codes and family PINs work without a camera.
  */
-export function Scanner({ onCode, hint, facing = "environment", compact = false }) {
+export function Scanner({
+  onCode,
+  hint,
+  facing = "environment",
+  compact = false,
+}) {
   const { video, error } = useCamera(facing);
   const [typed, setTyped] = useState("");
   const last = useRef({ code: "", at: 0 });
@@ -240,7 +271,13 @@ export function Scanner({ onCode, hint, facing = "environment", compact = false 
           <p className="scanner-error">{error}</p>
         ) : (
           <>
-            <video ref={video} playsInline muted autoPlay className={facing === "user" ? "mirror" : ""} />
+            <video
+              ref={video}
+              playsInline
+              muted
+              autoPlay
+              className={facing === "user" ? "mirror" : ""}
+            />
             <span className="scanner-frame" aria-hidden="true" />
           </>
         )}

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Check,
   ClipboardCheck,
@@ -40,6 +46,7 @@ import { families, kidInfo, parsePass, staff } from "./roster.js";
 import { savePhoto } from "./media.js";
 import { CameraSheet, Scanner } from "./camera.jsx";
 import { Avatar } from "./photos.jsx";
+import { gymFullDay, gymHour } from "./gym-time.js";
 import { sparkFrom } from "./motion.jsx";
 import {
   KidTile,
@@ -96,7 +103,13 @@ const tabs = [
   { id: "station", label: "Station", icon: MapPin },
   { id: "kids", label: "Kids", icon: Search },
   { id: "wrap", label: "Wrap-up", icon: ClipboardCheck },
-  { id: "admin", label: "Head coach", short: "Admin", icon: Settings, head: true },
+  {
+    id: "admin",
+    label: "Head coach",
+    short: "Admin",
+    icon: Settings,
+    head: true,
+  },
 ];
 
 /* ---------- Sign-in and lock ---------- */
@@ -121,7 +134,11 @@ function PinPad({ onDone, locked, current }) {
   return (
     <div className="cc-lock">
       <div className="cc-lock-inner">
-        <img src={`${import.meta.env.BASE_URL}lab-white.svg`} alt="The LAB" className="cc-lock-logo" />
+        <img
+          src={`${import.meta.env.BASE_URL}lab-white.svg`}
+          alt="The LAB"
+          className="cc-lock-logo"
+        />
         {!who ? (
           <>
             <h1>Who’s coaching?</h1>
@@ -134,7 +151,10 @@ function PinPad({ onDone, locked, current }) {
                 </button>
               ))}
             </div>
-            <p className="cc-lock-hint">Demo PINs: Jordan 1111 · Sam 2222 · Priya 3333 · Alex 9999</p>
+            <p className="cc-lock-hint">
+              Demo PINs: Jordan 1111 · Sam 2222 · Priya 3333 · Riley 4444 ·
+              Morgan 5555 · Dev 6666 · Alex 9999
+            </p>
           </>
         ) : (
           <>
@@ -142,7 +162,10 @@ function PinPad({ onDone, locked, current }) {
             <p className="cc-lock-sub">
               {locked ? `${who.name}, enter your PIN.` : "Enter your PIN."}
             </p>
-            <div className="cc-pin-dots" aria-label={`${pin.length} of 4 digits`}>
+            <div
+              className="cc-pin-dots"
+              aria-label={`${pin.length} of 4 digits`}
+            >
               {[0, 1, 2, 3].map((i) => (
                 <span key={i} className={i < pin.length ? "on" : ""} />
               ))}
@@ -166,7 +189,11 @@ function PinPad({ onDone, locked, current }) {
                 {locked ? "Switch" : "Back"}
               </button>
               <button onClick={() => press("0")}>0</button>
-              <button className="cc-key-text" aria-label="Delete digit" onClick={() => setPin(pin.slice(0, -1))}>
+              <button
+                className="cc-key-text"
+                aria-label="Delete digit"
+                onClick={() => setPin(pin.slice(0, -1))}
+              >
                 ⌫
               </button>
             </div>
@@ -192,18 +219,28 @@ function Stat({ value, label, onClick, tone = "" }) {
 function NowView({ ops, now, go }) {
   const { state, actor, block } = ops;
   const here = hereNow(state, now);
-  const hereKids = here.map((p) => people.find((k) => k.id === p.childId)).filter(Boolean);
+  const hereKids = here
+    .map((p) => people.find((k) => k.id === p.childId))
+    .filter(Boolean);
   const pending = (state.club?.events ?? []).filter(
     (e) => e.status === "pending" && dayKey(e.at) === dayKey(now),
   );
-  const followUps = (state.floor?.notes ?? []).filter((n) => n.followUp && !n.done);
+  const followUps = (state.floor?.notes ?? []).filter(
+    (n) => n.followUp && !n.done,
+  );
   const handouts = hereKids.flatMap((k) =>
-    shirtsToHandOut(state, k.id).map((r) => ({ kid: k, label: `${tiers[r.tier - 1].name} tee · ${r.size}` })),
+    shirtsToHandOut(state, k.id).map((r) => ({
+      kid: k,
+      label: `${tiers[r.tier - 1].name} tee · ${r.size}`,
+    })),
   );
   const prizeHandouts = hereKids.flatMap((k) =>
     (state.club?.claims ?? [])
       .filter((r) => r.childId === k.id && r.status === "Requested")
-      .map((r) => ({ kid: k, label: prizes.find((p) => p.id === r.prizeId)?.name })),
+      .map((r) => ({
+        kid: k,
+        label: prizes.find((p) => p.id === r.prizeId)?.name,
+      })),
   );
   const close = hereKids
     .map((k) => ({ kid: k, gap: shirtGap(state, k.id) }))
@@ -214,20 +251,40 @@ function NowView({ ops, now, go }) {
     .filter(({ days }) => days !== null && days <= 7)
     .sort((a, b) => a.days - b.days);
   const blocks = sessions(now).slice().sort(byStart);
-  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Phoenix", hour: "numeric", hourCycle: "h23" }).format(now));
+  const hour = gymHour(now);
   return (
     <div className="cc-view">
       <div className="cc-hello">
         <h1>
-          Good {hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, {actor.name.replace("Coach ", "")}.
+          Good {hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"},{" "}
+          {actor.name.replace("Coach ", "")}.
         </h1>
-        <p>{clockTime(now)} · {new Intl.DateTimeFormat("en-US", { timeZone: "America/Phoenix", weekday: "long", month: "long", day: "numeric" }).format(now)}</p>
+        <p>
+          {clockTime(now)} · {gymFullDay(now)}
+        </p>
       </div>
       <div className="cc-stats">
-        <Stat value={here.length} label="in the building" onClick={() => go("kids", { filter: "here" })} />
-        <Stat value={pending.length} label="check-ins to confirm" onClick={() => go("wrap")} tone={pending.length ? "warn" : ""} />
-        <Stat value={handouts.length + prizeHandouts.length} label="rewards to hand out" tone={handouts.length + prizeHandouts.length ? "gold" : ""} />
-        <Stat value={followUps.length} label="follow-ups" onClick={() => go("wrap")} />
+        <Stat
+          value={here.length}
+          label="in the building"
+          onClick={() => go("kids", { filter: "here" })}
+        />
+        <Stat
+          value={pending.length}
+          label="check-ins to confirm"
+          onClick={() => go("wrap")}
+          tone={pending.length ? "warn" : ""}
+        />
+        <Stat
+          value={handouts.length + prizeHandouts.length}
+          label="rewards to hand out"
+          tone={handouts.length + prizeHandouts.length ? "gold" : ""}
+        />
+        <Stat
+          value={followUps.length}
+          label="follow-ups"
+          onClick={() => go("wrap")}
+        />
       </div>
       <section className="cc-card">
         <h2>Today’s schedule</h2>
@@ -239,15 +296,24 @@ function NowView({ ops, now, go }) {
               ? roster.filter((k) => isHere(state, k.id, now)).length
               : here.length;
             return (
-              <article key={s.id} className={`cc-block phase-${phase} ${block.id === s.id ? "is-current" : ""}`}>
+              <article
+                key={s.id}
+                className={`cc-block phase-${phase} ${block.id === s.id ? "is-current" : ""}`}
+              >
                 <span className="cc-block-time">
                   {clock(s.start)}–{clock(s.end)}
                 </span>
                 <div>
                   <b>{s.name}</b>
                   <small>
-                    {s.kind === "class" ? `Class · ${s.ages} · ${s.lead}` : "Open gym · staffed stations"}
-                    {phase === "live" ? " · Live" : phase === "done" ? " · Done" : ""}
+                    {s.kind === "class"
+                      ? `Class · ${s.ages} · ${s.lead}`
+                      : "Open gym · staffed stations"}
+                    {phase === "live"
+                      ? " · Live"
+                      : phase === "done"
+                        ? " · Done"
+                        : ""}
                   </small>
                 </div>
                 <span className="cc-block-count">
@@ -271,8 +337,16 @@ function NowView({ ops, now, go }) {
         <section className="cc-card">
           <h2>Hand these out while they’re here</h2>
           {[...handouts, ...prizeHandouts].map((h, i) => (
-            <button key={i} className="cc-alert gold" onClick={() => ops.openKid(h.kid.id)}>
-              <Avatar child={h.kid} photoId={state.floor?.avatars?.[h.kid.id]} size={40} />
+            <button
+              key={i}
+              className="cc-alert gold"
+              onClick={() => ops.openKid(h.kid.id)}
+            >
+              <Avatar
+                child={h.kid}
+                photoId={state.floor?.avatars?.[h.kid.id]}
+                size={40}
+              />
               <span>
                 <b>{h.kid.first}</b> · {h.label}
               </span>
@@ -284,8 +358,16 @@ function NowView({ ops, now, go }) {
         <section className="cc-card">
           <h2>Care notes for kids here</h2>
           {care.map((k) => (
-            <button key={k.id} className="cc-alert care" onClick={() => ops.openKid(k.id)}>
-              <Avatar child={k} photoId={state.floor?.avatars?.[k.id]} size={40} />
+            <button
+              key={k.id}
+              className="cc-alert care"
+              onClick={() => ops.openKid(k.id)}
+            >
+              <Avatar
+                child={k}
+                photoId={state.floor?.avatars?.[k.id]}
+                size={40}
+              />
               <span>
                 <b>{k.first}</b> · {kidInfo[k.id].care}
               </span>
@@ -297,11 +379,22 @@ function NowView({ ops, now, go }) {
         <section className="cc-card">
           <h2>Close to a shirt</h2>
           {close.map(({ kid, gap }) => (
-            <button key={kid.id} className="cc-alert" onClick={() => ops.openKid(kid.id)}>
-              <Avatar child={kid} photoId={state.floor?.avatars?.[kid.id]} size={40} />
+            <button
+              key={kid.id}
+              className="cc-alert"
+              onClick={() => ops.openKid(kid.id)}
+            >
+              <Avatar
+                child={kid}
+                photoId={state.floor?.avatars?.[kid.id]}
+                size={40}
+              />
               <span>
-                <b>{kid.first}</b> · {gap.left.length} left for the {gap.tier.name} tee:{" "}
-                {gap.left.map((s) => `${s.title} (${stationName(stationFor(s))})`).join(", ")}
+                <b>{kid.first}</b> · {gap.left.length} left for the{" "}
+                {gap.tier.name} tee:{" "}
+                {gap.left
+                  .map((s) => `${s.title} (${stationName(stationFor(s))})`)
+                  .join(", ")}
               </span>
             </button>
           ))}
@@ -312,8 +405,17 @@ function NowView({ ops, now, go }) {
           <h2>Birthdays this week</h2>
           <div className="cc-chips">
             {birthdays.map(({ kid, days }) => (
-              <button key={kid.id} className="chip" onClick={() => ops.openKid(kid.id)}>
-                {kid.first} · {days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}
+              <button
+                key={kid.id}
+                className="chip"
+                onClick={() => ops.openKid(kid.id)}
+              >
+                {kid.first} ·{" "}
+                {days === 0
+                  ? "today"
+                  : days === 1
+                    ? "tomorrow"
+                    : `in ${days} days`}
                 {isHere(state, kid.id, now) ? " · here" : ""}
               </button>
             ))}
@@ -326,7 +428,12 @@ function NowView({ ops, now, go }) {
           <div className="cc-empty">
             <p>No one has checked in at the front desk yet today.</p>
             <div className="cc-empty-actions">
-              <a className="button cyan compact" href="?kiosk" target="_blank" rel="noreferrer">
+              <a
+                className="button cyan compact"
+                href="?kiosk"
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open front desk kiosk
               </a>
               <button className="button outline compact" onClick={ops.simulate}>
@@ -340,7 +447,11 @@ function NowView({ ops, now, go }) {
               const kid = people.find((k) => k.id === p.childId);
               return (
                 <button key={p.id} onClick={() => ops.openKid(kid.id)}>
-                  <Avatar child={kid} photoId={state.floor?.avatars?.[kid.id]} size={44} />
+                  <Avatar
+                    child={kid}
+                    photoId={state.floor?.avatars?.[kid.id]}
+                    size={44}
+                  />
                   <b>{kid.first}</b>
                   <small>{clockTime(p.in)}</small>
                 </button>
@@ -360,7 +471,10 @@ function BlockPicker({ ops, now, kinds }) {
   return (
     <label className="cc-select">
       <span className="sr-only">Session</span>
-      <select value={ops.block.id} onChange={(e) => ops.setBlock(e.target.value)}>
+      <select
+        value={ops.block.id}
+        onChange={(e) => ops.setBlock(e.target.value)}
+      >
         {list.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name} · {clock(s.start)}–{clock(s.end)}
@@ -374,7 +488,14 @@ function BlockPicker({ ops, now, kinds }) {
 
 // Station rotation timer for classes. Lives on this device only.
 function RotationTimer({ now }) {
-  const [cfg, setCfg] = useState(() => readDevice().rotation ?? { minutes: 8, stations: stations.map((s) => s.id), start: null });
+  const [cfg, setCfg] = useState(
+    () =>
+      readDevice().rotation ?? {
+        minutes: 8,
+        stations: stations.map((s) => s.id),
+        start: null,
+      },
+  );
   const [, tick] = useState(0);
   useEffect(() => writeDevice({ rotation: cfg }), [cfg]);
   useEffect(() => {
@@ -401,7 +522,10 @@ function RotationTimer({ now }) {
       <div className="cc-card-head">
         <h2>Rotation timer</h2>
         {cfg.start ? (
-          <button className="button outline compact" onClick={() => setCfg({ ...cfg, start: null })}>
+          <button
+            className="button outline compact"
+            onClick={() => setCfg({ ...cfg, start: null })}
+          >
             Stop
           </button>
         ) : (
@@ -426,7 +550,9 @@ function RotationTimer({ now }) {
           <output>
             {mm}:{ss}
           </output>
-          {cfg.stations[idx + 1] && <small>Next: {stationName(cfg.stations[idx + 1])}</small>}
+          {cfg.stations[idx + 1] && (
+            <small>Next: {stationName(cfg.stations[idx + 1])}</small>
+          )}
           <button
             className="text-button"
             onClick={() => setCfg({ ...cfg, start: cfg.start - left })}
@@ -449,7 +575,9 @@ function RotationTimer({ now }) {
                   onClick={() =>
                     setCfg({
                       ...cfg,
-                      stations: on ? cfg.stations.filter((x) => x !== s.id) : [...cfg.stations, s.id],
+                      stations: on
+                        ? cfg.stations.filter((x) => x !== s.id)
+                        : [...cfg.stations, s.id],
                     })
                   }
                 >
@@ -460,7 +588,12 @@ function RotationTimer({ now }) {
           </div>
           <label className="cc-inline">
             Minutes each
-            <select value={cfg.minutes} onChange={(e) => setCfg({ ...cfg, minutes: Number(e.target.value) })}>
+            <select
+              value={cfg.minutes}
+              onChange={(e) =>
+                setCfg({ ...cfg, minutes: Number(e.target.value) })
+              }
+            >
               {[4, 5, 6, 8, 10, 12, 15].map((m) => (
                 <option key={m}>{m}</option>
               ))}
@@ -489,7 +622,11 @@ function ClassView({ ops, now }) {
           {sessions(now)
             .filter((s) => s.kind === "class")
             .map((s) => (
-              <button key={s.id} className="chip" onClick={() => ops.setBlock(s.id)}>
+              <button
+                key={s.id}
+                className="chip"
+                onClick={() => ops.setBlock(s.id)}
+              >
                 {s.name} · {clock(s.start)}
               </button>
             ))}
@@ -499,19 +636,33 @@ function ClassView({ ops, now }) {
   const events = state.club?.events ?? [];
   const attendance = (id) =>
     events.find(
-      (e) => e.childId === id && e.kind === "class" && e.session === block.id && ["pending", "approved"].includes(e.status),
+      (e) =>
+        e.childId === id &&
+        e.kind === "class" &&
+        e.session === block.id &&
+        ["pending", "approved"].includes(e.status),
     );
   const walkIns = events
-    .filter((e) => e.kind === "class" && e.session === block.id && ["pending", "approved"].includes(e.status))
+    .filter(
+      (e) =>
+        e.kind === "class" &&
+        e.session === block.id &&
+        ["pending", "approved"].includes(e.status),
+    )
     .map((e) => e.childId);
   const roster = [
     ...rosterFor(block.index),
-    ...people.filter((p) => walkIns.includes(p.id) && !kidInfo[p.id]?.classes.includes(block.index)),
+    ...people.filter(
+      (p) =>
+        walkIns.includes(p.id) && !kidInfo[p.id]?.classes.includes(block.index),
+    ),
   ];
-  const confirmed = roster.filter((k) => attendance(k.id)?.status === "approved");
+  const confirmed = roster.filter(
+    (k) => attendance(k.id)?.status === "approved",
+  );
   const waiting = roster.filter((k) => {
     const a = attendance(k.id);
-    return (a?.status === "pending" || (!a && isHere(state, k.id, now)));
+    return a?.status === "pending" || (!a && isHere(state, k.id, now));
   });
   const confirm = (ids, el) =>
     ops.run(
@@ -528,26 +679,52 @@ function ClassView({ ops, now }) {
         <div>
           <h1>{block.name}</h1>
           <p>
-            {clock(block.start)}–{clock(block.end)} · {block.ages} · Lead {block.lead}
-            {phase === "live" ? " · Live" : phase === "done" ? " · Finished" : " · Upcoming"}
+            {clock(block.start)}–{clock(block.end)} · {block.ages} · Lead{" "}
+            {block.lead}
+            {phase === "live"
+              ? " · Live"
+              : phase === "done"
+                ? " · Finished"
+                : " · Upcoming"}
           </p>
         </div>
         <BlockPicker ops={ops} now={now} kinds={["class"]} />
       </div>
       <div className="cc-stats cc-stats-3">
-        <Stat value={`${confirmed.length}/${roster.length}`} label="confirmed" />
-        <Stat value={waiting.length} label="checked in" tone={waiting.length ? "warn" : ""} />
-        <Stat value={roster.length - confirmed.length - waiting.length} label="not here yet" />
+        <Stat
+          value={`${confirmed.length}/${roster.length}`}
+          label="confirmed"
+        />
+        <Stat
+          value={waiting.length}
+          label="checked in"
+          tone={waiting.length ? "warn" : ""}
+        />
+        <Stat
+          value={roster.length - confirmed.length - waiting.length}
+          label="not here yet"
+        />
       </div>
       <div className="cc-toolbar">
         <button
           className="button navy"
           disabled={!waiting.length}
-          onClick={(e) => confirm(waiting.map((k) => k.id), e.currentTarget)}
+          onClick={(e) =>
+            confirm(
+              waiting.map((k) => k.id),
+              e.currentTarget,
+            )
+          }
         >
           Confirm everyone checked in ({waiting.length})
         </button>
-        <button className={`button ${selecting ? "cyan" : "outline"}`} onClick={() => { setSelecting(!selecting); setPicked([]); }}>
+        <button
+          className={`button ${selecting ? "cyan" : "outline"}`}
+          onClick={() => {
+            setSelecting(!selecting);
+            setPicked([]);
+          }}
+        >
           {selecting ? "Done selecting" : "Select kids"}
         </button>
         <button className="button outline" onClick={() => setAddOpen(!addOpen)}>
@@ -566,7 +743,12 @@ function ClassView({ ops, now }) {
           />
           <div className="cc-chips">
             {people
-              .filter((p) => !roster.some((r) => r.id === p.id) && query && matchKid(p, query))
+              .filter(
+                (p) =>
+                  !roster.some((r) => r.id === p.id) &&
+                  query &&
+                  matchKid(p, query),
+              )
               .slice(0, 8)
               .map((p) => (
                 <button
@@ -592,7 +774,12 @@ function ClassView({ ops, now }) {
         {roster.map((k) => {
           const a = attendance(k.id);
           const here = arrival(state, k.id, now);
-          const state_ = a?.status === "approved" ? "in" : a?.status === "pending" || here ? "waiting" : "out";
+          const state_ =
+            a?.status === "approved"
+              ? "in"
+              : a?.status === "pending" || here
+                ? "waiting"
+                : "out";
           return (
             <KidTile
               key={k.id}
@@ -601,10 +788,23 @@ function ClassView({ ops, now }) {
               now={now}
               onOpen={ops.openKid}
               selected={picked.includes(k.id)}
-              onSelect={selecting ? (id) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]) : null}
+              onSelect={
+                selecting
+                  ? (id) =>
+                      setPicked(
+                        picked.includes(id)
+                          ? picked.filter((x) => x !== id)
+                          : [...picked, id],
+                      )
+                  : null
+              }
               badge={
                 <em className={`att att-${state_}`}>
-                  {state_ === "in" ? "Confirmed" : state_ === "waiting" ? "Checked in" : "Not here"}
+                  {state_ === "in"
+                    ? "Confirmed"
+                    : state_ === "waiting"
+                      ? "Checked in"
+                      : "Not here"}
                 </em>
               }
             >
@@ -650,12 +850,22 @@ function GroupBar({ ops, ids, onDone }) {
       <button
         className="button cyan compact"
         onClick={(e) => {
-          if (ops.run(`Everyone tried ${stationName(station)}. +2 stars each`, skipErrors("visit"), { spark: e.currentTarget })) onDone();
+          if (
+            ops.run(
+              `Everyone tried ${stationName(station)}. +2 stars each`,
+              skipErrors("visit"),
+              { spark: e.currentTarget },
+            )
+          )
+            onDone();
         }}
       >
         All tried {stationName(station)}
       </button>
-      <button className="button outline compact" onClick={() => setPraise(!praise)}>
+      <button
+        className="button outline compact"
+        onClick={() => setPraise(!praise)}
+      >
         Shoutout…
       </button>
       {praise && (
@@ -665,7 +875,14 @@ function GroupBar({ ops, ids, onDone }) {
               key={c}
               className="chip"
               onClick={(e) => {
-                if (ops.run(`${c} for ${ids.length} kids. +3 stars each`, skipErrors("praise", { category: c }), { spark: e.currentTarget })) onDone();
+                if (
+                  ops.run(
+                    `${c} for ${ids.length} kids. +3 stars each`,
+                    skipErrors("praise", { category: c }),
+                    { spark: e.currentTarget },
+                  )
+                )
+                  onDone();
               }}
             >
               {c}
@@ -696,16 +913,31 @@ function StationView({ ops, now }) {
           : true,
   );
   const goalHere = (id) =>
-    readySkills(state, id, station).filter((s) => (state.goals?.[id] ?? []).includes(s.id));
+    readySkills(state, id, station).filter((s) =>
+      (state.goals?.[id] ?? []).includes(s.id),
+    );
   const list = pool
     .map((p) => ({
       kid: p,
       goals: goalHere(p.id),
-      tried: today(p.id).some((e) => e.kind === "visit" && e.station === station && e.session === block.id),
-      done: today(p.id).some((e) => e.kind === "complete" && e.station === station && e.session === block.id),
+      tried: today(p.id).some(
+        (e) =>
+          e.kind === "visit" && e.station === station && e.session === block.id,
+      ),
+      done: today(p.id).some(
+        (e) =>
+          e.kind === "complete" &&
+          e.station === station &&
+          e.session === block.id,
+      ),
       at: arrival(state, p.id, now)?.in ?? "",
     }))
-    .sort((a, b) => b.goals.length - a.goals.length || Number(a.tried) - Number(b.tried) || b.at.localeCompare(a.at));
+    .sort(
+      (a, b) =>
+        b.goals.length - a.goals.length ||
+        Number(a.tried) - Number(b.tried) ||
+        b.at.localeCompare(a.at),
+    );
   return (
     <div className="cc-view">
       <div className="cc-view-head">
@@ -743,10 +975,20 @@ function StationView({ ops, now }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <button className="button navy cc-scan" onClick={ops.scan} aria-label="Scan pass">
+        <button
+          className="button navy cc-scan"
+          onClick={ops.scan}
+          aria-label="Scan pass"
+        >
           <ScanLine size={18} /> <span>Scan pass</span>
         </button>
-        <button className={`button ${selecting ? "cyan" : "outline"}`} onClick={() => { setSelecting(!selecting); setPicked([]); }}>
+        <button
+          className={`button ${selecting ? "cyan" : "outline"}`}
+          onClick={() => {
+            setSelecting(!selecting);
+            setPicked([]);
+          }}
+        >
           {selecting ? "Done" : "Select"}
         </button>
       </div>
@@ -757,7 +999,11 @@ function StationView({ ops, now }) {
             ...(block.kind === "class" ? [["class", "This class"]] : []),
             ["all", "Everyone"],
           ].map(([id, label]) => (
-            <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>
+            <button
+              key={id}
+              aria-pressed={filter === id}
+              onClick={() => setFilter(id)}
+            >
               {label}
             </button>
           ))}
@@ -768,9 +1014,16 @@ function StationView({ ops, now }) {
       )}
       {!list.length && (
         <div className="cc-empty">
-          <p>{filter === "here" && !query ? "No one is checked in yet." : "No kids match."}</p>
+          <p>
+            {filter === "here" && !query
+              ? "No one is checked in yet."
+              : "No kids match."}
+          </p>
           {filter === "here" && !query && (
-            <button className="button outline compact" onClick={() => setFilter("all")}>
+            <button
+              className="button outline compact"
+              onClick={() => setFilter("all")}
+            >
               Show everyone
             </button>
           )}
@@ -785,11 +1038,26 @@ function StationView({ ops, now }) {
             now={now}
             onOpen={ops.openKid}
             selected={picked.includes(kid.id)}
-            onSelect={selecting ? (id) => setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]) : null}
+            onSelect={
+              selecting
+                ? (id) =>
+                    setPicked(
+                      picked.includes(id)
+                        ? picked.filter((x) => x !== id)
+                        : [...picked, id],
+                    )
+                : null
+            }
             badge={
               <>
-                {goals.length > 0 && <em className="goal-tag">Goal: {goals[0].title}</em>}
-                {(tried || done) && <em className="att att-in">{done ? "Completed" : "Tried"} today</em>}
+                {goals.length > 0 && (
+                  <em className="goal-tag">Goal: {goals[0].title}</em>
+                )}
+                {(tried || done) && (
+                  <em className="att att-in">
+                    {done ? "Completed" : "Tried"} today
+                  </em>
+                )}
               </>
             }
           >
@@ -800,7 +1068,8 @@ function StationView({ ops, now }) {
                 onClick={(e) =>
                   ops.run(
                     `${kid.first} tried ${stationName(station)}. +2 stars`,
-                    (s) => recordAt(s, actor, block, kid.id, "visit", { station }),
+                    (s) =>
+                      recordAt(s, actor, block, kid.id, "visit", { station }),
                     { spark: e.currentTarget },
                   )
                 }
@@ -820,9 +1089,13 @@ function KidsView({ ops, now, initial }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState(initial?.filter ?? "all");
   const here = hereNow(state, now).map((p) => p.childId);
-  const recent = (readDevice().recent ?? []).map((id) => people.find((p) => p.id === id)).filter(Boolean);
+  const recent = (readDevice().recent ?? [])
+    .map((id) => people.find((p) => p.id === id))
+    .filter(Boolean);
   const list = people
-    .filter((p) => matchKid(p, query) && (filter === "all" || here.includes(p.id)))
+    .filter(
+      (p) => matchKid(p, query) && (filter === "all" || here.includes(p.id)),
+    )
     .sort((a, b) => a.first.localeCompare(b.first));
   return (
     <div className="cc-view">
@@ -849,10 +1122,16 @@ function KidsView({ ops, now, initial }) {
         )}
       </div>
       <div className="cc-filter" role="group" aria-label="Show">
-        <button aria-pressed={filter === "here"} onClick={() => setFilter("here")}>
+        <button
+          aria-pressed={filter === "here"}
+          onClick={() => setFilter("here")}
+        >
           Here now ({here.length})
         </button>
-        <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+        <button
+          aria-pressed={filter === "all"}
+          onClick={() => setFilter("all")}
+        >
           Everyone ({people.length})
         </button>
       </div>
@@ -862,7 +1141,11 @@ function KidsView({ ops, now, initial }) {
           <div className="cc-arrivals">
             {recent.map((kid) => (
               <button key={kid.id} onClick={() => ops.openKid(kid.id)}>
-                <Avatar child={kid} photoId={state.floor?.avatars?.[kid.id]} size={44} />
+                <Avatar
+                  child={kid}
+                  photoId={state.floor?.avatars?.[kid.id]}
+                  size={44}
+                />
                 <b>{kid.first}</b>
               </button>
             ))}
@@ -871,7 +1154,13 @@ function KidsView({ ops, now, initial }) {
       )}
       <div className="cc-grid">
         {list.map((kid) => (
-          <KidTile key={kid.id} child={kid} state={state} now={now} onOpen={ops.openKid} />
+          <KidTile
+            key={kid.id}
+            child={kid}
+            state={state}
+            now={now}
+            onOpen={ops.openKid}
+          />
         ))}
       </div>
       {!list.length && <p className="cc-muted">No kids match “{query}”.</p>}
@@ -884,20 +1173,40 @@ function WrapView({ ops, now }) {
   const events = state.club?.events ?? [];
   const pending = events
     .filter((e) => e.status === "pending")
-    .sort((a, b) => (a.kind === "class" ? 0 : 1) - (b.kind === "class" ? 0 : 1) || a.at.localeCompare(b.at));
+    .sort(
+      (a, b) =>
+        (a.kind === "class" ? 0 : 1) - (b.kind === "class" ? 0 : 1) ||
+        a.at.localeCompare(b.at),
+    );
   const seenToday = [
     ...new Set([
       ...hereNow(state, now).map((p) => p.childId),
-      ...events.filter((e) => e.status === "approved" && dayKey(e.at) === dayKey(now)).map((e) => e.childId),
+      ...events
+        .filter((e) => e.status === "approved" && dayKey(e.at) === dayKey(now))
+        .map((e) => e.childId),
     ]),
   ];
   const noShoutout = seenToday.filter(
-    (id) => !eventsToday(state, id, now).some((e) => e.kind === "praise" && e.status === "approved"),
+    (id) =>
+      !eventsToday(state, id, now).some(
+        (e) => e.kind === "praise" && e.status === "approved",
+      ),
   );
-  const followUps = (state.floor?.notes ?? []).filter((n) => n.followUp && !n.done);
-  const mine = events.filter((e) => e.coach === actor.name && e.status === "approved" && dayKey(e.reviewedAt ?? e.at) === dayKey(now));
-  const myAwards = state.awards.filter((a) => a.coach === actor.name && !a.revoked && dayKey(a.at) === dayKey(now));
-  const myPhotos = (state.floor?.moments ?? []).filter((m) => m.coach === actor.name && dayKey(m.at) === dayKey(now));
+  const followUps = (state.floor?.notes ?? []).filter(
+    (n) => n.followUp && !n.done,
+  );
+  const mine = events.filter(
+    (e) =>
+      e.coach === actor.name &&
+      e.status === "approved" &&
+      dayKey(e.reviewedAt ?? e.at) === dayKey(now),
+  );
+  const myAwards = state.awards.filter(
+    (a) => a.coach === actor.name && !a.revoked && dayKey(a.at) === dayKey(now),
+  );
+  const myPhotos = (state.floor?.moments ?? []).filter(
+    (m) => m.coach === actor.name && dayKey(m.at) === dayKey(now),
+  );
   const kid = (id) => people.find((p) => p.id === id);
   // Pending requests grouped by session, earliest session first.
   const groups = [...new Set(pending.map((e) => e.session))]
@@ -906,15 +1215,33 @@ function WrapView({ ops, now }) {
       block: sessions(`${id.slice(0, 10)}T12:00:00Z`).find((s) => s.id === id),
       items: pending.filter((e) => e.session === id),
     }))
-    .sort((a, b) => a.id.slice(0, 10).localeCompare(b.id.slice(0, 10)) || (a.block?.start ?? "").localeCompare(b.block?.start ?? ""));
+    .sort(
+      (a, b) =>
+        a.id.slice(0, 10).localeCompare(b.id.slice(0, 10)) ||
+        (a.block?.start ?? "").localeCompare(b.block?.start ?? ""),
+    );
   return (
     <div className="cc-view">
       <div className="cc-view-head">
         <h1>Wrap-up</h1>
       </div>
       <div className="cc-stats">
-        <Stat value={mine.reduce((n, e) => n + points[e.kind], 0) + myAwards.reduce((n, a) => n + 10 + catalog.find((s) => s.id === a.skillId).tier * 10, 0)} label="stars you gave today" tone="gold" />
-        <Stat value={new Set([...mine, ...myAwards].map((e) => e.childId)).size} label="kids you recognized" />
+        <Stat
+          value={
+            mine.reduce((n, e) => n + points[e.kind], 0) +
+            myAwards.reduce(
+              (n, a) =>
+                n + 10 + catalog.find((s) => s.id === a.skillId).tier * 10,
+              0,
+            )
+          }
+          label="stars you gave today"
+          tone="gold"
+        />
+        <Stat
+          value={new Set([...mine, ...myAwards].map((e) => e.childId)).size}
+          label="kids you recognized"
+        />
         <Stat value={myAwards.length} label="skills you verified" />
         <Stat value={myPhotos.length} label="photos you took" />
       </div>
@@ -928,7 +1255,9 @@ function WrapView({ ops, now }) {
                 <b>{block?.name ?? "Earlier session"}</b>
                 <small>
                   {block ? `${clock(block.start)}–${clock(block.end)}` : ""}
-                  {id.slice(0, 10) !== dayKey(now) ? ` · ${id.slice(5, 10).replace("-", "/")}` : ""}
+                  {id.slice(0, 10) !== dayKey(now)
+                    ? ` · ${id.slice(5, 10).replace("-", "/")}`
+                    : ""}
                   {" · "}
                   {items.length} waiting
                 </small>
@@ -938,7 +1267,16 @@ function WrapView({ ops, now }) {
                 onClick={(e) =>
                   ops.run(
                     `${items.length} confirmed.`,
-                    (s) => items.reduce((n, p) => coachAct(n, actor, { type: "approve", id: p.id, childId: p.childId }), s),
+                    (s) =>
+                      items.reduce(
+                        (n, p) =>
+                          coachAct(n, actor, {
+                            type: "approve",
+                            id: p.id,
+                            childId: p.childId,
+                          }),
+                        s,
+                      ),
                     { spark: e.currentTarget },
                   )
                 }
@@ -949,26 +1287,50 @@ function WrapView({ ops, now }) {
             <div className="cc-pend-list">
               {items.map((e) => (
                 <div className="cc-pend" key={e.id}>
-                  <button className="cc-pend-kid" onClick={() => ops.openKid(e.childId)}>
-                    <Avatar child={kid(e.childId)} photoId={state.floor?.avatars?.[e.childId]} size={40} />
+                  <button
+                    className="cc-pend-kid"
+                    onClick={() => ops.openKid(e.childId)}
+                  >
+                    <Avatar
+                      child={kid(e.childId)}
+                      photoId={state.floor?.avatars?.[e.childId]}
+                      size={40}
+                    />
                     <span>
                       <b>{kid(e.childId).first}</b>
                       <small>
-                        {e.kind === "class" ? "Arrived" : describeEvent(e)} · {clockTime(e.at)}
+                        {e.kind === "class" ? "Arrived" : describeEvent(e)} ·{" "}
+                        {clockTime(e.at)}
                       </small>
                     </span>
                   </button>
                   <button
                     className="cc-round confirm"
                     aria-label={`Confirm ${kid(e.childId).first}`}
-                    onClick={() => ops.run(`${kid(e.childId).first} confirmed.`, (s) => coachAct(s, actor, { type: "approve", id: e.id, childId: e.childId }))}
+                    onClick={() =>
+                      ops.run(`${kid(e.childId).first} confirmed.`, (s) =>
+                        coachAct(s, actor, {
+                          type: "approve",
+                          id: e.id,
+                          childId: e.childId,
+                        }),
+                      )
+                    }
                   >
                     <Check size={20} />
                   </button>
                   <button
                     className="cc-round dismiss"
                     aria-label={`Dismiss ${kid(e.childId).first}`}
-                    onClick={() => ops.run("Dismissed.", (s) => coachAct(s, actor, { type: "reject", id: e.id, childId: e.childId }))}
+                    onClick={() =>
+                      ops.run("Dismissed.", (s) =>
+                        coachAct(s, actor, {
+                          type: "reject",
+                          id: e.id,
+                          childId: e.childId,
+                        }),
+                      )
+                    }
                   >
                     <X size={18} />
                   </button>
@@ -980,7 +1342,9 @@ function WrapView({ ops, now }) {
       </section>
       <section className="cc-card">
         <h2>No shoutout yet today · {noShoutout.length}</h2>
-        {!noShoutout.length && <p className="cc-muted">Everyone seen today got recognized.</p>}
+        {!noShoutout.length && (
+          <p className="cc-muted">Everyone seen today got recognized.</p>
+        )}
         <div className="cc-chips">
           {noShoutout.map((id) => (
             <button key={id} className="chip" onClick={() => ops.openKid(id)}>
@@ -994,14 +1358,27 @@ function WrapView({ ops, now }) {
         {!followUps.length && <p className="cc-muted">Nothing to follow up.</p>}
         {followUps.map((n) => (
           <div className="cc-row" key={n.id}>
-            <Avatar child={kid(n.childId)} photoId={state.floor?.avatars?.[n.childId]} size={40} />
-            <button className="cc-row-text" onClick={() => ops.openKid(n.childId)}>
+            <Avatar
+              child={kid(n.childId)}
+              photoId={state.floor?.avatars?.[n.childId]}
+              size={40}
+            />
+            <button
+              className="cc-row-text"
+              onClick={() => ops.openKid(n.childId)}
+            >
               <b>{kid(n.childId).first}</b> · {n.text}
-              <small>{n.coach} · {clockTime(n.at)}</small>
+              <small>
+                {n.coach} · {clockTime(n.at)}
+              </small>
             </button>
             <button
               className="button outline compact"
-              onClick={() => ops.run("Follow-up done.", (s) => applyFloor(s, { type: "resolveNote", id: n.id, actor }))}
+              onClick={() =>
+                ops.run("Follow-up done.", (s) =>
+                  applyFloor(s, { type: "resolveNote", id: n.id, actor }),
+                )
+              }
             >
               Done
             </button>
@@ -1015,7 +1392,9 @@ function WrapView({ ops, now }) {
 function AdminView({ ops, now }) {
   const { state, actor } = ops;
   const [reasons, setReasons] = useState({});
-  const events = (state.club?.events ?? []).filter((e) => e.status === "approved");
+  const events = (state.club?.events ?? []).filter(
+    (e) => e.status === "approved",
+  );
   const weekAgo = Date.now() - 7 * 86400000;
   const week = events.filter((e) => Date.parse(e.at) >= weekAgo);
   const byCoach = staff.map((s) => {
@@ -1029,7 +1408,9 @@ function AdminView({ ops, now }) {
   });
   const reserved = state.rewards.filter((r) => r.status === "Reserved");
   const sizeNeeded = state.rewards.filter((r) => r.status === "Choose size");
-  const noConsent = people.filter((p) => !(state.floor?.consent?.[p.id] ?? kidInfo[p.id]?.photoDefault));
+  const noConsent = people.filter(
+    (p) => !(state.floor?.consent?.[p.id] ?? kidInfo[p.id]?.photoDefault),
+  );
   const hidden = (state.floor?.moments ?? []).filter((m) => m.hidden).length;
   const kid = (id) => people.find((p) => p.id === id);
   return (
@@ -1039,19 +1420,33 @@ function AdminView({ ops, now }) {
       </div>
       <section className="cc-card">
         <h2>Stations</h2>
-        <p className="cc-muted">Pausing a station blocks tries and completions there until you reopen it.</p>
+        <p className="cc-muted">
+          Pausing a station blocks tries and completions there until you reopen
+          it.
+        </p>
         {stations.map((s) => {
           const out = state.floor?.outages?.[s.id];
           return (
             <div className="cc-row" key={s.id}>
               <span>
                 <b>{s.name}</b>
-                <small>{out ? `Paused by ${out.by} · ${out.reason}` : "Open"}</small>
+                <small>
+                  {out ? `Paused by ${out.by} · ${out.reason}` : "Open"}
+                </small>
               </span>
               {out ? (
                 <button
                   className="button mint compact"
-                  onClick={() => ops.run(`${s.name} reopened.`, (x) => applyFloor(x, { type: "outage", station: s.id, reason: null, actor }))}
+                  onClick={() =>
+                    ops.run(`${s.name} reopened.`, (x) =>
+                      applyFloor(x, {
+                        type: "outage",
+                        station: s.id,
+                        reason: null,
+                        actor,
+                      }),
+                    )
+                  }
                 >
                   Reopen
                 </button>
@@ -1060,7 +1455,16 @@ function AdminView({ ops, now }) {
                   className="inline-form"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (ops.run(`${s.name} paused.`, (x) => applyFloor(x, { type: "outage", station: s.id, reason: reasons[s.id], actor })))
+                    if (
+                      ops.run(`${s.name} paused.`, (x) =>
+                        applyFloor(x, {
+                          type: "outage",
+                          station: s.id,
+                          reason: reasons[s.id],
+                          actor,
+                        }),
+                      )
+                    )
                       setReasons({ ...reasons, [s.id]: "" });
                   }}
                 >
@@ -1068,9 +1472,14 @@ function AdminView({ ops, now }) {
                     aria-label={`Reason to pause ${s.name}`}
                     placeholder="Reason, e.g. loose rung"
                     value={reasons[s.id] ?? ""}
-                    onChange={(e) => setReasons({ ...reasons, [s.id]: e.target.value })}
+                    onChange={(e) =>
+                      setReasons({ ...reasons, [s.id]: e.target.value })
+                    }
                   />
-                  <button className="button outline compact" disabled={!reasons[s.id]?.trim()}>
+                  <button
+                    className="button outline compact"
+                    disabled={!reasons[s.id]?.trim()}
+                  >
                     Pause
                   </button>
                 </form>
@@ -1081,15 +1490,22 @@ function AdminView({ ops, now }) {
       </section>
       <section className="cc-card">
         <h2>Shirt orders</h2>
-        {!reserved.length && !sizeNeeded.length && <p className="cc-muted">No open shirt orders.</p>}
+        {!reserved.length && !sizeNeeded.length && (
+          <p className="cc-muted">No open shirt orders.</p>
+        )}
         {reserved.map((r) => (
           <div className="cc-row" key={r.id}>
             <span>
-              <b>{kid(r.childId).name}</b> · {tiers[r.tier - 1].name} tee · {r.size}
+              <b>{kid(r.childId).name}</b> · {tiers[r.tier - 1].name} tee ·{" "}
+              {r.size}
             </span>
             <button
               className="button navy compact"
-              onClick={() => ops.run("Marked ready for pickup.", (s) => apply(s, { type: "reward", id: r.id, status: "Ready" }))}
+              onClick={() =>
+                ops.run("Marked ready for pickup.", (s) =>
+                  apply(s, { type: "reward", id: r.id, status: "Ready" }),
+                )
+              }
             >
               In stock · ready
             </button>
@@ -1106,7 +1522,10 @@ function AdminView({ ops, now }) {
       </section>
       <section className="cc-card">
         <h2>Recognition this week</h2>
-        <p className="cc-muted">Stars spread across kids, by coach. Watch for one coach carrying it all or a few kids getting most of it.</p>
+        <p className="cc-muted">
+          Stars spread across kids, by coach. Watch for one coach carrying it
+          all or a few kids getting most of it.
+        </p>
         <div className="cc-table" role="table">
           <div role="row" className="cc-tr cc-th">
             <span role="columnheader">Coach</span>
@@ -1127,11 +1546,16 @@ function AdminView({ ops, now }) {
       <section className="cc-card">
         <h2>Photos</h2>
         <p className="cc-muted">
-          {(state.floor?.moments ?? []).length} photos · {hidden} hidden by families · {noConsent.length} kids without photo consent
+          {(state.floor?.moments ?? []).length} photos · {hidden} hidden by
+          families · {noConsent.length} kids without photo consent
         </p>
         <div className="cc-chips">
           {noConsent.map((k) => (
-            <button key={k.id} className="chip" onClick={() => ops.openKid(k.id)}>
+            <button
+              key={k.id}
+              className="chip"
+              onClick={() => ops.openKid(k.id)}
+            >
               {k.name}
             </button>
           ))}
@@ -1141,7 +1565,11 @@ function AdminView({ ops, now }) {
         <div className="cc-card-head">
           <h2>Shared gym iPad</h2>
           <label className="check">
-            <input type="checkbox" checked={ops.shared} onChange={(e) => ops.setShared(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={ops.shared}
+              onChange={(e) => ops.setShared(e.target.checked)}
+            />
             Use this device as a shared iPad
           </label>
         </div>
@@ -1154,7 +1582,12 @@ function AdminView({ ops, now }) {
       <section className="cc-card">
         <h2>Front desk</h2>
         <div className="cc-empty-actions">
-          <a className="button cyan compact" href="?kiosk" target="_blank" rel="noreferrer">
+          <a
+            className="button cyan compact"
+            href="?kiosk"
+            target="_blank"
+            rel="noreferrer"
+          >
             Open kiosk in a new tab
           </a>
           <button className="button outline compact" onClick={ops.simulate}>
@@ -1165,7 +1598,11 @@ function AdminView({ ops, now }) {
             disabled={!hereNow(state, now).length}
             onClick={() =>
               ops.run("Everyone checked out.", (s) =>
-                applyFloor(s, { type: "checkOut", childIds: hereNow(s, now).map((p) => p.childId), actor }),
+                applyFloor(s, {
+                  type: "checkOut",
+                  childIds: hereNow(s, now).map((p) => p.childId),
+                  actor,
+                }),
               )
             }
           >
@@ -1179,14 +1616,25 @@ function AdminView({ ops, now }) {
 
 /* ---------- Shell ---------- */
 
-export default function CoachCenter({ state: rawState, setState, onExit, account, onSignOut }) {
-  const state = useMemo(() => ({ ...rawState, floor: rawState.floor ?? emptyFloor() }), [rawState]);
+export default function CoachCenter({
+  state: rawState,
+  setState,
+  onExit,
+  account,
+  onSignOut,
+}) {
+  const state = useMemo(
+    () => ({ ...rawState, floor: rawState.floor ?? emptyFloor() }),
+    [rawState],
+  );
   const now = useNow();
   // A coach's own phone uses their sign-in. A shared gym iPad is signed in
   // once by the head coach; coaches then switch with their 4-digit PIN.
   const owner = staff.find((s) => s.id === account?.staffId) ?? null;
   const [shared, setSharedState] = useState(() => !!readDevice().shared);
-  const [deviceCoach, setCoach] = useState(() => staff.find((s) => s.id === readDevice().staffId) ?? null);
+  const [deviceCoach, setCoach] = useState(
+    () => staff.find((s) => s.id === readDevice().staffId) ?? null,
+  );
   const [lockedState, setLocked] = useState(() => {
     const d = readDevice();
     return !d.staffId || !d.active || Date.now() - d.active > LOCK_AFTER;
@@ -1202,7 +1650,9 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
   const [tab, setTab] = useState("now");
   const [tabArg, setTabArg] = useState(null);
   const [blockId, setBlockId] = useState(() => defaultBlock(new Date()).id);
-  const [station, setStationState] = useState(() => readDevice().station ?? "grip");
+  const [station, setStationState] = useState(
+    () => readDevice().station ?? "grip",
+  );
   const [kid, setKid] = useState(null);
   const [assess, setAssess] = useState(null);
   const [camera, setCamera] = useState(null);
@@ -1211,10 +1661,12 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
   const [toast, setToast] = useState(null);
   const [menu, setMenu] = useState(false);
   const [famPick, setFamPick] = useState(null);
-  const block = sessions(now).find((s) => s.id === blockId) ?? defaultBlock(now);
+  const block =
+    sessions(now).find((s) => s.id === blockId) ?? defaultBlock(now);
   // Keep the chosen block on today's date after midnight.
   useEffect(() => {
-    if (!sessions(now).some((s) => s.id === blockId)) setBlockId(defaultBlock(now).id);
+    if (!sessions(now).some((s) => s.id === blockId))
+      setBlockId(defaultBlock(now).id);
   }, [now, blockId]);
   // Lock after inactivity on a shared device.
   useEffect(() => {
@@ -1227,11 +1679,15 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
       writeDevice({ active: last });
       if (Date.now() - last > LOCK_AFTER) setLocked(true);
     }, 15000);
-    ["pointerdown", "keydown"].forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    ["pointerdown", "keydown"].forEach((e) =>
+      window.addEventListener(e, bump, { passive: true }),
+    );
     writeDevice({ active: last });
     return () => {
       clearInterval(save);
-      ["pointerdown", "keydown"].forEach((e) => window.removeEventListener(e, bump));
+      ["pointerdown", "keydown"].forEach((e) =>
+        window.removeEventListener(e, bump),
+      );
     };
   }, [locked, coach]);
   useEffect(() => {
@@ -1239,8 +1695,11 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
     const id = setTimeout(() => setToast(null), toast.prev ? 7000 : 4500);
     return () => clearTimeout(id);
   }, [toast]);
-  const actor = coach ? { role: "Coach", name: coach.name, head: coach.head } : null;
-  const notify = (message, error = false) => setToast({ id: Date.now(), message, error });
+  const actor = coach
+    ? { role: "Coach", name: coach.name, head: coach.head }
+    : null;
+  const notify = (message, error = false) =>
+    setToast({ id: Date.now(), message, error });
   const run = useCallback(
     (message, fn, opts = {}) => {
       try {
@@ -1260,7 +1719,10 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
   );
   const openKid = (id) => {
     setKid(id);
-    const recent = [id, ...(readDevice().recent ?? []).filter((x) => x !== id)].slice(0, 8);
+    const recent = [
+      id,
+      ...(readDevice().recent ?? []).filter((x) => x !== id),
+    ].slice(0, 8);
     writeDevice({ recent });
   };
   const setStation = (id) => {
@@ -1270,7 +1732,9 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
   const go = (id, arg = null) => {
     // Class tools need a class; jump to the live, next or last one.
     if (id === "class" && block.kind !== "class") {
-      const classes = sessions(now).filter((s) => s.kind === "class").sort(byStart);
+      const classes = sessions(now)
+        .filter((s) => s.kind === "class")
+        .sort(byStart);
       const pick =
         classes.find((s) => sessionPhase(s, now) === "live") ??
         classes.find((s) => sessionPhase(s, now) === "upcoming") ??
@@ -1297,7 +1761,11 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
     let next = state;
     pick.forEach((p, i) => {
       const at = new Date(Date.now() - (pick.length - i) * 4 * 60000);
-      next = applyFloor(next, { type: "checkIn", childIds: [p.id], by: "Front desk" }, at);
+      next = applyFloor(
+        next,
+        { type: "checkIn", childIds: [p.id], by: "Front desk" },
+        at,
+      );
     });
     setState(next);
     notify(`${pick.length} demo arrivals added.`);
@@ -1333,23 +1801,40 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
       />
     );
   const visibleTabs = tabs.filter((t) => !t.head || coach.head);
-  const pendingCount = (state.club?.events ?? []).filter((e) => e.status === "pending").length;
+  const pendingCount = (state.club?.events ?? []).filter(
+    (e) => e.status === "pending",
+  ).length;
   return (
     <div className={`cc ${kid ? "has-kid" : ""}`}>
       <header className="cc-bar">
-        <img className="cc-logo" src={`${import.meta.env.BASE_URL}lab-white.svg`} alt="The LAB" />
+        <img
+          className="cc-logo"
+          src={`${import.meta.env.BASE_URL}lab-white.svg`}
+          alt="The LAB"
+        />
         <span className="cc-title">Coach</span>
         <span className={`cc-live phase-${sessionPhase(block, now)}`}>
           {block.name}
           <small>
-            {sessionPhase(block, now) === "live" ? "Live" : `${clock(block.start)}–${clock(block.end)}`}
+            {sessionPhase(block, now) === "live"
+              ? "Live"
+              : `${clock(block.start)}–${clock(block.end)}`}
           </small>
         </span>
         <div className="cc-bar-actions">
-          <button className="cc-icon-btn" aria-label="Scan a pass" onClick={() => setScanning(true)}>
+          <button
+            className="cc-icon-btn"
+            aria-label="Scan a pass"
+            onClick={() => setScanning(true)}
+          >
             <ScanLine size={22} />
           </button>
-          <button className="cc-me" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+          <button
+            className="cc-me"
+            aria-haspopup="menu"
+            aria-expanded={menu}
+            onClick={() => setMenu(!menu)}
+          >
             <span className="cc-staff-mark">{coach.initials}</span>
             <span className="cc-me-name">{coach.name}</span>
           </button>
@@ -1357,15 +1842,35 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
             <div className="cc-menu" role="menu">
               {shared && (
                 <>
-                  <button role="menuitem" onClick={() => { setLocked(true); setMenu(false); }}>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setLocked(true);
+                      setMenu(false);
+                    }}
+                  >
                     <Lock size={16} /> Lock
                   </button>
-                  <button role="menuitem" onClick={() => { setCoach(null); setLocked(true); setMenu(false); writeDevice({ staffId: null }); }}>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setCoach(null);
+                      setLocked(true);
+                      setMenu(false);
+                      writeDevice({ staffId: null });
+                    }}
+                  >
                     Switch coach
                   </button>
                 </>
               )}
-              <a role="menuitem" href="?kiosk" target="_blank" rel="noreferrer" onClick={() => setMenu(false)}>
+              <a
+                role="menuitem"
+                href="?kiosk"
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMenu(false)}
+              >
                 Front desk kiosk
               </a>
               <button role="menuitem" onClick={onExit}>
@@ -1382,11 +1887,19 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
         {visibleTabs.map((t) => {
           const Icon = t.icon;
           return (
-            <button key={t.id} aria-current={tab === t.id ? "page" : undefined} onClick={() => go(t.id)}>
+            <button
+              key={t.id}
+              aria-current={tab === t.id ? "page" : undefined}
+              onClick={() => go(t.id)}
+            >
               <Icon size={22} />
               <span className="cc-nav-label">{t.label}</span>
-              <span className="cc-nav-short" aria-hidden="true">{t.short ?? t.label}</span>
-              {t.id === "wrap" && pendingCount > 0 && <em className="cc-dot">{pendingCount}</em>}
+              <span className="cc-nav-short" aria-hidden="true">
+                {t.short ?? t.label}
+              </span>
+              {t.id === "wrap" && pendingCount > 0 && (
+                <em className="cc-dot">{pendingCount}</em>
+              )}
             </button>
           );
         })}
@@ -1395,14 +1908,32 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
         {tab === "now" && <NowView ops={ops} now={now} go={go} />}
         {tab === "class" && <ClassView ops={ops} now={now} />}
         {tab === "station" && <StationView ops={ops} now={now} />}
-        {tab === "kids" && <KidsView ops={ops} now={now} initial={tabArg} key={JSON.stringify(tabArg)} />}
+        {tab === "kids" && (
+          <KidsView
+            ops={ops}
+            now={now}
+            initial={tabArg}
+            key={JSON.stringify(tabArg)}
+          />
+        )}
         {tab === "wrap" && <WrapView ops={ops} now={now} />}
         {tab === "admin" && coach.head && <AdminView ops={ops} now={now} />}
       </main>
-      {kid && <div className="cc-kid-backdrop" onClick={() => setKid(null)} aria-hidden="true" />}
+      {kid && (
+        <div
+          className="cc-kid-backdrop"
+          onClick={() => setKid(null)}
+          aria-hidden="true"
+        />
+      )}
       {kid && (
         <aside className="cc-kid" aria-label="Kid profile">
-          <KidPanel childId={kid} ops={ops} now={now} onClose={() => setKid(null)} />
+          <KidPanel
+            childId={kid}
+            ops={ops}
+            now={now}
+            onClose={() => setKid(null)}
+          />
         </aside>
       )}
       {assess && (
@@ -1417,7 +1948,13 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
           }}
         />
       )}
-      {celebrate && <Celebrate info={celebrate} ops={ops} onClose={() => setCelebrate(null)} />}
+      {celebrate && (
+        <Celebrate
+          info={celebrate}
+          ops={ops}
+          onClose={() => setCelebrate(null)}
+        />
+      )}
       {camera && (
         <CameraSheet
           title={camera.purpose === "avatar" ? "Profile photo" : "Moment photo"}
@@ -1436,8 +1973,20 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
                   applyFloor(
                     s,
                     camera.purpose === "avatar"
-                      ? { type: "avatar", childId: camera.childId, photoId, actor }
-                      : { type: "moment", childId: camera.childId, photoId, caption: camera.caption, link: camera.link, actor },
+                      ? {
+                          type: "avatar",
+                          childId: camera.childId,
+                          photoId,
+                          actor,
+                        }
+                      : {
+                          type: "moment",
+                          childId: camera.childId,
+                          photoId,
+                          caption: camera.caption,
+                          link: camera.link,
+                          actor,
+                        },
                   ),
               );
               if (ok) setCamera(null);
@@ -1448,24 +1997,53 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
         />
       )}
       {scanning && (
-        <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setScanning(false)}>
-          <section className="sheet scan-sheet" role="dialog" aria-modal="true" aria-label="Scan a pass">
+        <div
+          className="sheet-backdrop"
+          onMouseDown={(e) =>
+            e.target === e.currentTarget && setScanning(false)
+          }
+        >
+          <section
+            className="sheet scan-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Scan a pass"
+          >
             <header className="sheet-head">
               <span className="eyebrow">Scan a family or kid pass</span>
-              <button className="kp-close" aria-label="Close" onClick={() => setScanning(false)}>
+              <button
+                className="kp-close"
+                aria-label="Close"
+                onClick={() => setScanning(false)}
+              >
                 <X size={22} />
               </button>
             </header>
-            <Scanner onCode={onScan} hint="Hold the pass QR inside the frame." />
+            <Scanner
+              onCode={onScan}
+              hint="Hold the pass QR inside the frame."
+            />
           </section>
         </div>
       )}
       {famPick && (
-        <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setFamPick(null)}>
-          <section className="sheet" role="dialog" aria-modal="true" aria-label={famPick.name}>
+        <div
+          className="sheet-backdrop"
+          onMouseDown={(e) => e.target === e.currentTarget && setFamPick(null)}
+        >
+          <section
+            className="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={famPick.name}
+          >
             <header className="sheet-head">
               <span className="eyebrow">{famPick.name}</span>
-              <button className="kp-close" aria-label="Close" onClick={() => setFamPick(null)}>
+              <button
+                className="kp-close"
+                aria-label="Close"
+                onClick={() => setFamPick(null)}
+              >
                 <X size={22} />
               </button>
             </header>
@@ -1488,7 +2066,11 @@ export default function CoachCenter({ state: rawState, setState, onExit, account
         </div>
       )}
       {toast && (
-        <div className={`cc-toast ${toast.error ? "error" : ""}`} role={toast.error ? "alert" : "status"} key={toast.id}>
+        <div
+          className={`cc-toast ${toast.error ? "error" : ""}`}
+          role={toast.error ? "alert" : "status"}
+          key={toast.id}
+        >
           <span>{toast.message}</span>
           {toast.prev && (
             <button

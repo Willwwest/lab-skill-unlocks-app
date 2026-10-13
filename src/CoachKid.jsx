@@ -66,14 +66,26 @@ export function KidPanel({ childId, ops, now, onClose }) {
   const earned = new Set(earnedIds(state, childId));
   const goals = (state.goals?.[childId] ?? []).filter((id) => !earned.has(id));
   const ready = readySkills(state, childId, station).slice(0, 6);
-  const elsewhere = readySkills(state, childId).filter((s) => stationFor(s) !== station).slice(0, 4);
+  const elsewhere = readySkills(state, childId)
+    .filter((s) => stationFor(s) !== station)
+    .slice(0, 4);
   const inBlock = (kind) =>
-    today.some((e) => e.kind === kind && e.station === station && e.session === block.id);
+    today.some(
+      (e) => e.kind === kind && e.station === station && e.session === block.id,
+    );
   const praiseToday = today.filter((e) => e.kind === "praise");
-  const notes = (state.floor?.notes ?? []).filter((n) => n.childId === childId).slice().reverse();
-  const moments = (state.floor?.moments ?? []).filter((m) => m.childId === childId).slice().reverse();
+  const notes = (state.floor?.notes ?? [])
+    .filter((n) => n.childId === childId)
+    .slice()
+    .reverse();
+  const moments = (state.floor?.moments ?? [])
+    .filter((m) => m.childId === childId)
+    .slice()
+    .reverse();
   const handouts = shirtsToHandOut(state, childId);
-  const claims = (state.club?.claims ?? []).filter((r) => r.childId === childId && r.status === "Requested");
+  const claims = (state.club?.claims ?? []).filter(
+    (r) => r.childId === childId && r.status === "Requested",
+  );
   const birthday = birthdayIn(childId, now);
   const nextClass = classToday(childId, now);
   const outage = state.floor?.outages?.[station];
@@ -94,38 +106,84 @@ export function KidPanel({ childId, ops, now, onClose }) {
     const el = e?.currentTarget;
     return ops.run(
       message,
-      (s) => recordAt(s, actor, block, childId, kind, { station, ...extra }, new Date()),
+      (s) =>
+        recordAt(
+          s,
+          actor,
+          block,
+          childId,
+          kind,
+          { station, ...extra },
+          new Date(),
+        ),
       { spark: el },
     );
   };
   const complete = (e, task) => {
-    if (record(e, "complete", { note: task }, `${child.first} completed ${task}. +5 stars`)) {
+    if (
+      record(
+        e,
+        "complete",
+        { note: task },
+        `${child.first} completed ${task}. +5 stars`,
+      )
+    ) {
       setCompleting(false);
       setOther("");
     }
   };
   const recent = [
-    ...today.map((e) => ({ at: e.at, label: describeEvent(e), by: e.coach, status: e.status, id: e.id, kind: "event", stars: points[e.kind] })),
+    ...today.map((e) => ({
+      at: e.at,
+      label: describeEvent(e),
+      by: e.coach,
+      status: e.status,
+      id: e.id,
+      kind: "event",
+      stars: points[e.kind],
+    })),
     ...state.awards
       .filter((a) => a.childId === childId && !a.revoked)
       .map((a) => {
         const s = catalog.find((x) => x.id === a.skillId);
-        return { at: a.at, label: `Unlocked ${s.title}`, by: a.coach, status: "approved", id: a.id, kind: "award", stars: skillStars(s) };
+        return {
+          at: a.at,
+          label: `Unlocked ${s.title}`,
+          by: a.coach,
+          status: "approved",
+          id: a.id,
+          kind: "award",
+          stars: skillStars(s),
+        };
       }),
   ]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 8);
   return (
-    <div className="kp" ref={panel} tabIndex={-1} aria-label={`${child.name} profile`}>
+    <div
+      className="kp"
+      ref={panel}
+      tabIndex={-1}
+      aria-label={`${child.name} profile`}
+    >
       <header className="kp-head">
-        <button className="kp-close" aria-label="Close profile" onClick={onClose}>
+        <button
+          className="kp-close"
+          aria-label="Close profile"
+          onClick={onClose}
+        >
           <X size={22} />
         </button>
-        <Avatar child={child} photoId={state.floor?.avatars?.[childId]} size={84} />
+        <Avatar
+          child={child}
+          photoId={state.floor?.avatars?.[childId]}
+          size={84}
+        />
         <div className="kp-id">
           <h2>{child.name}</h2>
           <p>
-            {child.age} · {groupLabel(child)} · {family?.guardian ?? "Guardian on file"}
+            {child.age} · {groupLabel(child)} ·{" "}
+            {family?.guardian ?? "Guardian on file"}
           </p>
           <p className={here ? "kp-here" : "kp-away"}>
             {here
@@ -146,7 +204,9 @@ export function KidPanel({ childId, ops, now, onClose }) {
       )}
       {birthday !== null && birthday <= 7 && (
         <p className="kp-birthday">
-          {birthday === 0 ? `Birthday today. Turning ${child.age + 1}.` : `Birthday in ${birthday} ${birthday === 1 ? "day" : "days"}.`}
+          {birthday === 0
+            ? `Birthday today. Turning ${child.age + 1}.`
+            : `Birthday in ${birthday} ${birthday === 1 ? "day" : "days"}.`}
         </p>
       )}
       {(handouts.length > 0 || claims.length > 0) && (
@@ -163,7 +223,12 @@ export function KidPanel({ childId, ops, now, onClose }) {
                 onClick={(e) =>
                   ops.run(
                     `${tiers[r.tier - 1].name} tee handed to ${child.first}.`,
-                    (s) => apply(s, { type: "reward", id: r.id, status: "Collected" }),
+                    (s) =>
+                      apply(s, {
+                        type: "reward",
+                        id: r.id,
+                        status: "Collected",
+                      }),
                     { spark: e.currentTarget },
                   )
                 }
@@ -214,7 +279,14 @@ export function KidPanel({ childId, ops, now, onClose }) {
           <button
             className="act act-try"
             disabled={inBlock("visit") || !!outage}
-            onClick={(e) => record(e, "visit", {}, `${child.first} tried ${stationName(station)}. +2 stars`)}
+            onClick={(e) =>
+              record(
+                e,
+                "visit",
+                {},
+                `${child.first} tried ${stationName(station)}. +2 stars`,
+              )
+            }
           >
             <b>{inBlock("visit") ? "Tried" : "Tried it"}</b>
             <small>{inBlock("visit") ? "Recorded" : "+2 stars"}</small>
@@ -250,7 +322,11 @@ export function KidPanel({ childId, ops, now, onClose }) {
             <p>What did {child.first} complete?</p>
             <div className="chip-row">
               {(completionPresets[station] ?? []).map((t) => (
-                <button key={t} className="chip" onClick={(e) => complete(e, t)}>
+                <button
+                  key={t}
+                  className="chip"
+                  onClick={(e) => complete(e, t)}
+                >
                   {t}
                 </button>
               ))}
@@ -259,7 +335,11 @@ export function KidPanel({ childId, ops, now, onClose }) {
               className="inline-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (other.trim()) complete({ currentTarget: e.currentTarget.querySelector("button") }, other.trim());
+                if (other.trim())
+                  complete(
+                    { currentTarget: e.currentTarget.querySelector("button") },
+                    other.trim(),
+                  );
               }}
             >
               <input
@@ -278,17 +358,28 @@ export function KidPanel({ childId, ops, now, onClose }) {
       </Section>
       <Section
         title="Shoutout"
-        aside={<span className="kp-count">{praiseToday.length} of 3 today</span>}
+        aside={
+          <span className="kp-count">{praiseToday.length} of 3 today</span>
+        }
       >
         <div className="chip-row">
           {shoutouts.map((c) => {
-            const given = praiseToday.some((e) => e.category === c && e.session === block.id);
+            const given = praiseToday.some(
+              (e) => e.category === c && e.session === block.id,
+            );
             return (
               <button
                 key={c}
                 className={`chip chip-praise ${given ? "is-done" : ""}`}
                 disabled={given || praiseToday.length >= 3}
-                onClick={(e) => record(e, "praise", { category: c }, `${c} for ${child.first}. +3 stars`)}
+                onClick={(e) =>
+                  record(
+                    e,
+                    "praise",
+                    { category: c },
+                    `${c} for ${child.first}. +3 stars`,
+                  )
+                }
               >
                 {given && <Check size={14} />} {c}
               </button>
@@ -299,7 +390,10 @@ export function KidPanel({ childId, ops, now, onClose }) {
       <Section
         title="Skills to assess"
         aside={
-          <button className="text-button" onClick={() => ops.assess(childId, null)}>
+          <button
+            className="text-button"
+            onClick={() => ops.assess(childId, null)}
+          >
             All skills
           </button>
         }
@@ -307,17 +401,25 @@ export function KidPanel({ childId, ops, now, onClose }) {
         {goals.length > 0 && (
           <p className="kp-goals">
             <b>{child.first}’s goals:</b>{" "}
-            {goals.map((id) => catalog.find((s) => s.id === id)?.title).join(", ")}
+            {goals
+              .map((id) => catalog.find((s) => s.id === id)?.title)
+              .join(", ")}
           </p>
         )}
         <div className="skill-rows">
           {ready.map((s) => (
-            <button key={s.id} className="skill-row" onClick={() => ops.assess(childId, s.id)}>
+            <button
+              key={s.id}
+              className="skill-row"
+              onClick={() => ops.assess(childId, s.id)}
+            >
               <span className="skill-row-id">{s.id}</span>
               <span>
                 <b>{s.title}</b>
                 <small>
-                  {s.target ? formatResult(s, s.target) : (plain[s.id] ?? s.criteria)}
+                  {s.target
+                    ? formatResult(s, s.target)
+                    : (plain[s.id] ?? s.criteria)}
                   {goals.includes(s.id) ? " · Goal" : ""}
                 </small>
               </span>
@@ -338,7 +440,8 @@ export function KidPanel({ childId, ops, now, onClose }) {
           <div>
             <span className="eyebrow">{gap.tier.name} tee</span>
             <b>
-              {tierProgress(state, childId, gap.tier.id).count} of {gap.tier.count}
+              {tierProgress(state, childId, gap.tier.id).count} of{" "}
+              {gap.tier.count}
             </b>
             <Meter
               value={tierProgress(state, childId, gap.tier.id).count}
@@ -365,16 +468,28 @@ export function KidPanel({ childId, ops, now, onClose }) {
           consent ? (
             <button
               className="text-button"
-              onClick={() => ops.camera({ childId, purpose: "avatar", caption: "Profile photo" })}
+              onClick={() =>
+                ops.camera({
+                  childId,
+                  purpose: "avatar",
+                  caption: "Profile photo",
+                })
+              }
             >
-              {state.floor?.avatars?.[childId] ? "Retake profile photo" : "Add profile photo"}
+              {state.floor?.avatars?.[childId]
+                ? "Retake profile photo"
+                : "Add profile photo"}
             </button>
           ) : null
         }
       >
-        {!consent && <p className="kp-empty">This family has not given photo consent.</p>}
+        {!consent && (
+          <p className="kp-empty">This family has not given photo consent.</p>
+        )}
         {consent && !moments.length && (
-          <p className="kp-empty">No photos yet. Photos you take here go to the family’s Moments.</p>
+          <p className="kp-empty">
+            No photos yet. Photos you take here go to the family’s Moments.
+          </p>
         )}
         {moments.length > 0 && (
           <div className="kp-moments">
@@ -394,7 +509,11 @@ export function KidPanel({ childId, ops, now, onClose }) {
                     aria-label="Remove photo"
                     onClick={() =>
                       ops.run("Photo removed.", (s) =>
-                        applyFloor(s, { type: "deleteMoment", id: m.id, actor }),
+                        applyFloor(s, {
+                          type: "deleteMoment",
+                          id: m.id,
+                          actor,
+                        }),
                       )
                     }
                   >
@@ -406,14 +525,23 @@ export function KidPanel({ childId, ops, now, onClose }) {
           </div>
         )}
       </Section>
-      <Section title="Coach notes" aside={<span className="kp-count">Staff only</span>}>
+      <Section
+        title="Coach notes"
+        aside={<span className="kp-count">Staff only</span>}
+      >
         <form
           className="kp-note-form"
           onSubmit={(e) => {
             e.preventDefault();
             if (
               ops.run("Note saved.", (s) =>
-                applyFloor(s, { type: "note", childId, text: noteText, followUp, actor }),
+                applyFloor(s, {
+                  type: "note",
+                  childId,
+                  text: noteText,
+                  followUp,
+                  actor,
+                }),
               )
             ) {
               setNoteText("");
@@ -430,7 +558,11 @@ export function KidPanel({ childId, ops, now, onClose }) {
           />
           <div className="kp-note-foot">
             <label className="check">
-              <input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={followUp}
+                onChange={(e) => setFollowUp(e.target.checked)}
+              />
               Follow up
             </label>
             <button className="button navy compact" disabled={!noteText.trim()}>
@@ -450,7 +582,9 @@ export function KidPanel({ childId, ops, now, onClose }) {
               <button
                 className="text-button"
                 onClick={() =>
-                  ops.run("Follow-up done.", (s) => applyFloor(s, { type: "resolveNote", id: n.id, actor }))
+                  ops.run("Follow-up done.", (s) =>
+                    applyFloor(s, { type: "resolveNote", id: n.id, actor }),
+                  )
                 }
               >
                 Mark done
@@ -466,7 +600,8 @@ export function KidPanel({ childId, ops, now, onClose }) {
             <span>
               <b>{r.label}</b>
               <small>
-                {date(r.at)} {clockTime(r.at)} · {r.status === "pending" ? "Waiting for a coach" : r.by}
+                {date(r.at)} {clockTime(r.at)} ·{" "}
+                {r.status === "pending" ? "Waiting for a coach" : r.by}
               </small>
             </span>
             <em>{r.status === "approved" ? `+${r.stars}` : ""}</em>
@@ -486,10 +621,17 @@ export function KidPanel({ childId, ops, now, onClose }) {
                 className="inline-form kp-correct"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  const ok = ops.run("Record corrected. Stars recalculated.", (s) =>
-                    r.kind === "award"
-                      ? apply(s, { type: "revoke", id: r.id, reason })
-                      : coachAct(s, actor, { type: "revoke", id: r.id, childId, reason }),
+                  const ok = ops.run(
+                    "Record corrected. Stars recalculated.",
+                    (s) =>
+                      r.kind === "award"
+                        ? apply(s, { type: "revoke", id: r.id, reason })
+                        : coachAct(s, actor, {
+                            type: "revoke",
+                            id: r.id,
+                            childId,
+                            reason,
+                          }),
                   );
                   if (ok) setCorrecting(null);
                 }}
@@ -501,7 +643,10 @@ export function KidPanel({ childId, ops, now, onClose }) {
                   maxLength={200}
                   onChange={(e) => setReason(e.target.value)}
                 />
-                <button className="button navy compact" disabled={!reason.trim()}>
+                <button
+                  className="button navy compact"
+                  disabled={!reason.trim()}
+                >
                   Save
                 </button>
               </form>
@@ -526,7 +671,12 @@ export function KidPanel({ childId, ops, now, onClose }) {
             className="button mint compact"
             onClick={() =>
               ops.run(`${child.first} checked in.`, (s) =>
-                applyFloor(s, { type: "checkIn", childIds: [childId], by: actor.name, actor }),
+                applyFloor(s, {
+                  type: "checkIn",
+                  childIds: [childId],
+                  by: actor.name,
+                  actor,
+                }),
               )
             }
           >
@@ -543,7 +693,11 @@ function Stepper({ value, onChange, unit }) {
   const n = Number(value) || 0;
   return (
     <div className="stepper">
-      <button type="button" aria-label="One less" onClick={() => onChange(String(Math.max(0, n - 1)))}>
+      <button
+        type="button"
+        aria-label="One less"
+        onClick={() => onChange(String(Math.max(0, n - 1)))}
+      >
         <Minus size={26} />
       </button>
       <label>
@@ -559,7 +713,11 @@ function Stepper({ value, onChange, unit }) {
         />
         <span>{unit}</span>
       </label>
-      <button type="button" aria-label="One more" onClick={() => onChange(String(n + 1))}>
+      <button
+        type="button"
+        aria-label="One more"
+        onClick={() => onChange(String(n + 1))}
+      >
         <Plus size={26} />
       </button>
     </div>
@@ -583,14 +741,18 @@ function Stopwatch({ value, onChange }) {
   const running = start !== null;
   return (
     <div className="stopwatch">
-      <output aria-live="off">{elapsed.toFixed(1)}<small>s</small></output>
+      <output aria-live="off">
+        {elapsed.toFixed(1)}
+        <small>s</small>
+      </output>
       <div className="stopwatch-buttons">
         <button
           type="button"
           className={`button ${running ? "navy" : "cyan"}`}
           onClick={() => {
             if (running) {
-              const t = Math.floor(((performance.now() - start) / 1000) * 10) / 10;
+              const t =
+                Math.floor(((performance.now() - start) / 1000) * 10) / 10;
               setElapsed(t);
               setStart(null);
               onChange(String(t));
@@ -646,7 +808,11 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   const eligibleList = readySkills(state, childId).filter(
-    (s) => !query || `${s.id} ${s.title} ${s.category}`.toLowerCase().includes(query.toLowerCase()),
+    (s) =>
+      !query ||
+      `${s.id} ${s.title} ${s.category}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
   const verify = (e) => {
     e.preventDefault();
@@ -667,24 +833,42 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
       setError(err.message);
       return;
     }
-    const before = tiers.filter((t) => tierProgress(state, childId, t.id).complete).length;
+    const before = tiers.filter(
+      (t) => tierProgress(state, childId, t.id).complete,
+    ).length;
     let after = before;
     let award;
     const ok = ops.run(
       `${child.first} unlocked ${skill.title}. +${skillStars(skill)} stars`,
       (s) => {
         const next = apply(s, action);
-        after = tiers.filter((t) => tierProgress(next, childId, t.id).complete).length;
+        after = tiers.filter(
+          (t) => tierProgress(next, childId, t.id).complete,
+        ).length;
         award = next.awards[next.awards.length - 1];
         return next;
       },
       { quiet: true },
     );
-    if (ok) onUnlocked({ childId, skill, award, shirt: after > before ? tiers[after - 1] : null });
+    if (ok)
+      onUnlocked({
+        childId,
+        skill,
+        award,
+        shirt: after > before ? tiers[after - 1] : null,
+      });
   };
   return (
-    <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <section className="sheet assess" role="dialog" aria-modal="true" aria-label={`Assess ${child.first}`}>
+    <div
+      className="sheet-backdrop"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <section
+        className="sheet assess"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Assess ${child.first}`}
+      >
         <header className="sheet-head">
           {skill && !skillId ? (
             <button className="text-button" onClick={() => setPick(null)}>
@@ -709,19 +893,27 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
             />
             <div className="skill-rows">
               {eligibleList.map((s) => (
-                <button key={s.id} className="skill-row" onClick={() => setPick(s.id)}>
+                <button
+                  key={s.id}
+                  className="skill-row"
+                  onClick={() => setPick(s.id)}
+                >
                   <span className="skill-row-id">{s.id}</span>
                   <span>
                     <b>{s.title}</b>
                     <small>
                       Tier {s.tier} · {stationName(stationFor(s))}
-                      {(state.goals?.[childId] ?? []).includes(s.id) ? " · Goal" : ""}
+                      {(state.goals?.[childId] ?? []).includes(s.id)
+                        ? " · Goal"
+                        : ""}
                     </small>
                   </span>
                   <span className="skill-row-go">Assess</span>
                 </button>
               ))}
-              {!eligibleList.length && <p className="kp-empty">No eligible skills match.</p>}
+              {!eligibleList.length && (
+                <p className="kp-empty">No eligible skills match.</p>
+              )}
             </div>
           </>
         ) : earned.has(skill.id) ? (
@@ -735,7 +927,9 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
               {skill.id} · Tier {skill.tier} · {stationName(stationFor(skill))}
             </span>
             <h2>{skill.title}</h2>
-            <p className="assess-criteria">{plain[skill.id] ?? skill.criteria}</p>
+            <p className="assess-criteria">
+              {plain[skill.id] ?? skill.criteria}
+            </p>
             <p className="assess-setup">
               {standard(skill.criteria)} · {skill.setup}
             </p>
@@ -747,20 +941,33 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
                 {skill.unit === "seconds" ? (
                   <Stopwatch value={value} onChange={setValue} />
                 ) : (
-                  <Stepper value={value} onChange={setValue} unit={skill.units?.[1] ?? skill.unit} />
+                  <Stepper
+                    value={value}
+                    onChange={setValue}
+                    unit={skill.units?.[1] ?? skill.unit}
+                  />
                 )}
               </div>
             )}
             {skill.special === "repeat" && (
               <label className="field">
                 Earlier qualifying date
-                <input type="date" value={secondDate} onChange={(e) => setSecondDate(e.target.value)} required />
+                <input
+                  type="date"
+                  value={secondDate}
+                  onChange={(e) => setSecondDate(e.target.value)}
+                  required
+                />
               </label>
             )}
             {skill.special === "project" && (
               <label className="field">
                 Approved project rubric
-                <textarea value={project} onChange={(e) => setProject(e.target.value)} required />
+                <textarea
+                  value={project}
+                  onChange={(e) => setProject(e.target.value)}
+                  required
+                />
               </label>
             )}
             <label className="field">
@@ -773,8 +980,14 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
               />
             </label>
             <label className="check assess-confirm">
-              <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-              <span>I watched the full task on this setup, with a controlled finish.</span>
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+              />
+              <span>
+                I watched the full task on this setup, with a controlled finish.
+              </span>
             </label>
             {error && (
               <p className="form-error" role="alert">
@@ -786,7 +999,15 @@ export function AssessSheet({ childId, skillId, ops, onClose, onUnlocked }) {
                 type="button"
                 className="button outline"
                 onClick={() => {
-                  if (ops.run("Practice logged.", (s) => apply(s, { type: "practice", childId, skillId: skill.id })))
+                  if (
+                    ops.run("Practice logged.", (s) =>
+                      apply(s, {
+                        type: "practice",
+                        childId,
+                        skillId: skill.id,
+                      }),
+                    )
+                  )
                     onClose();
                 }}
               >
@@ -814,9 +1035,18 @@ export function Celebrate({ info, ops, onClose }) {
     navigator.vibrate?.([30, 40, 30]);
   }, []);
   return (
-    <div className="celebrate" role="dialog" aria-modal="true" aria-label="Unlocked">
+    <div
+      className="celebrate"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Unlocked"
+    >
       <div className="celebrate-inner" ref={ref}>
-        <Avatar child={child} photoId={ops.state.floor?.avatars?.[child.id]} size={96} />
+        <Avatar
+          child={child}
+          photoId={ops.state.floor?.avatars?.[child.id]}
+          size={96}
+        />
         <span className="eyebrow">Unlocked</span>
         <h2>{info.skill.title}</h2>
         <p>
@@ -837,7 +1067,9 @@ export function Celebrate({ info, ops, onClose }) {
                 ops.camera({
                   childId: child.id,
                   purpose: "moment",
-                  link: info.award ? { type: "award", id: info.award.id } : null,
+                  link: info.award
+                    ? { type: "award", id: info.award.id }
+                    : null,
                   caption: `${child.first} unlocked ${info.skill.title}`,
                   facing: "environment",
                 });
@@ -856,4 +1088,5 @@ export function Celebrate({ info, ops, onClose }) {
 }
 
 // Which today's block the kid's class is, for labels.
-export const blockName = (id) => sessions().find((s) => s.id === id)?.name ?? "Session";
+export const blockName = (id) =>
+  sessions().find((s) => s.id === id)?.name ?? "Session";

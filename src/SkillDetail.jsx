@@ -31,7 +31,10 @@ export function SkillHero({ skill, child, state, status, award }) {
             ? "Practicing · ready to try"
             : "Ready to try";
   return (
-    <header className={`skill-hero hero-${status}`} style={{ "--tier-color": tier.color }}>
+    <header
+      className={`skill-hero hero-${status}`}
+      style={{ "--tier-color": tier.color }}
+    >
       <MoveArt skillId={skill.id} className="skill-hero-art" />
       <div className="skill-hero-text">
         <span className="skill-hero-kicker">
@@ -97,11 +100,21 @@ export function SkillPath({ skill, state, childId, onOpen }) {
   const Step = ({ s, current = false }) => {
     const st = current ? "current" : stepState(state, childId, s, done);
     const label =
-      st === "earned" ? "Unlocked" : st === "ready" ? "Ready to try" : st === "current" ? "This skill" : "Learn first";
+      st === "earned"
+        ? "Unlocked"
+        : st === "ready"
+          ? "Ready to try"
+          : st === "current"
+            ? "This skill"
+            : "Learn first";
     const body = (
       <>
         <span className="path-dot" aria-hidden="true">
-          {st === "earned" ? <Check size={16} /> : st === "locked" ? <Lock size={13} /> : null}
+          {st === "earned" ? (
+            <Check size={16} />
+          ) : st === "locked" ? (
+            <Lock size={13} />
+          ) : null}
         </span>
         <span className="path-text">
           <b>{s.title}</b>
@@ -132,8 +145,15 @@ export function SkillPath({ skill, state, childId, onOpen }) {
           </div>
           <ol className="path-list">
             {levels.map((level, i) => (
-              <li key={i} className={level.length > 1 ? "path-level is-split" : "path-level"}>
-                {level.length > 1 && <span className="path-note">Any order</span>}
+              <li
+                key={i}
+                className={
+                  level.length > 1 ? "path-level is-split" : "path-level"
+                }
+              >
+                {level.length > 1 && (
+                  <span className="path-note">Any order</span>
+                )}
                 {level.map((s) => (
                   <Step key={s.id} s={s} />
                 ))}
@@ -150,7 +170,11 @@ export function SkillPath({ skill, state, childId, onOpen }) {
           <h3>Opens up</h3>
           <div className="skill-opens-list">
             {after.map((s) => (
-              <button key={s.id} className="skill-open" onClick={() => onOpen(s)}>
+              <button
+                key={s.id}
+                className="skill-open"
+                onClick={() => onOpen(s)}
+              >
                 <b>{s.title}</b>
                 <small>Tier {s.tier}</small>
               </button>

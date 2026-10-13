@@ -1,0 +1,566 @@
+/* ============================================
+   GYM FLOOR TV BOARD · FLOOR PLAN EDITOR
+   Built for a 1080p or 4K TV seen from across the gym: sizes follow the
+   viewport width so the board reads the same on any screen. One signal per
+   idea: a zone's floor colour is its status, everything else is type on a
+   dark ground, divided by hairlines. Tokens only.
+   ============================================ */
+
+.ftv {
+  /* The app styles every main as a centered column; the board is full-bleed. */
+  --rail: clamp(300px, 25vw, 560px);
+  --hair: color-mix(in srgb, var(--ds-white) 9%, transparent);
+  --muted: var(--ds-text-on-ink-2);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--ds-scene-void);
+  color: var(--ds-text-on-ink);
+  font-family: var(--ds-font-body);
+}
+.ftv-loading {
+  position: fixed;
+  inset: 0;
+  background: var(--ds-scene-void);
+}
+.is-class {
+  --tone: var(--ds-zone-class);
+}
+.is-open {
+  --tone: var(--ds-zone-open);
+}
+.is-paused {
+  --tone: var(--ds-zone-paused);
+}
+.is-amenity {
+  --tone: var(--ds-zone-amenity);
+}
+.is-closed {
+  --tone: var(--ds-zone-closed);
+}
+
+/* ---------- The map ---------- */
+
+.ftv-stage {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+.ftv-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.ftv-canvas:active {
+  cursor: grabbing;
+}
+
+/* Zone labels: plain type, placed every frame by the scene. */
+.ftv-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ftv-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow:
+    0 1px 2px var(--ds-scene-void),
+    0 0 12px color-mix(in srgb, var(--ds-scene-void) 85%, transparent);
+  will-change: transform;
+  transition: opacity 0.25s var(--ds-ease);
+}
+.ftv-label-name {
+  font-size: clamp(11px, 0.88vw, 20px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.ftv-label-state {
+  font-size: clamp(10px, 0.7vw, 16px);
+  font-weight: 600;
+  color: var(--tone);
+}
+.ftv-label.is-minor .ftv-label-name {
+  font-size: clamp(10px, 0.7vw, 15px);
+  font-weight: 500;
+  color: var(--muted);
+}
+.ftv-label.is-closed .ftv-label-name {
+  color: var(--muted);
+}
+.ftv-label.is-selected .ftv-label-name {
+  text-decoration: underline 2px;
+  text-underline-offset: 4px;
+}
+
+/* Legend, bottom left. */
+.ftv-legend {
+  position: absolute;
+  left: 2vw;
+  bottom: 1.8vw;
+  display: flex;
+  gap: 1.4vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(11px, 0.72vw, 16px);
+  color: var(--muted);
+  pointer-events: none;
+}
+.ftv-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.ftv-legend li::before {
+  content: "";
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  background: var(--tone);
+}
+
+/* Tools, bottom right: shown on load and on mouse movement. */
+.ftv-tools {
+  position: absolute;
+  right: 1.6vw;
+  bottom: 1.4vw;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ds-slow) var(--ds-ease);
+}
+.ftv-tools.is-on,
+.ftv-tools:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ftv-preview {
+  margin-right: var(--ds-space-2);
+  font-size: var(--ds-text-small);
+  color: var(--muted);
+}
+.ftv-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--hair);
+  border-radius: var(--ds-radius-pill);
+  background: color-mix(in srgb, var(--ds-ink) 80%, transparent);
+}
+.ftv-switch button,
+.ftv-tool {
+  min-height: 36px;
+  padding: 0 var(--ds-space-4);
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--ds-text-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ftv-switch button[aria-checked="true"] {
+  background: var(--ds-white);
+  color: var(--ds-ink);
+}
+.ftv-tool {
+  min-height: 42px;
+  border: 1px solid var(--hair);
+  background: color-mix(in srgb, var(--ds-ink) 80%, transparent);
+  color: var(--ds-text-on-ink);
+}
+.ftv-switch button:focus-visible,
+.ftv-tool:focus-visible {
+  outline: 2px solid var(--ds-cyan);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .ftv-tool:hover,
+  .ftv-switch button[aria-checked="false"]:hover {
+    color: var(--ds-white);
+  }
+}
+.ftv-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--ds-text-h3);
+}
+
+/* ---------- The rail ---------- */
+
+.ftv-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 2.2vw 1.9vw 1.9vw;
+  overflow: hidden;
+  background: var(--ds-ink);
+  border-left: 1px solid var(--hair);
+}
+.ftv-head {
+  display: grid;
+  gap: 0.2vw;
+  padding-bottom: 1.4vw;
+}
+.ftv-head img {
+  height: clamp(18px, 1.5vw, 34px);
+  margin-bottom: 1.2vw;
+  justify-self: start;
+}
+.ftv-head time {
+  font-family: var(--ds-font-display);
+  font-size: clamp(30px, 3.4vw, 72px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ftv-head span {
+  font-size: clamp(12px, 0.85vw, 18px);
+  color: var(--muted);
+}
+.ftv-block {
+  display: grid;
+  gap: 0.35vw;
+  padding: 1.2vw 0;
+  border-top: 1px solid var(--hair);
+}
+.ftv-eyebrow {
+  margin: 0;
+  font-size: clamp(10px, 0.66vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tone, var(--muted));
+}
+.ftv-block h3 {
+  margin: 0;
+  font-size: clamp(17px, 1.35vw, 30px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ftv-block p {
+  margin: 0;
+  font-size: clamp(12px, 0.82vw, 18px);
+  color: var(--muted);
+}
+.ftv-rows {
+  display: grid;
+  gap: 0.1vw;
+  margin: 0.4vw 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ftv-rows li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6vw;
+  font-size: clamp(12px, 0.86vw, 19px);
+  line-height: 1.7;
+}
+.ftv-block[class*="is-"] .ftv-rows li::before {
+  content: "";
+  flex: none;
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 2px;
+  background: var(--tone);
+  transform: translateY(-0.05em);
+}
+.ftv-rows small {
+  margin-left: auto;
+  font-size: 0.86em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ftv-later time {
+  min-width: 3.6em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The featured zone: a photo and a line, at the foot of the rail. */
+.ftv-feature {
+  display: grid;
+  gap: 0.7vw;
+  margin: auto 0 0;
+  padding-top: 1.2vw;
+  border-top: 1px solid var(--hair);
+  animation: ftv-in 0.6s var(--ds-ease) both;
+}
+.ftv-feature img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--ds-radius-md);
+}
+.ftv-feature figcaption {
+  display: grid;
+  gap: 0.2vw;
+}
+.ftv-feature strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font-size: clamp(14px, 1vw, 22px);
+}
+.ftv-feature strong small {
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ftv-feature span {
+  font-size: clamp(12px, 0.8vw, 17px);
+  color: var(--muted);
+}
+.ftv-feature span:first-of-type {
+  color: var(--tone, var(--muted));
+}
+@keyframes ftv-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ftv-feature {
+    animation: none;
+  }
+}
+
+/* A phone, or a portrait screen: the map on top, the rail scrolls below,
+   the tools sit in the page flow so a touch screen can reach them. */
+@media (max-width: 820px), (max-aspect-ratio: 1/1) {
+  .ftv {
+    display: block;
+    overflow-y: auto;
+  }
+  .ftv-stage {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+  .ftv-canvas {
+    position: relative;
+    height: 58vh;
+  }
+  .ftv-labels {
+    bottom: auto;
+    height: 58vh;
+  }
+  .ftv-label.is-minor,
+  .ftv-label-state {
+    display: none;
+  }
+  .ftv-label-name {
+    font-size: 11px;
+  }
+  .ftv-legend {
+    position: static;
+    flex-wrap: wrap;
+    gap: var(--ds-space-3);
+    padding: var(--ds-space-3) var(--ds-space-4) 0;
+  }
+  .ftv-tools {
+    position: static;
+    flex-wrap: wrap;
+    padding: var(--ds-space-3) var(--ds-space-4);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .ftv-rail {
+    padding: var(--ds-space-4);
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--hair);
+  }
+  .ftv-block,
+  .ftv-head {
+    gap: var(--ds-space-1);
+    padding: var(--ds-space-3) 0;
+  }
+  .ftv-head img {
+    margin-bottom: var(--ds-space-3);
+  }
+  .ftv-rows li {
+    gap: var(--ds-space-2);
+  }
+  .ftv-feature {
+    gap: var(--ds-space-2);
+    margin-top: var(--ds-space-2);
+    padding-top: var(--ds-space-3);
+  }
+}
+
+/* ---------- Floor plan editor ---------- */
+
+.lay {
+  min-height: 100vh;
+  padding: var(--ds-space-8) var(--ds-space-6) 120px;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-body);
+}
+.lay-locked {
+  display: grid;
+  place-items: center;
+}
+.lay-locked .ds-card {
+  display: grid;
+  gap: var(--ds-space-4);
+  max-width: 480px;
+}
+.lay-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--ds-space-4);
+  margin-bottom: var(--ds-space-6);
+}
+.lay-actions,
+.lay-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.lay-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--ds-space-6);
+  align-items: start;
+}
+.lay-plan svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* The whole building stays on screen above the save bar. */
+  max-height: calc(100vh - 260px);
+  touch-action: none;
+  user-select: none;
+}
+.lay-plan svg:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  border-radius: var(--ds-radius-sm);
+}
+.lay-building {
+  fill: var(--ds-gray-25);
+  stroke: var(--ds-navy);
+  stroke-width: 0.8;
+}
+.lay-grid {
+  stroke: var(--ds-gray-100);
+  stroke-width: 0.25;
+}
+.lay-doorway {
+  fill: var(--ds-cyan);
+}
+.lay-door {
+  text-anchor: middle;
+  font-size: 3.4px;
+  font-weight: 800;
+  fill: var(--ds-text-3);
+}
+.lay-zone rect {
+  fill: var(--zone, var(--ds-gray-100));
+  stroke: var(--ds-gray-400);
+  stroke-width: 0.4;
+  cursor: move;
+}
+.lay-zone.is-shared rect {
+  stroke-dasharray: 1.2 0.8;
+}
+.lay-zone.is-on rect {
+  stroke: var(--ds-cyan);
+  stroke-width: 1;
+}
+.lay-name,
+.lay-sub {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  fill: var(--ds-navy);
+}
+.lay-name {
+  font-size: 3.2px;
+  font-weight: 800;
+}
+.lay-sub {
+  font-size: 2.6px;
+  font-weight: 600;
+  fill: var(--ds-text-2);
+}
+.lay-facing {
+  fill: var(--ds-cyan-ink);
+  pointer-events: none;
+}
+.lay-handle {
+  fill: var(--ds-cyan);
+  stroke: var(--ds-white);
+  stroke-width: 0.6;
+  cursor: nwse-resize;
+}
+.lay-side {
+  display: grid;
+  gap: var(--ds-space-4);
+  position: sticky;
+  top: var(--ds-space-6);
+}
+.lay-input {
+  width: 100%;
+  min-height: var(--ds-target);
+  padding: 0 var(--ds-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-muted);
+  font: inherit;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+.lay-input:focus {
+  outline: none;
+  border-color: var(--ds-cyan);
+  box-shadow: 0 0 0 3px var(--ds-focus);
+}
+.lay-reset {
+  padding-top: var(--ds-space-2);
+  border-top: 1px solid var(--ds-border);
+}
+.lay-error {
+  margin: 0;
+  padding: var(--ds-space-3);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bad-bg);
+  color: var(--ds-bad);
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .lay {
+    padding: var(--ds-space-4) var(--ds-space-4) 120px;
+  }
+  .lay-body {
+    grid-template-columns: 1fr;
+  }
+  .lay-side {
+    position: static;
+  }
+}

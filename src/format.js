@@ -1,4 +1,5 @@
 // Display formatting shared by the app. en-US only; the demo gym is in Phoenix.
+import { calendarDayLabel, gymShortDay } from "./gym-time.js";
 const numbers = [0, 1].map(
   (digits) => new Intl.NumberFormat("en-US", { maximumFractionDigits: digits }),
 );
@@ -17,19 +18,8 @@ export const word = (n, one, many, digits = 0) =>
 export const plural = (n, one, many, digits = 0) =>
   `${num(n, digits)} ${word(n, one, many, digits)}`;
 
-const phoenixDay = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Phoenix",
-  month: "short",
-  day: "numeric",
-});
-const calendarDay = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  month: "short",
-  day: "numeric",
-});
-
 // "Oct 10" for a timestamp, on the gym's calendar.
-export const date = (at) => phoenixDay.format(new Date(at));
+export const date = gymShortDay;
 
 // "Oct 5" for a YYYY-MM-DD key that is already a gym-calendar day.
-export const dayLabel = (key) => calendarDay.format(new Date(`${key}T12:00:00Z`));
+export const dayLabel = calendarDayLabel;
