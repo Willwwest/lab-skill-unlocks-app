@@ -83,6 +83,15 @@ export const staff = [
     owner: true,
     phone: "+16025550158",
   },
+  {
+    id: "travis",
+    name: "Travis",
+    initials: "TR",
+    pin: "1212",
+    head: true,
+    owner: true,
+    phone: "+16025550159",
+  },
 ];
 // Staff who coach (everyone except the owner).
 export const coaches = staff.filter((s) => !s.owner);

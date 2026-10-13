@@ -138,7 +138,7 @@ const board = async (page, at) => {
   await seed(page, SAM);
   await h.step("a station coach sees the editor locked", async () => {
     await page.goto(`${BASE}?tv&edit`);
-    await page.getByText("Sign in as Charlie or Ally").waitFor();
+    await page.getByText("Sign in as Charlie, Ally or Travis").waitFor();
   });
 }
 

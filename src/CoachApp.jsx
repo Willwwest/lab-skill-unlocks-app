@@ -48,6 +48,7 @@ import {
   Eyebrow,
   Field,
   IconButton,
+  Menu,
   SaveBar,
   Section,
   Segmented,
@@ -3295,6 +3296,7 @@ export default function CoachApp({
   const [kid, setKid] = useState(null);
   const [toast, setToast] = useState(null);
   const [menu, setMenu] = useState(false);
+  const meButton = useRef(null);
   const [legacy, setLegacy] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [party, setParty] = useState(null);
@@ -3523,6 +3525,7 @@ export default function CoachApp({
             <LivePill ops={ops} />
             <div className="cf-me-wrap">
               <button
+                ref={meButton}
                 className="chip-select cf-me"
                 aria-label={`${me.name} menu`}
                 aria-haspopup="menu"
@@ -3534,41 +3537,52 @@ export default function CoachApp({
                 <ChevronDown size={14} />
               </button>
               {menu && (
-                <div className="cc-menu cf-menu" role="menu">
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenu(false);
-                      setLegacy(true);
-                    }}
-                  >
-                    More tools
-                  </button>
-                  <button
-                    role="menuitem"
-                    onClick={() => setView({ id: "map" })}
-                  >
-                    {me.owner ? "Gym map and floor plan" : "Gym map"}
-                  </button>
-                  <button role="menuitem" onClick={simulate}>
-                    Simulate front-desk arrivals (demo)
-                  </button>
-                  <a
-                    role="menuitem"
-                    href="?kiosk"
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => setMenu(false)}
-                  >
-                    Front desk kiosk (demo)
-                  </a>
-                  <button role="menuitem" onClick={onExit}>
-                    Kid and parent views
-                  </button>
-                  <button role="menuitem" onClick={onSignOut}>
-                    Sign out
-                  </button>
-                </div>
+                <Menu
+                  label={`${me.name} menu`}
+                  anchor={meButton}
+                  onClose={() => setMenu(false)}
+                  person={{
+                    initials: me.initials,
+                    name: me.name,
+                    role: me.owner
+                      ? "Owner"
+                      : me.head
+                        ? "Gym manager"
+                        : "Coach",
+                  }}
+                  groups={[
+                    {
+                      items: [
+                        {
+                          label: me.owner
+                            ? "Gym map and floor plan"
+                            : "Gym map",
+                          onSelect: () => setView({ id: "map" }),
+                        },
+                        {
+                          label: "More tools",
+                          onSelect: () => setLegacy(true),
+                        },
+                        { label: "Kid and parent views", onSelect: onExit },
+                      ],
+                    },
+                    {
+                      title: "Demo",
+                      items: [
+                        {
+                          label: "Simulate front-desk arrivals",
+                          onSelect: simulate,
+                        },
+                        {
+                          label: "Front desk kiosk",
+                          href: "?kiosk",
+                          external: true,
+                        },
+                      ],
+                    },
+                    { items: [{ label: "Sign out", onSelect: onSignOut }] },
+                  ]}
+                />
               )}
             </div>
           </div>

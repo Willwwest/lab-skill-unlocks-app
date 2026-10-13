@@ -106,3 +106,13 @@ test("codes expire after 5 minutes and resends wait 30 seconds", () => {
     demoCodes.send(s, "6025550102", t0 + 6 * 60000, fixed),
   );
 });
+
+test("Travis signs in as an owner, alongside Charlie and Ally", () => {
+  for (const phone of ["+16025550157", "+16025550158", "+16025550159"])
+    assert.equal(findAccount(phone).owner, true, phone);
+  const travis = findAccount("+16025550159");
+  assert.equal(travis.name, "Travis");
+  assert.equal(travis.kind, "staff");
+  // Coaches stay coaches.
+  assert.equal(findAccount("+16025550151").owner, false);
+});

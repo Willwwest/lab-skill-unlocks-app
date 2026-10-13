@@ -32,10 +32,6 @@
   background: var(--cyan);
   color: var(--ink);
 }
-.cf-menu {
-  top: calc(100% + 10px);
-  z-index: 60;
-}
 .cf-live {
   display: inline-flex;
   align-items: center;

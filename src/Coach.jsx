@@ -8,7 +8,6 @@ import React, {
 import {
   Check,
   ClipboardCheck,
-  Lock,
   MapPin,
   ScanLine,
   Search,
@@ -18,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { apply, catalog, people, tiers } from "./domain.js";
+import { Menu } from "./ds/index.jsx";
 import {
   clock,
   dayKey,
@@ -1660,6 +1660,7 @@ export default function CoachCenter({
   const [celebrate, setCelebrate] = useState(null);
   const [toast, setToast] = useState(null);
   const [menu, setMenu] = useState(false);
+  const meButton = useRef(null);
   const [famPick, setFamPick] = useState(null);
   const block =
     sessions(now).find((s) => s.id === blockId) ?? defaultBlock(now);
@@ -1830,6 +1831,7 @@ export default function CoachCenter({
             <ScanLine size={22} />
           </button>
           <button
+            ref={meButton}
             className="cc-me"
             aria-haspopup="menu"
             aria-expanded={menu}
@@ -1839,47 +1841,54 @@ export default function CoachCenter({
             <span className="cc-me-name">{coach.name}</span>
           </button>
           {menu && (
-            <div className="cc-menu" role="menu">
-              {shared && (
-                <>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setLocked(true);
-                      setMenu(false);
-                    }}
-                  >
-                    <Lock size={16} /> Lock
-                  </button>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setCoach(null);
-                      setLocked(true);
-                      setMenu(false);
-                      writeDevice({ staffId: null });
-                    }}
-                  >
-                    Switch coach
-                  </button>
-                </>
-              )}
-              <a
-                role="menuitem"
-                href="?kiosk"
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setMenu(false)}
-              >
-                Front desk kiosk
-              </a>
-              <button role="menuitem" onClick={onExit}>
-                Leave coach center
-              </button>
-              <button role="menuitem" onClick={onSignOut}>
-                Sign out of this device
-              </button>
-            </div>
+            <Menu
+              label={`${coach.name} menu`}
+              anchor={meButton}
+              onClose={() => setMenu(false)}
+              person={{
+                initials: coach.initials,
+                name: coach.name,
+                role: shared
+                  ? "Shared tablet"
+                  : coach.owner
+                    ? "Owner"
+                    : coach.head
+                      ? "Head coach"
+                      : "Coach",
+              }}
+              groups={[
+                {
+                  items: shared
+                    ? [
+                        { label: "Lock", onSelect: () => setLocked(true) },
+                        {
+                          label: "Switch coach",
+                          onSelect: () => {
+                            setCoach(null);
+                            setLocked(true);
+                            writeDevice({ staffId: null });
+                          },
+                        },
+                      ]
+                    : [],
+                },
+                {
+                  items: [
+                    {
+                      label: "Front desk kiosk",
+                      href: "?kiosk",
+                      external: true,
+                    },
+                    { label: "Leave coach center", onSelect: onExit },
+                  ],
+                },
+                {
+                  items: [
+                    { label: "Sign out of this device", onSelect: onSignOut },
+                  ],
+                },
+              ]}
+            />
           )}
         </div>
       </header>

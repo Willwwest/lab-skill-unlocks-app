@@ -206,12 +206,16 @@ Still not done: data stays in one browser. Tabs on one device share it, separate
 
 Open `?tv` on the TVs in the gym. It's a 3D model of the building, built from the walkthrough photos and the coaches' Ninja Rotation Map, with every zone lit by what it's doing right now:
 
-- **Gold:** a class is using the zone. A floating halo, the class name, and, once the class is running in Coach center, the group at that zone and a countdown to the next rotation.
+- **Gold:** a class is using the zone. The rail names the class and, once it is running in Coach center, the group at each zone and a countdown to the next rotation.
 - **Mint:** free for open gym. If a class will take the zone within 30 minutes, it says so ("class 3:30").
 - **Red:** the station is paused by the head coach, with the reason.
 - Shared spaces (café, lounge, golf, Little ninjas, arcade, front desk) get small grey labels. Outside opening hours everything reads closed, and the rail shows when the doors open.
 
-The right rail shows the clock, each class in session with its zones, how many zones are free, paused stations, and the next three blocks. A spotlight card in the lower left tours the training zones every 10 seconds with a real photo of each (`public/floor/*.webp`), and the camera leans toward the toured zone. Tap a zone to hold it for 45 seconds. Drag to orbit and scroll to zoom. Moving the mouse shows **Whole floor** and **Edit floor**. Reduced-motion turns off the sway and pulse.
+**Design (October 12, 2026 cleanup):** the model is drawn like an architectural massing model. Equipment is plain white, and each zone stands on a plinth whose colour is its status. That colour is the only status signal on the map: no halos, glows or pulsing. Labels are plain text, a name and one word (Class, Open, Paused). When two would overlap, the less important one hides. The camera holds still and moves only when someone taps a zone.
+
+**Views:** **3D** looks in from the front-door corner. **Overhead** is a true top-down plan with north up and the entrance at the bottom. Switch with the buttons at the bottom right (shown on load and when the mouse moves), with the **V** key, or start a TV in either view with `?tv&view=top` or `?tv&view=3d`. Each screen remembers its last choice.
+
+The right rail is one column of type divided by hairlines: the clock, the class in session and its zones, the zones free for open gym, paused stations, later today, and a featured zone with its photo (`public/floor/*.webp`) that changes every 12 seconds. Tap a zone to feature it and fly the 3D camera to it for 45 seconds. **Reset view** returns to the whole floor. Reduced motion turns off camera flights and the animated game screens.
 
 Zone status comes from the same records as the rest of the app: the day's schedule (`club.js`), class plans and running rotations (`gym.js`), and station pauses (`floor.js`). A zone takes part in classes through its station (grip, wall, movement, court or course). The rig is split so a class can hold L1–L3 while open gym uses L4–L6.
 
@@ -231,7 +235,7 @@ Like the rest of the prototype, state lives in browser storage. A TV shows the r
 
 From Ally's and Natalie's feedback. A **Shifts** item in the coach bar opens it; a gold count shows requests waiting on a manager.
 
-- **Three levels.** Coach, gym manager and owner. The owners, Charlie and Ally Mitchell (demo numbers 602-555-0157 and 0158), set the rules, standing hours and who manages, and are never booked into a block. Managers decide requests and fix gaps. Coaches see their own shift, requests and time split.
+- **Three levels.** Coach, gym manager and owner. The owners, Charlie Mitchell, Ally Mitchell and Travis (demo numbers 602-555-0157, 0158 and 0159), set the rules, standing hours and who manages, and are never booked into a block. Managers decide requests and fix gaps. Coaches see their own shift, requests and time split.
 - **Right now / By the hour.** Every coach's status worked out from shifts, the day's crews, floaters and breaks: in class, open gym, floating, on break, available or off. The hour view is a half-hour grid with the current slot ringed.
 - **Breaks.** A coach books a break from open slots only. A break that overlaps another coach's break is refused (the owner sets how many may overlap; default 1), as is one inside their own block or outside their shift.
 - **Staffing check.** Each block against the class minimum (3), open-gym minimum (1), a required floater per class, and kids per coach (1:8, 1:5 when a class has a kid 6 or under, 1:10 at open gym). Kids come from the class roster or check-ins, or a manager's expected headcount for open gym. Gaps offer the best-fit free coaches to add for the day.
@@ -244,4 +248,4 @@ Placeholders until the gym confirms them: shift times, the three modalities, rat
 
 ### Gym map in the coach app, owners edit
 
-The 3D gym floor board (`?tv`) now opens inside the coach app from the coach menu (**Gym map**), with a **Back to the app** button. Everyone on staff can look at it. Only Charlie and Ally Mitchell, the owners, see **Edit floor** and can save or reset the floor plan; anyone else opening `?tv&edit` sees the editor locked. The rule lives in `applyLayout` (`src/layout.js`), and sign-in now carries the owner flag (`src/auth.js`). On a phone the map's tools sit under the class rail so they can be tapped.
+The 3D gym floor board (`?tv`) now opens inside the coach app from the coach menu (**Gym map**), with a **Back to the app** button. Everyone on staff can look at it. Only the owners (Charlie Mitchell, Ally Mitchell and Travis) see **Edit floor** and can save or reset the floor plan; anyone else opening `?tv&edit` sees the editor locked. The rule lives in `applyLayout` (`src/layout.js`), and sign-in now carries the owner flag (`src/auth.js`). On a phone the map's tools sit under the class rail so they can be tapped.

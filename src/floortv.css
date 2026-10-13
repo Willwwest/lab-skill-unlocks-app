@@ -92,9 +92,20 @@
   letter-spacing: 0.01em;
 }
 .ftv-label-state {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
   font-size: clamp(10px, 0.7vw, 16px);
   font-weight: 600;
-  color: var(--tone);
+  color: var(--muted);
+}
+.ftv-label-state::before {
+  content: "";
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 0 1.5px var(--ds-scene-void);
 }
 .ftv-label.is-minor .ftv-label-name {
   font-size: clamp(10px, 0.7vw, 15px);
@@ -224,13 +235,13 @@
   padding-bottom: 1.4vw;
 }
 .ftv-head img {
-  height: clamp(18px, 1.5vw, 34px);
-  margin-bottom: 1.2vw;
+  height: clamp(18px, 1.4vw, 32px);
+  margin-bottom: 1vw;
   justify-self: start;
 }
 .ftv-head time {
   font-family: var(--ds-font-display);
-  font-size: clamp(30px, 3.4vw, 72px);
+  font-size: clamp(30px, 3vw, 64px);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -286,6 +297,11 @@
   background: var(--tone);
   transform: translateY(-0.05em);
 }
+/* Long lists split into two columns so the rail fits a 1080p screen. */
+.ftv-rows.is-cols {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1vw;
+}
 .ftv-rows small {
   margin-left: auto;
   font-size: 0.86em;
@@ -299,10 +315,16 @@
 }
 
 /* The featured zone: a photo and a line, at the foot of the rail. */
+/* It takes whatever height the rail has left, so a busy afternoon shrinks
+   the photo instead of pushing it off the screen. */
 .ftv-feature {
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: end;
   gap: 0.7vw;
-  margin: auto 0 0;
+  margin: 0;
   padding-top: 1.2vw;
   border-top: 1px solid var(--hair);
   animation: ftv-in 0.6s var(--ds-ease) both;
@@ -310,7 +332,10 @@
 .ftv-feature img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+  max-height: 16vw;
+  min-height: 0;
+  align-self: end;
   object-fit: cover;
   border-radius: var(--ds-radius-md);
 }
@@ -405,9 +430,15 @@
     gap: var(--ds-space-2);
   }
   .ftv-feature {
+    flex: none;
     gap: var(--ds-space-2);
     margin-top: var(--ds-space-2);
     padding-top: var(--ds-space-3);
+  }
+  .ftv-feature img {
+    height: auto;
+    max-height: none;
+    aspect-ratio: 16 / 9;
   }
 }
 

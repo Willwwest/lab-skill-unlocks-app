@@ -91,9 +91,18 @@ function zoneDetail(z) {
 // Which labels win a spot when two would overlap.
 const rank = { class: 0, paused: 1, open: 2, amenity: 3, closed: 4 };
 
+// On the map a word is enough; the rail carries the detail.
+function labelLine(z) {
+  if (z.status === "class") return "Class";
+  if (z.status === "paused") return "Paused";
+  if (z.status === "open")
+    return z.soon ? `Class at ${clock(z.soon.start)}` : "Open";
+  return null;
+}
+
 function Label({ zone, selected, innerRef }) {
   const minor = !zone.station;
-  const line = minor ? null : stateLine(zone);
+  const line = minor ? null : labelLine(zone);
   return (
     <div
       ref={innerRef}
@@ -172,7 +181,7 @@ function Rail({ status, now, featured }) {
                 .filter(Boolean)
                 .join(" · ")}
             </p>
-            <ul className="ftv-rows">
+            <ul className={`ftv-rows${zones.length > 4 ? " is-cols" : ""}`}>
               {zones.map((z) => (
                 <li key={z.id}>
                   <span>{z.name}</span>
@@ -198,7 +207,7 @@ function Rail({ status, now, featured }) {
           <h3>
             {open.length} {open.length === 1 ? "zone" : "zones"} free
           </h3>
-          <ul className="ftv-rows">
+          <ul className={`ftv-rows${open.length > 4 ? " is-cols" : ""}`}>
             {open.map((z) => (
               <li key={z.id}>
                 <span>{z.name}</span>

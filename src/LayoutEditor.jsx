@@ -114,7 +114,10 @@ export default function LayoutEditor({ state, setState, session, onClose }) {
               </Tag>
             }
           />
-          <p>Sign in as Charlie or Ally on this screen, then open it again.</p>
+          <p>
+            Sign in as Charlie, Ally or Travis on this screen, then open it
+            again.
+          </p>
           <Button variant="secondary" icon={ArrowLeft} onClick={onClose}>
             Back to the board
           </Button>

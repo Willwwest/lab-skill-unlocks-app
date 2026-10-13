@@ -15,6 +15,7 @@ const D = BUILDING.d;
 // The 3D view looks in from the front-door corner.
 const HERO = { azimuth: 0.48, polar: 0.9 };
 const PLINTH = 0.8;
+const PLAN_LIFT = 8;
 
 const matte = (color, roughness = 0.9) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
@@ -404,13 +405,15 @@ const build = {
 
 /* ---------- Status colours ---------- */
 
+// Status fills mix from a neutral dark, not the navy floor, so gold stays
+// gold rather than going olive.
 const mix = (tone, k) =>
-  new THREE.Color(S.floor).lerp(new THREE.Color(tone), k);
+  new THREE.Color(S.black).lerp(new THREE.Color(tone), k);
 // The plinth's fill and its edge for each status. Classes read strongest;
 // shared spaces stay quiet.
 const look = {
-  class: { fill: mix(Z.class, 0.62), edge: new THREE.Color(Z.class) },
-  open: { fill: mix(Z.open, 0.34), edge: new THREE.Color(Z.open) },
+  class: { fill: mix(Z.class, 0.44), edge: new THREE.Color(Z.class) },
+  open: { fill: mix(Z.open, 0.28), edge: new THREE.Color(Z.open) },
   paused: { fill: mix(Z.paused, 0.5), edge: new THREE.Color(Z.paused) },
   amenity: { fill: mix(Z.amenity, 0.16), edge: mix(Z.amenity, 0.4) },
   closed: { fill: mix(Z.closed, 0.2), edge: mix(Z.closed, 0.5) },
@@ -424,7 +427,8 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // Neutral tone mapping keeps the status hues true (ACES turns gold brown).
+  renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;
 
   const scene = new THREE.Scene();
@@ -598,7 +602,7 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
     const r = Math.hypot(W, D) / 2;
     const vHalf = THREE.MathUtils.degToRad(persp.fov / 2);
     const hHalf = Math.atan(Math.tan(vHalf) * persp.aspect);
-    return (r / Math.sin(Math.min(vHalf, hHalf))) * 0.82;
+    return (r / Math.sin(Math.min(vHalf, hHalf))) * 0.72;
   };
   const fly = (target, radius) => {
     flight = {
@@ -630,7 +634,7 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
 
   function fitPlan() {
     const a = canvas.clientWidth / Math.max(1, canvas.clientHeight);
-    const halfH = Math.max(D / 2, W / 2 / a) * 1.08;
+    const halfH = Math.max(D / 2, W / 2 / a) * 1.16;
     Object.assign(ortho, {
       left: -halfH * a,
       right: halfH * a,
@@ -638,8 +642,9 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
       bottom: -halfH,
     });
     ortho.zoom = 1;
-    plan.target.set(0, 0, 0);
-    ortho.position.set(0, 800, 0);
+    // Nudged so the plan clears the legend and tools along the bottom.
+    plan.target.set(0, 0, PLAN_LIFT);
+    ortho.position.set(0, 800, PLAN_LIFT);
     ortho.updateProjectionMatrix();
   }
 

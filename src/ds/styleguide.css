@@ -64,3 +64,8 @@
   align-items: center;
   gap: var(--ds-space-2);
 }
+
+/* The menu sample sits in the page instead of floating under a trigger. */
+.sg-menu .ds-menu {
+  position: static;
+}

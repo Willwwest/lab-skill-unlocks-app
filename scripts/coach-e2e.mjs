@@ -545,13 +545,13 @@ const journeys = {
     await h.go(BASE + "?coach");
     await h.check("kiosk arrival counts in the building", async () => tab.eval(`document.querySelector(".tile-sky .stat-value").textContent.trim() !== "0"`));
     await h.click(".cf-me");
-    await h.click(".cf-menu [role=menuitem]", "More tools");
+    await h.click(".ds-menu [role=menuitem]", "More tools");
     await h.check("legacy coach center open", async () => (await h.count(".cc-nav")) === 1);
     await h.click(".cc-me");
-    await h.click(".cc-menu [role=menuitem]", "Leave coach center");
+    await h.click(".ds-menu [role=menuitem]", "Leave coach center");
     await h.check("back on the coach floor", async () => (await h.count(".cf")) === 1);
     await h.click(".cf-me");
-    await h.click(".cf-menu [role=menuitem]", "Kid and parent views");
+    await h.click(".ds-menu [role=menuitem]", "Kid and parent views");
     await h.has("journey");
     await h.has("Lab Coins");
     await h.shot("kid-view");

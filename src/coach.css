@@ -108,30 +108,6 @@
   font-weight: 800;
   font-size: 13px;
 }
-.cc-menu {
-  position: absolute;
-  top: 56px;
-  right: 0;
-  min-width: 220px;
-  padding: 8px;
-  border-radius: 16px;
-  background: #fff;
-  color: var(--text);
-  box-shadow: var(--shadow-md);
-  display: grid;
-}
-.cc-menu > * {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 14px;
-  border-radius: 10px;
-  text-align: left;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 15px;
-}
 
 /* ---------- Navigation ---------- */
 .cc-nav {
@@ -2044,9 +2020,6 @@
   .cc-filter button:hover,
   .cc-station-pick button:hover {
     border-color: var(--navy);
-  }
-  .cc-menu > *:hover {
-    background: var(--surface-2);
   }
   .kiosk-kid:hover:not(:disabled),
   .cc-staff button:hover,

@@ -24,6 +24,7 @@ const demoAccounts = [
   { phone: "+16025550153", label: "Coach Alex", note: "Gym manager" },
   { phone: "+16025550157", label: "Charlie Mitchell", note: "Owner" },
   { phone: "+16025550158", label: "Ally Mitchell", note: "Owner" },
+  { phone: "+16025550159", label: "Travis", note: "Owner" },
 ];
 
 export default function Login({ onSignedIn, storage = localStorage }) {

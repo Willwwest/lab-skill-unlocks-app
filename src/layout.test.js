@@ -237,3 +237,19 @@ test("rotations are quarter turns and TV notes stay short", () => {
   assert.equal(court.rotation, 0);
   assert.equal(court.note, undefined);
 });
+
+test("any owner can save the floor plan, Travis included", () => {
+  const travis = {
+    role: "Coach",
+    name: "Travis",
+    staffId: "travis",
+    head: true,
+    owner: true,
+  };
+  const s = applyLayout(
+    base(),
+    { type: "save", zones: defaultLayout().zones, actor: travis },
+    at("12:00"),
+  );
+  assert.equal(s.layout.by, "Travis");
+});

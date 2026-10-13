@@ -21,6 +21,7 @@ import {
   Eyebrow,
   Field,
   IconButton,
+  Menu,
   SaveBar,
   Section,
   Segmented,
@@ -285,6 +286,41 @@ export default function StyleGuide() {
             </div>
           </Card>
         </div>
+      </Section>
+
+      <Section
+        title="Menu"
+        note="The account menu: who is signed in, then actions in groups split by hairlines. A group can carry a small title. Arrow keys move, Escape closes."
+      >
+        <Card>
+          <div className="sg-menu">
+            <Menu
+              label="Sample menu"
+              autoFocus={false}
+              onClose={() => {}}
+              person={{ initials: "TR", name: "Travis", role: "Owner" }}
+              groups={[
+                {
+                  items: [
+                    { label: "Gym map and floor plan", onSelect: () => {} },
+                    { label: "More tools", onSelect: () => {} },
+                  ],
+                },
+                {
+                  title: "Demo",
+                  items: [
+                    {
+                      label: "Front desk kiosk",
+                      href: "?kiosk",
+                      external: true,
+                    },
+                  ],
+                },
+                { items: [{ label: "Sign out", onSelect: () => {} }] },
+              ]}
+            />
+          </div>
+        </Card>
       </Section>
 
       <Section

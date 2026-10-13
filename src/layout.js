@@ -46,8 +46,9 @@ export const NOTE_MAX = 90;
 
 /*
  * The head coach's corrected plan (October 12, 2026), traced from the floor
- * plan editor. North is the back wall; the front door is in the south-east
- * corner. Inside the door: the front desk with the fitness room behind it,
+ * plan editor, with Charlie's October 13 edits to the back wall: the court,
+ * restrooms, golf simulator and track wall turned, and L1–L2 drawn as rig.
+ * North is the back wall; the front door is in the south-east corner. Inside the door: the front desk with the fitness room behind it,
  * the merch divider, then the interactive games and Little ninjas to the
  * left. Café and viewing in front of the rig, whose sections run east-west
  * across the middle; the run track and parent lounge run up the east wall.
@@ -73,13 +74,18 @@ const defaultZones = [
   z("bike-games", "Treadmill & bike games", "fitgames", null, 3, 15, 47, 18, {
     note: "Run or pedal to play: the game on the TV speeds up as you go faster.",
   }),
-  z("court", "Basketball court", "court", "court", 52, 3, 56, 29, {
+  z("court", "Basketball court", "court", "court", 53, 0, 59, 32, {
     photo: "court",
+    rotation: 270,
   }),
-  z("restrooms", "Restrooms & water", "room", null, 108, 0, 34, 32),
-  z("golf", "Golf simulator", "golf", null, 142, 0, 48, 30),
+  z("restrooms", "Restrooms & water", "room", null, 143, 0, 27, 12, {
+    rotation: 90,
+  }),
+  z("golf", "Golf simulator", "golf", null, 139, 13, 50, 19, {
+    rotation: 90,
+  }),
   z("party", "Party tables", "cafe", null, 16, 34, 43, 20, { photo: "party" }),
-  z("vault", "Vault blocks", "field", "movement", 68, 32, 88, 22, {
+  z("vault", "Vault blocks", "field", "movement", 66, 32, 88, 22, {
     code: "SP",
     photo: "vault",
   }),
@@ -88,8 +94,9 @@ const defaultZones = [
     code: "A1–A4",
     photo: "advanced",
   }),
-  z("track-wall", "Track wall", "wall", "wall", 130, 56, 26, 31, {
+  z("track-wall", "Track wall", "wall", "wall", 129, 60, 27, 26, {
     photo: "track-wall",
+    rotation: 270,
   }),
   z("rig-course", "Course lanes", "rig", "course", 17, 87, 138, 32, {
     code: "L4–L6",
@@ -99,7 +106,7 @@ const defaultZones = [
     code: "L1–L3",
     photo: "rig-grip",
   }),
-  z("red-walls", "L1–L2", "wall", "wall", 16, 145, 139, 23, {
+  z("red-walls", "L1–L2", "rig", "wall", 16, 145, 139, 23, {
     code: "WW",
     photo: "red-walls",
   }),
