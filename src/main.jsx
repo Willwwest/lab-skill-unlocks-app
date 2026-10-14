@@ -52,6 +52,8 @@ const CoachApp = lazy(() => import("./CoachApp.jsx"));
 const Kiosk = lazy(() => import("./Kiosk.jsx"));
 // The TV floor board carries three.js; only ?tv loads it.
 const FloorTV = lazy(() => import("./FloorTV.jsx"));
+// The TV channels: ?tv is the floor board, ?tv=desk the front desk screen.
+const DeskTV = lazy(() => import("./DeskTV.jsx"));
 const StyleGuide = lazy(() => import("./ds/StyleGuide.jsx"));
 import Family, { MomentsGallery } from "./Family.jsx";
 import Login from "./Login.jsx";
@@ -60,6 +62,7 @@ import { families } from "./roster.js";
 import { emptyFloor, validFloor } from "./floor.js";
 import { seedGym, validGym, withHistory, withoutHistory } from "./gym.js";
 import { clearPhotos } from "./media.js";
+import * as sync from "./sync/engine.js";
 import { familyOf } from "./roster.js";
 import { SkillAbout, SkillHero, SkillPath } from "./SkillDetail.jsx";
 import { firstStep } from "./paths.js";
@@ -126,8 +129,17 @@ function StatusChip({ status, className = "" }) {
   );
 }
 
-function App() {
+// The app's own starting state, before anything is stored.
+const freshState = () => ({
+  ...load(null),
+  club: emptyClub(),
+  floor: emptyFloor(),
+  gym: seedGym(new Date(), { history: true }),
+});
+
+function App({ initial = null }) {
   const [state, setState] = useState(() => {
+    if (initial) return initial;
     try {
       const saved = load(localStorage);
       return {
@@ -187,7 +199,18 @@ function App() {
   const chapter = tiers[current - 1];
   const chapterProgress = tierProgress(state, childId, current);
   const remaining = chapterProgress.total - chapterProgress.count;
+  // The multi-device checks (scripts/sync-e2e.mjs) drive the real reducers
+  // through this in development builds only.
   useEffect(() => {
+    if (import.meta.env.DEV) window.__lab = { state, setState };
+  });
+  // Connected to the database: write what changed and listen for everyone
+  // else's changes. Otherwise the whole state is saved in this browser.
+  useEffect(() => {
+    if (sync.remote) sync.attach({ setState });
+  }, []);
+  useEffect(() => {
+    if (sync.remote) return sync.push(state);
     try {
       localStorage.setItem(
         key,
@@ -217,6 +240,7 @@ function App() {
     return () => window.removeEventListener("storage", onSession);
   }, []);
   useEffect(() => {
+    if (sync.remote) return undefined;
     const onStorage = (e) => {
       if (e.key !== key || !e.newValue) return;
       try {
@@ -304,6 +328,7 @@ function App() {
       : ["Parent", "Athlete"];
   function doSignOut() {
     signOut(localStorage);
+    if (sync.remote) sync.signOutRemote();
     setSession(null);
     setSelected(null);
     setRole("Athlete");
@@ -442,6 +467,12 @@ function App() {
         <StyleGuide />
       </Suspense>
     );
+  if (new URLSearchParams(window.location.search).get("tv") === "desk")
+    return (
+      <Suspense fallback={<div className="cc-loading" />}>
+        <DeskTV state={state} />
+      </Suspense>
+    );
   if (params.has("tv"))
     return (
       <Suspense fallback={<div className="cc-loading" />}>
@@ -457,13 +488,20 @@ function App() {
   if (!session)
     return (
       <Login
-        onSignedIn={(s) => {
+        beforeSend={sync.remote ? sync.signInPerson : undefined}
+        onSignedIn={async (s) => {
+          let loaded = state;
+          if (sync.remote) {
+            loaded = await sync.load(freshState());
+            setState(loaded);
+            sync.attach({ setState });
+          }
           const next = startFor(s);
           setSession(s);
           setRole(next.role);
           setChildId(next.childId);
-          setTier(currentTier(state, next.childId));
-          setRewardFocus(focusTier(state, next.childId));
+          setTier(currentTier(loaded, next.childId));
+          setRewardFocus(focusTier(loaded, next.childId));
           setPage(next.page);
           window.scrollTo?.(0, 0);
         }}
@@ -1052,13 +1090,19 @@ function App() {
               Signed in as {session.name} · {formatPhone(session.phone)}
               <button onClick={doSignOut}>Sign out</button>
             </span>
-            <span>Synthetic demo data · saved on this browser only</span>
-            <button
-              onClick={() => setResetOpen(true)}
-              aria-label="Reset demo data"
-            >
-              Reset
-            </button>
+            {sync.remote ? (
+              <span>Demo data · shared with everyone at the gym</span>
+            ) : (
+              <>
+                <span>Synthetic demo data · saved on this browser only</span>
+                <button
+                  onClick={() => setResetOpen(true)}
+                  aria-label="Reset demo data"
+                >
+                  Reset
+                </button>
+              </>
+            )}
           </div>
         </div>
         <img
@@ -1791,5 +1835,97 @@ function RewardControls({ reward, role, commit }) {
   );
 }
 export { App };
+// Connected to the database, sign back in before the first screen: a
+// person who signed in on this device before, or a TV / kiosk screen.
+async function boot() {
+  const q = new URLSearchParams(window.location.search);
+  const saved = loadSession(localStorage);
+  if (saved?.phone) {
+    await sync.signInPerson(saved.phone);
+    return sync.load(freshState());
+  }
+  const screen = q.has("kiosk") ? "kiosk" : q.has("tv") ? "tv" : null;
+  if (screen) {
+    await sync.signInScreen(screen);
+    return sync.load(freshState());
+  }
+  return null;
+}
+
+// A refused or failed save, shown over whichever screen is open (the coach
+// app, a TV, the kiosk or the main app).
+function SyncNotice() {
+  const [message, setMessage] = useState(null);
+  useEffect(() => {
+    let timer;
+    const off = sync.onNotice((m) => {
+      setMessage(m);
+      clearTimeout(timer);
+      timer = setTimeout(() => setMessage(null), 6000);
+    });
+    return () => {
+      off();
+      clearTimeout(timer);
+    };
+  }, []);
+  return message ? (
+    <div className="toast error sync-notice" role="alert">
+      <span>{message}</span>
+      <button
+        aria-label="Dismiss notification"
+        onClick={() => setMessage(null)}
+      >
+        <X size={15} />
+      </button>
+    </div>
+  ) : null;
+}
+
+function Booting({ error }) {
+  return error ? (
+    <div className="signin">
+      <div className="signin-inner">
+        <section className="signin-card" role="alert">
+          <h1>Can’t reach the gym’s data</h1>
+          <p className="signin-lead">{error}</p>
+          <button className="button navy" onClick={() => location.reload()}>
+            Try again
+          </button>
+        </section>
+      </div>
+    </div>
+  ) : (
+    <div className="cc-loading" aria-label="Loading" />
+  );
+}
+
 const rootElement = document.getElementById("root");
-if (rootElement) createRoot(rootElement).render(<App />);
+if (rootElement) {
+  const root = createRoot(rootElement);
+  if (!sync.remote) root.render(<App />);
+  else {
+    root.render(<Booting />);
+    boot().then(
+      (initial) =>
+        root.render(
+          <>
+            <App initial={initial} />
+            <SyncNotice />
+          </>,
+        ),
+      (e) => {
+        // A session that no longer resolves (number removed, demo over)
+        // goes back to sign-in.
+        if (/roster|demo|Pair/.test(e.message)) {
+          signOut(localStorage);
+          root.render(
+            <>
+              <App />
+              <SyncNotice />
+            </>,
+          );
+        } else root.render(<Booting error={e.message} />);
+      },
+    );
+  }
+}

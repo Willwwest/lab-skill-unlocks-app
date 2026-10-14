@@ -27,6 +27,7 @@ const SYSTEM_FILES = [
   "./ds/StyleGuide.jsx",
   "./ds/styleguide.css",
   "./plans.css",
+  "./BlockSchedule.jsx",
   "./charts.jsx",
   "./InsightsView.jsx",
   "./floortv.css",
@@ -34,6 +35,15 @@ const SYSTEM_FILES = [
   "./LayoutEditor.jsx",
   "./floorScene.js",
   "./layout.js",
+  "./desktv.css",
+  "./DeskTV.jsx",
+  "./FloorMap.jsx",
+  "./tvs.js",
+  "./tvkit.js",
+  "./demoday.js",
+  "./DemoBar.jsx",
+  "./flooruse.js",
+  "./FloorUseEditor.jsx",
 ];
 
 test("tokens.js mirrors tokens.css", () => {

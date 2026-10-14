@@ -497,3 +497,441 @@
 .st-page .cf-hero-tabs {
   max-width: 100%;
 }
+
+/* By the hour on a phone: time runs down, one column per coach. */
+.st-grid-phone {
+  display: none;
+}
+@media (max-width: 600px) {
+  .st-grid-wide {
+    display: none;
+  }
+  .st-grid-phone {
+    display: block;
+  }
+}
+.st-gridv {
+  position: relative;
+  width: 100%;
+  table-layout: fixed;
+}
+.st-gridv thead th {
+  text-align: center;
+  padding-bottom: var(--ds-space-2);
+}
+.st-gridv td {
+  min-width: 0;
+  height: 22px;
+}
+.st-gridv .st-gridv-time {
+  width: 52px;
+  font-size: var(--ds-text-label);
+  font-weight: 700;
+  color: var(--ds-text-3);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.st-gridv tr.st-grid-now td {
+  outline: 2px solid var(--ds-navy);
+  outline-offset: 0;
+}
+.st-gridv tr.st-grid-now .st-gridv-time {
+  color: var(--ds-navy);
+}
+.st-crew-mark small {
+  font-size: inherit;
+}
+
+/* Programs added after the three built-in kinds of work. */
+.st-bucket-x0 {
+  --st: var(--ds-gold);
+}
+.st-bucket-x1 {
+  --st: var(--ds-royal-deep);
+}
+.st-bucket-x2 {
+  --st: var(--ds-mint);
+}
+.st-wants {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.st-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.st-programs {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0 0 var(--ds-space-4);
+  padding: 0;
+  list-style: none;
+}
+.st-programs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2) var(--ds-space-4);
+}
+.st-program-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  align-items: center;
+}
+.st-program-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: var(--ds-target);
+}
+
+/* Availability */
+.av-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-4);
+}
+.av-stepper {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+.av-days {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.av-days li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.av-days li > b {
+  flex: 0 0 110px;
+}
+.av-times {
+  display: flex;
+  gap: var(--ds-space-2);
+}
+.av-away {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0 0 var(--ds-space-3);
+  padding: 0;
+  list-style: none;
+}
+.av-away li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.av-away small {
+  color: var(--ds-text-3);
+}
+.av-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+}
+.av-note {
+  min-height: var(--ds-target);
+  min-width: 0;
+}
+.av-team {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: var(--ds-space-3);
+}
+.av-coach {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.av-coach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.av-hours {
+  margin: 0;
+  font-size: var(--ds-text-body);
+}
+.av-hours small {
+  color: var(--ds-text-3);
+}
+
+/* Schedule builder */
+.sb-head {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.sb-head-row,
+.ms-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.sb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.sb-hours {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: var(--ds-space-2);
+}
+.sb-hour {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+}
+.sb-hour > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.sb-hour small,
+.sb-block-head small,
+.sb-chip small,
+.sb-shifts small {
+  color: var(--ds-text-3);
+}
+.sb-problems ul {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sb-problems li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.sb-days {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.sb-day {
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+.sb-day summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+  min-height: var(--ds-target);
+  cursor: pointer;
+}
+.sb-day summary small {
+  color: var(--ds-text-3);
+}
+.sb-blocks {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding-top: var(--ds-space-3);
+}
+.sb-block {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-muted);
+}
+.sb-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ds-space-2);
+}
+.sb-crew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.sb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: 2px 4px 2px 12px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+}
+.sb-add select {
+  width: 100%;
+  min-height: var(--ds-target);
+}
+.sb-shifts {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding-top: var(--ds-space-3);
+}
+.sb-shifts ul {
+  display: grid;
+  gap: var(--ds-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sb-shifts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+
+/* My week */
+.ms-head {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.ms-days {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ms-day {
+  display: grid;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3) var(--ds-space-4);
+}
+.ms-day.is-today {
+  box-shadow: inset 4px 0 0 var(--ds-cyan);
+}
+.ms-day-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+.ms-day-head small {
+  color: var(--ds-text-3);
+}
+.ms-blocks {
+  display: grid;
+  gap: var(--ds-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ms-blocks li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+.ms-blocks small {
+  color: var(--ds-text-3);
+}
+
+/* Timesheets */
+.ts-head {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.ts-list {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin-block: var(--ds-space-4);
+}
+.ts-coach {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+.ts-coach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.ts-nums {
+  flex: 1 1 160px;
+  font-size: var(--ds-text-small);
+  color: var(--ds-text-2);
+}
+.ts-flags {
+  margin: 0;
+  color: var(--ds-text-2);
+}
+.ts-entries {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-entries li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+.ts-entries small {
+  color: var(--ds-text-2);
+}
+.ts-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--ds-space-2) var(--ds-space-3);
+  width: 100%;
+}
+.ts-reason {
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+.ts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.ts-pay {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+.ts-pay-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+}
+.ts-table {
+  overflow-x: auto;
+}
+.ts-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ds-text-small);
+}
+.ts-table th,
+.ts-table td {
+  padding: var(--ds-space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--ds-border);
+  white-space: nowrap;
+}
+.ts-id {
+  min-height: 44px;
+  width: 6em;
+}

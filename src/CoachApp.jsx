@@ -17,6 +17,7 @@ import {
   Check,
   ChevronDown,
   Gift,
+  Hand,
   HeartPulse,
   Lock,
   Plus,
@@ -24,6 +25,7 @@ import {
   UserPlus,
   Cake,
   Sparkles,
+  Pause,
   Play,
   Search,
   SkipForward,
@@ -58,6 +60,7 @@ import {
 } from "./ds/index.jsx";
 import {
   clock,
+  dayKey,
   sessionPhase,
   sessions,
   stations,
@@ -92,6 +95,17 @@ import {
   bonusesBy,
   checkinsFor,
   checkOff,
+  classTimeline,
+  coachAt,
+  coachModes,
+  coachOfGroup,
+  fitRounds,
+  handoffsFor,
+  MAX_ROUNDS,
+  modeFor,
+  postOf,
+  runCoaches,
+  runMode,
   coachStats,
   crewFor,
   crewOn,
@@ -117,7 +131,6 @@ import {
   staffName,
   stationFocus,
   stationLabel,
-  stationOfCoach,
   tenure,
   tenureKinds,
 } from "./gym.js";
@@ -131,8 +144,12 @@ import {
   staffTabs,
   staffTitles,
 } from "./Staffing.jsx";
-import { withLevel } from "./staffing.js";
+import { classCrew, groupLimit, withLevel } from "./staffing.js";
 import YourWeek from "./YourWeek.jsx";
+import BlockSchedule from "./BlockSchedule.jsx";
+import Inbox from "./Inbox.jsx";
+import ClockCard from "./ClockCard.jsx";
+import { scheduleOf, sessionFromId } from "./schedule.js";
 import { insights, kidVisits } from "./insights.js";
 import "./coach.css";
 import "./coachapp.css";
@@ -515,46 +532,61 @@ function TimerRing({ run, size = 220 }) {
   if (!r) return null;
   return (
     <div
-      className={`cf-timer ${r.warn ? "is-warn" : ""} ${r.done ? "is-done" : ""}`.trim()}
+      className={`cf-timer ${r.warn ? "is-warn" : ""} ${r.done ? "is-done" : ""} ${r.paused ? "is-paused" : ""}`.trim()}
       aria-live="polite"
     >
       <Ring
         value={r.done ? 0 : r.left}
-        max={run.minutes * 60000}
+        max={(r.warmup ? run.warmup : run.minutes) * 60000}
         size={size}
         stroke={10}
-        color={r.warn ? "var(--gold)" : "var(--cyan)"}
+        color={
+          r.paused
+            ? "var(--ds-zone-paused)"
+            : r.warn
+              ? "var(--gold)"
+              : "var(--cyan)"
+        }
         track="rgba(255,255,255,0.14)"
       >
-        <span className="cf-timer-label">
-          {r.done ? "Rotations done" : `Rotation ${r.idx + 1} of ${r.total}`}
-        </span>
+        <span className="cf-timer-label">{rotationLabel(r)}</span>
         <strong>{r.done ? "0:00" : mmss(r.left)}</strong>
         <small>
           {r.done
             ? "Wrap up"
-            : r.warn
-              ? "Last runs"
-              : `${run.minutes}-min rotations`}
+            : r.paused
+              ? "On hold"
+              : r.warmup
+                ? "Until the first station"
+                : r.warn
+                  ? "Last runs"
+                  : r.rounds > 1
+                    ? `Round ${r.round} of ${r.rounds}`
+                    : `${run.minutes}-min rotations`}
         </small>
       </Ring>
     </div>
   );
 }
 
+// "Warm-up", "Rotation 3 of 8" or "Rotations done".
+function rotationLabel(r) {
+  if (r.done) return "Rotations done";
+  if (r.warmup) return "Warm-up";
+  return `Rotation ${r.idx + 1} of ${r.total}`;
+}
+
 // The live class, pinned in the app bar on every screen.
 function LivePill({ ops }) {
   const { state, me } = ops;
   const now = useNow(1000);
-  const live = sessions(now)
+  const live = sessions(now, ops.state)
     .map((b) => ({ b, run: runOf(state, b.id) }))
     .find(
       ({ run }) =>
         run?.startedAt &&
         !run.endedAt &&
-        (me.head ||
-          run.lead === me.name ||
-          Object.values(run.coaches ?? {}).includes(me.id)),
+        (me.head || run.lead === me.name || runCoaches(run).includes(me.id)),
     );
   if (!live) return null;
   const r = rotation(live.run, Date.now());
@@ -567,7 +599,15 @@ function LivePill({ ops }) {
     >
       <i aria-hidden="true" />
       <span className="cf-live-name">{live.b.name}</span>
-      <b>{r.done ? "Done" : `${r.idx + 1}/${r.total} · ${mmss(r.left)}`}</b>
+      <b>
+        {r.done
+          ? "Done"
+          : r.paused
+            ? "On hold"
+            : r.warmup
+              ? `Warm-up · ${mmss(r.left)}`
+              : `${r.idx + 1}/${r.total} · ${mmss(r.left)}`}
+      </b>
     </button>
   );
 }
@@ -584,7 +624,7 @@ function blockStatus(state, block, now) {
   if (run.endedAt) return "Class done";
   if (run.startedAt) {
     const r = rotation(run, now);
-    return r.done ? "Rotations done" : `Rotation ${r.idx + 1} of ${r.total}`;
+    return r.paused ? "On hold" : rotationLabel(r);
   }
   if (run.groups) return "Groups ready";
   return `Attendance · ${checkinsFor(state, block.id).length} in`;
@@ -613,7 +653,7 @@ function DayView({ ops }) {
   const { state, me, now } = ops;
   const [picking, setPicking] = useState(null);
   const mine = myBlocks(state, me.id, now);
-  const all = sessions(now).slice().sort(byStart);
+  const all = sessions(now, ops.state).slice().sort(byStart);
   const next =
     mine.find((b) => sessionPhase(b, now) === "live") ??
     mine.find((b) => sessionPhase(b, now) === "upcoming") ??
@@ -623,8 +663,7 @@ function DayView({ ops }) {
     const run = runOf(state, b.id);
     return (
       run?.endedAt &&
-      (run.lead === me.name ||
-        Object.values(run.coaches ?? {}).includes(me.id)) &&
+      (run.lead === me.name || runCoaches(run).includes(me.id)) &&
       bonusesBy(state, b.id, me.name).length < BONUS_PICKS
     );
   });
@@ -635,7 +674,9 @@ function DayView({ ops }) {
         : "Take attendance"
       : b.role === "station"
         ? "Go to my station"
-        : "Start open gym";
+        : b.role === "helper"
+          ? "Go to the class"
+          : "Start open gym";
   const day = new Date(now).toDateString();
   const myIns = gymOf(state).checkins.filter(
     (c) => c.by === me.name && new Date(c.at).toDateString() === day,
@@ -690,6 +731,8 @@ function DayView({ ops }) {
         />
       </Masthead>
       <main className="cf-main">
+        <ClockCard ops={ops} />
+        <Inbox ops={ops} />
         {owed && (
           <section className="card cf-bonus cf-owed">
             <span>
@@ -745,8 +788,13 @@ function DayView({ ops }) {
           note="Your blocks are highlighted. Tap one to start it."
         />
         <div className="cf-timeline">
+          {!all.length && (
+            <Empty icon={CalendarDays} title="The gym is closed today">
+              Nothing is on the schedule.
+            </Empty>
+          )}
           {all.map((b) => {
-            const crew = crewOn(state, b.index, now);
+            const crew = classCrew(state, b, now);
             const role = crew.find((c) => c.staffId === me.id)?.role;
             const head = crew.find((c) => c.role === "head");
             const phase = sessionPhase(b, now);
@@ -1297,8 +1345,12 @@ function ClassView({ ops, block }) {
   const step = classStep(run);
   const [ctaRef, ctaInView] = useInView();
   const [pickedMinutes, setMinutes] = useState(null);
-  const minutes =
-    pickedMinutes ?? run?.minutes ?? planFor(state, block.index).minutes;
+  const [pickedWarmup, setWarmup] = useState(null);
+  const [pickedRounds, setRounds] = useState(null);
+  const plan = planFor(state, block.index);
+  const minutes = pickedMinutes ?? run?.minutes ?? plan.minutes;
+  const warmup = pickedWarmup ?? run?.warmup ?? plan.warmup;
+  const rounds = pickedRounds ?? run?.rounds ?? 1;
   const [confirmWide, setConfirmWide] = useState(false);
   const other =
     run &&
@@ -1343,10 +1395,33 @@ function ClassView({ ops, block }) {
         type: "startClass",
         session: block.id,
         minutes,
+        warmup,
+        rounds,
         actor: ops.actor,
       }),
     );
   };
+  const hold = () =>
+    ops.run("Clock on hold.", (s) =>
+      applyGym(s, { type: "hold", session: block.id, actor: ops.actor }),
+    );
+  const resume = () =>
+    ops.run("Clock running again.", (s) =>
+      applyGym(s, { type: "resume", session: block.id, actor: ops.actor }),
+    );
+  const live = run?.startedAt ? rotation(run, Date.now()) : null;
+  // A head coach who also has a group or station can switch to it.
+  const post = postOf(run, me.id);
+  const mine = post && (
+    <button
+      className="button outline-light"
+      onClick={() => ops.enter(block, "station")}
+    >
+      {runMode(run) === "group"
+        ? `My group: ${post.group + 1}`
+        : `My station: ${stationLabel(post.station)}`}
+    </button>
+  );
   const rotate = () =>
     ops.run("Rotated.", (s) =>
       applyGym(s, { type: "rotate", session: block.id, actor: ops.actor }),
@@ -1367,6 +1442,7 @@ function ClassView({ ops, block }) {
           <Play size={18} />{" "}
           {wide.length && confirmWide ? "Start anyway" : "Start class"}
         </button>
+        {mine}
         {wide.length > 0 && confirmWide && (
           <span className="cf-hero-warn">
             <AlertTriangle size={14} /> Group{" "}
@@ -1376,14 +1452,32 @@ function ClassView({ ops, block }) {
       </>
     ) : step === "live" ? (
       <>
-        {!rotation(run, Date.now()).done && (
+        {live && !live.done && (
+          <button
+            className="button outline-light"
+            onClick={live.paused ? resume : hold}
+          >
+            {live.paused ? (
+              <>
+                <Play size={18} /> Resume
+              </>
+            ) : (
+              <>
+                <Pause size={18} /> Hold
+              </>
+            )}
+          </button>
+        )}
+        {live && !live.done && !live.paused && (
           <button className="button outline-light" onClick={rotate}>
-            <SkipForward size={18} /> Rotate now
+            <SkipForward size={18} />{" "}
+            {live.warmup ? "Skip warm-up" : "Rotate now"}
           </button>
         )}
         <button className="button cyan" onClick={end}>
           <Square size={16} /> End class
         </button>
+        {mine}
       </>
     ) : (
       <button className="button cyan" onClick={ops.home}>
@@ -1392,11 +1486,16 @@ function ClassView({ ops, block }) {
     );
 
   const leads = {
-    attendance: `Tap kids in as they arrive. ${ins.length} of ${roster.length} here.`,
+    attendance: `Drag or tap kids in from the gym. ${ins.length} of ${roster.length} on the roster here.`,
     groups: run?.raised
       ? `${run.groups.length} groups, not ${run.raised}: fewer would put kids outside the age rule together.`
       : `${run?.groups?.length ?? 0} groups, sorted by age, then level. Move anyone who shouldn't be together.`,
-    live: "Coaches stay put and the groups rotate. Every coach's phone shows the same clock.",
+    live:
+      run?.groups?.length === 1
+        ? "One group: the class moves through the stations together. Every coach's phone shows the same clock."
+        : runMode(run) === "group"
+          ? "Each coach keeps their group and walks it to the next station. Every coach's phone shows the same clock."
+          : "Coaches stay put and the groups rotate. Every coach's phone shows the same clock.",
     wrap: `${plural(ids.length, "kid", "kids")} in class · ${plural(skills.length, "skill", "skills")} unlocked.`,
   };
   const late = run?.attendanceAt
@@ -1437,7 +1536,10 @@ function ClassView({ ops, block }) {
             ) : step === "groups" ? (
               <div className="cf-bignum">
                 <strong>{run.groups.length}</strong>
-                <small>groups · {minutes} min each</small>
+                <small>
+                  {run.groups.length === 1 ? "group" : "groups"} · {minutes} min
+                  per station
+                </small>
               </div>
             ) : step === "live" ? (
               <TimerRing run={run} />
@@ -1476,6 +1578,7 @@ function ClassView({ ops, block }) {
             </button>
           </div>
         )}
+        {step !== "wrap" && <ClassCoaches ops={ops} block={block} />}
         {step === "attendance" && (
           <AttendanceStep ops={ops} block={block} roster={roster} ins={ins} />
         )}
@@ -1486,7 +1589,14 @@ function ClassView({ ops, block }) {
             run={run}
             minutes={minutes}
             setMinutes={setMinutes}
+            warmup={warmup}
+            setWarmup={setWarmup}
+            rounds={rounds}
+            setRounds={setRounds}
           />
+        )}
+        {(step === "groups" || step === "live") && (
+          <LateArrivals ops={ops} block={block} />
         )}
         {step === "live" && <LiveStep ops={ops} block={block} run={run} />}
         {step === "wrap" && (
@@ -1504,105 +1614,255 @@ function ClassView({ ops, block }) {
   );
 }
 
-function AttendanceStep({ ops, block, roster, ins }) {
+// Drag a chip onto anything marked data-drop. Mouse drags after a small
+// move; touch and pen drag after a short press, so a swipe still scrolls.
+// A plain tap or click runs the chip's own action.
+// The drop zone under the pointer, looking through the docked action bar
+// and anything else floating on top.
+const dropAt = (ev) => {
+  for (const el of document.elementsFromPoint(ev.clientX, ev.clientY)) {
+    const zone = el.closest("[data-drop]");
+    if (zone) return zone.getAttribute("data-drop");
+  }
+  return null;
+};
+function useDrag(onDrop) {
+  const [ghost, setGhost] = useState(null);
+  const dragged = useRef(false);
+  const bind = (id, label) => ({
+    onPointerDown(e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      // No text selection or native drag while a mouse drags a chip.
+      if (e.pointerType === "mouse") e.preventDefault();
+      dragged.current = false;
+      const sx = e.clientX;
+      const sy = e.clientY;
+      const touch = e.pointerType !== "mouse";
+      let live = false;
+      let timer = null;
+      let edge = null;
+      let last = { clientX: sx, clientY: sy };
+      const begin = (x, y) => {
+        live = true;
+        dragged.current = true;
+        navigator.vibrate?.(15);
+        setGhost({ id, label, x, y, over: null });
+        // Hold near the top or bottom of the screen to scroll while dragging.
+        edge = setInterval(() => {
+          const zone = 120;
+          const y = last.clientY;
+          const step = y < zone ? -14 : y > window.innerHeight - zone ? 14 : 0;
+          if (!step) return;
+          window.scrollBy(0, step);
+          setGhost((g) => g && { ...g, over: dropAt(last) });
+        }, 16);
+      };
+      const block = (ev) => live && ev.preventDefault();
+      const move = (ev) => {
+        last = { clientX: ev.clientX, clientY: ev.clientY };
+        if (!live) {
+          const far = Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8;
+          if (touch) {
+            if (far) stop();
+            return;
+          }
+          if (!far) return;
+          begin(ev.clientX, ev.clientY);
+        }
+        ev.preventDefault();
+        setGhost({ id, label, x: ev.clientX, y: ev.clientY, over: dropAt(ev) });
+      };
+      const up = (ev) => {
+        const target = live ? dropAt(ev) : null;
+        stop();
+        if (target) onDrop(id, target);
+      };
+      function stop() {
+        clearTimeout(timer);
+        clearInterval(edge);
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", stop);
+        document.removeEventListener("touchmove", block);
+        if (live) setGhost(null);
+        live = false;
+      }
+      if (touch) timer = setTimeout(() => begin(sx, sy), 280);
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", stop);
+      document.addEventListener("touchmove", block, { passive: false });
+    },
+    // A finished drag isn't also a tap.
+    onClickCapture(e) {
+      if (dragged.current) {
+        e.stopPropagation();
+        e.preventDefault();
+        dragged.current = false;
+      }
+    },
+    onContextMenu: (e) => e.preventDefault(),
+  });
+  const layer = ghost && (
+    <div
+      className="cf-ghost"
+      style={{ left: ghost.x, top: ghost.y }}
+      aria-hidden="true"
+    >
+      {ghost.label}
+    </div>
+  );
+  return { bind, ghost, layer };
+}
+
+// Two-year age bands for finding kids fast on the attendance board.
+const attBands = [
+  [0, 6, "Up to 6"],
+  [7, 8, "Ages 7–8"],
+  [9, 10, "Ages 9–10"],
+  [11, 12, "Ages 11–12"],
+  [13, 99, "13 and up"],
+];
+function byAgeBand(ids) {
+  return attBands
+    .map(([lo, hi, label]) => ({
+      label,
+      ids: ids
+        .filter((id) => {
+          const a = kidById(id).age;
+          return a >= lo && a <= hi;
+        })
+        .sort((a, b) => kidById(a).first.localeCompare(kidById(b).first)),
+    }))
+    .filter((b) => b.ids.length);
+}
+// Kids in the gym who could plausibly be in this class: within a year of
+// its age range.
+function fitsClass(block, id) {
+  const [lo, hi] = String(block.ages ?? "")
+    .split(/[–-]/)
+    .map(Number);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return true;
+  const a = kidById(id).age;
+  return a >= lo - 1 && a <= hi + 1;
+}
+
+// Class attendance as a board. Kids the front desk checked in wait on the
+// left, sorted into age bands; drag or tap them into the class. A kid on
+// the roster who hasn't been to the desk can still join; they're flagged
+// and the front desk sees it on their list. One search finds anyone.
+function AttendanceBoard({ ops, block, roster, ins, compact = false }) {
   const { state, now } = ops;
   const [query, setQuery] = useState("");
+  const [others, setOthers] = useState(false);
   const inIds = ins.map((c) => c.childId);
-  const sorted = roster
-    .slice()
-    .sort((a, b) => kidById(a).first.localeCompare(kidById(b).first));
-  const atDesk = sorted.filter(
-    (id) =>
-      !inIds.includes(id) && hereNow(state, now).some((p) => p.childId === id),
+  const gym = hereNow(state, now).map((p) => p.childId);
+  const waiting = gym.filter(
+    (id) => !inIds.includes(id) && roster.includes(id),
   );
-  const unrated = inIds.filter((id) => !levelOf(state, id));
-  // Anyone: enrolled kids, walk-ins and their siblings. The list stays up
-  // so a whole family can be tapped in.
-  const hits = query.trim().length >= 2 ? findKids(query) : [];
-  const toggle = (id, el) => {
-    const kid = kidById(id);
-    if (inIds.includes(id))
-      ops.run(`${kid.first} unmarked.`, (s) =>
+  const extra = gym.filter(
+    (id) => !inIds.includes(id) && !roster.includes(id) && fitsClass(block, id),
+  );
+  const missing = roster.filter(
+    (id) => !inIds.includes(id) && !gym.includes(id),
+  );
+  const add = (ids, el) => {
+    const list = ids.filter((id) => !inIds.includes(id));
+    if (!list.length) return;
+    const off = list.filter((id) => !gym.includes(id));
+    const names =
+      list.length === 1 ? kidById(list[0]).first : `${list.length} kids`;
+    ops.run(
+      off.length
+        ? `${names} in class. ${off.map((id) => kidById(id).first).join(", ")} flagged for the front desk.`
+        : `${names} in class. +${pointsLabel(kidById(list[0]), 5)}`,
+      (s) =>
         applyGym(s, {
-          type: "undoCheckIn",
+          type: "checkIn",
           session: block.id,
-          childId: id,
+          childIds: list,
+          asLead: true,
           actor: ops.actor,
         }),
-      );
-    else
-      ops.run(
-        `${kid.first} is here. +${pointsLabel(kid, 5)}`,
-        (s) =>
-          applyGym(s, {
-            type: "checkIn",
-            session: block.id,
-            childIds: [id],
-            asLead: true,
-            actor: ops.actor,
-          }),
-        {
-          spark: el,
-        },
-      );
+      { spark: el },
+    );
   };
-  return (
-    <>
-      <div className="stat-strip cf-strip">
-        <section className="stat-tile tile-sky">
-          <span className="eyebrow">Here</span>
-          <strong className="stat-value">
-            <CountUp value={ins.length} />
-            <small>/ {roster.length}</small>
-          </strong>
-          <b>marked in class</b>
-        </section>
-        <section className="stat-tile tile-mint">
-          <span className="eyebrow">At the front desk</span>
-          <strong className="stat-value">
-            <CountUp value={atDesk.length} />
-          </strong>
-          <b>checked in, not marked yet</b>
-          {atDesk.length > 0 && (
+  const remove = (id) =>
+    ops.run(`${kidById(id).first} taken out of class.`, (s) =>
+      applyGym(s, {
+        type: "undoCheckIn",
+        session: block.id,
+        childId: id,
+        actor: ops.actor,
+      }),
+    );
+  const { bind, ghost, layer } = useDrag((id, zone) => {
+    if (zone === "in") add([id]);
+    if (zone === "out" && inIds.includes(id)) remove(id);
+  });
+  const hits = query.trim().length >= 2 ? findKids(query) : [];
+  const chip = (id, { inClass = false, offDesk = false } = {}) => {
+    const kid = kidById(id);
+    return (
+      <button
+        key={id}
+        className={`cf-ac ${inClass ? "is-in" : ""} ${offDesk ? "is-off" : ""} ${ghost?.id === id ? "is-lifted" : ""}`.trim()}
+        aria-label={
+          inClass
+            ? `${kid.name}, in class. Tap to take out.`
+            : `Add ${kid.name}${offDesk ? ", not at the front desk" : ""}`
+        }
+        onClick={(e) => (inClass ? remove(id) : add([id], e.currentTarget))}
+        {...bind(id, kid.first)}
+      >
+        <KidFace id={id} state={state} now={now} size={34} />
+        <span className="cf-ac-name">
+          <b>{kid.first}</b> <small>{kid.age}</small>
+        </span>
+        {offDesk && (
+          <em
+            className="cf-flag f-desk"
+            title="Not checked in at the front desk"
+          >
+            No desk
+          </em>
+        )}
+        <FlagChips state={state} id={id} now={now} skip={["desk"]} />
+      </button>
+    );
+  };
+  const bands = (ids, opts, addAll = true) =>
+    byAgeBand(ids).map((b) => (
+      <div key={b.label} className="cf-band">
+        <div className="cf-band-head">
+          <span>
+            {b.label} · {b.ids.length}
+          </span>
+          {addAll && b.ids.length > 1 && (
             <button
               className="text-button"
-              onClick={(e) =>
-                ops.run(
-                  `${atDesk.length} kids marked here.`,
-                  (s) =>
-                    applyGym(s, {
-                      type: "checkIn",
-                      session: block.id,
-                      childIds: atDesk,
-                      asLead: true,
-                      actor: ops.actor,
-                    }),
-                  {
-                    spark: e.currentTarget,
-                  },
-                )
-              }
+              onClick={(e) => add(b.ids, e.currentTarget)}
             >
-              Mark all {atDesk.length} <ArrowRight size={14} />
+              Add all {b.ids.length}
             </button>
           )}
-        </section>
-        <section className="stat-tile tile-lime">
-          <span className="eyebrow">First time</span>
-          <strong className="stat-value">
-            <CountUp value={unrated.length} />
-          </strong>
-          <b>need a level: tap B, I or A</b>
-        </section>
+        </div>
+        <div className="cf-band-kids">
+          {b.ids.map((id) => chip(id, opts(id)))}
+        </div>
       </div>
+    ));
+  const unrated = inIds.filter((id) => !levelOf(state, id));
+  return (
+    <>
       <div className="cf-toolbar">
         <SearchField
           value={query}
           onChange={setQuery}
-          label="Find a kid"
-          placeholder="Find a kid: name, parent or phone"
+          label="Find any kid"
+          placeholder="Find any kid: name, parent or phone"
         />
-        <TenureLegend />
+        {!compact && <TenureLegend />}
       </div>
       {query.trim().length >= 2 && (
         <div className="cf-hits">
@@ -1611,81 +1871,329 @@ function AttendanceStep({ ops, block, roster, ins }) {
           )}
           {hits.slice(0, 12).map((k) => {
             const on = inIds.includes(k.id);
+            const desk = gym.includes(k.id);
             return (
               <button
                 key={k.id}
                 className="chip cf-hit"
                 aria-pressed={on}
-                onClick={(e) => toggle(k.id, e.currentTarget)}
+                onClick={(e) =>
+                  on ? remove(k.id) : add([k.id], e.currentTarget)
+                }
               >
                 {on ? <Check size={14} /> : "+"} {k.name} · {k.age}
-                {!roster.includes(k.id) && !on ? " · walk-in" : ""}
+                {!on && !desk ? " · not at the desk" : ""}
+                {!on && !roster.includes(k.id) ? " · walk-in" : ""}
               </button>
             );
           })}
         </div>
       )}
-      <div className="cf-att-grid">
-        {sorted.map((id) => {
-          const kid = kidById(id);
-          const on = inIds.includes(id);
-          const desk = hereNow(state, now).find((p) => p.childId === id);
-          return (
-            <article
-              key={id}
-              className={`cf-att card ${on ? "is-in" : ""}`.trim()}
-            >
+      <div className={`cf-attboard ${compact ? "is-compact" : ""}`.trim()}>
+        <section
+          className={`card cf-col ${ghost?.over === "out" ? "is-over" : ""}`.trim()}
+          data-drop="out"
+          aria-label="In the gym"
+        >
+          <header className="cf-col-head">
+            <span>
+              <b>{compact ? "Late arrivals" : "In the gym"}</b>
+              <small>Checked in at the front desk</small>
+            </span>
+            {waiting.length > 1 && (
               <button
-                className="cf-att-main"
-                aria-pressed={on}
-                aria-label={`${kid.name}${on ? ", here" : ""}`}
-                onClick={(e) => toggle(id, e.currentTarget)}
+                className="button outline compact"
+                onClick={(e) => add(waiting, e.currentTarget)}
               >
-                <KidFace id={id} state={state} now={now} size={52} />
-                <span className="cf-att-text">
-                  <b>
-                    {kid.first} <span className="cf-last">{lastName(id)}</span>
-                  </b>
-                  <span className="cf-tags">
-                    <small>Age {kid.age}</small>
-                    <LevelChip state={state} id={id} />
-                    <TenureTag state={state} id={id} now={now} />
-                  </span>
-                  <span className="cf-tags">
-                    {desk ? (
-                      <em className="cf-ok">Desk {clockTime(desk.in)}</em>
-                    ) : on ? (
-                      <em className="cf-flag f-desk">Not at front desk</em>
-                    ) : null}
-                    <FlagChips
-                      state={state}
-                      id={id}
-                      now={now}
-                      skip={["desk"]}
-                    />
-                  </span>
-                </span>
-                <span className="cf-check" aria-hidden="true">
-                  {on && <Check size={18} />}
-                </span>
+                Add all {waiting.length}
               </button>
-              {on && !levelOf(state, id) && <LevelPick ops={ops} id={id} />}
-            </article>
-          );
-        })}
+            )}
+          </header>
+          {waiting.length ? (
+            bands(waiting, () => ({}))
+          ) : (
+            <p className="cf-col-empty">
+              {roster.length
+                ? "Everyone on the roster who's at the desk is in class."
+                : "No one on the roster yet."}
+            </p>
+          )}
+          {missing.length > 0 && (
+            <div className="cf-band is-missing">
+              <div className="cf-band-head">
+                <span>Not at the front desk yet · {missing.length}</span>
+              </div>
+              <p className="cf-band-note">
+                Here anyway? Add them. They're flagged so the desk can check
+                them in.
+              </p>
+              <div className="cf-band-kids">
+                {missing.map((id) => chip(id, { offDesk: true }))}
+              </div>
+            </div>
+          )}
+          {extra.length > 0 && (
+            <div className="cf-band is-others">
+              <button
+                className="text-button"
+                aria-expanded={others}
+                onClick={() => setOthers(!others)}
+              >
+                {others ? "Hide" : "Show"} others in the gym · {extra.length}{" "}
+                <ChevronDown size={14} />
+              </button>
+              {others && bands(extra, () => ({}), false)}
+            </div>
+          )}
+        </section>
+        {!compact && (
+          <section
+            className={`card cf-col cf-col-in ${ghost?.over === "in" ? "is-over" : ""}`.trim()}
+            data-drop="in"
+            aria-label="In class"
+          >
+            <header className="cf-col-head">
+              <span>
+                <b>In class · {inIds.length}</b>
+                <small>
+                  {unrated.length
+                    ? `${unrated.length} need a level: B, I or A`
+                    : "Tap a kid to take them out"}
+                </small>
+              </span>
+            </header>
+            {inIds.length ? (
+              byAgeBand(inIds).map((b) => (
+                <div key={b.label} className="cf-band">
+                  <div className="cf-band-head">
+                    <span>
+                      {b.label} · {b.ids.length}
+                    </span>
+                  </div>
+                  <div className="cf-band-kids">
+                    {b.ids.map((id) => (
+                      <span key={id} className="cf-ac-wrap">
+                        {chip(id, {
+                          inClass: true,
+                          offDesk: !gym.includes(id),
+                        })}
+                        {!levelOf(state, id) && (
+                          <LevelPick ops={ops} id={id} label={false} />
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="cf-col-empty">Drag kids here, or tap them.</p>
+            )}
+          </section>
+        )}
       </div>
+      {layer}
     </>
   );
 }
 
-function GroupsStep({ ops, block, run, minutes, setMinutes }) {
+function AttendanceStep({ ops, block, roster, ins }) {
+  return <AttendanceBoard ops={ops} block={block} roster={roster} ins={ins} />;
+}
+
+// After attendance: kids who turn up late go straight into a group.
+function LateArrivals({ ops, block }) {
+  const [open, setOpen] = useState(false);
+  const { state, now } = ops;
+  const ins = checkinsFor(state, block.id);
+  const inIds = ins.map((c) => c.childId);
+  const roster = rosterFor(block.index).map((p) => p.id);
+  const waiting = hereNow(state, now)
+    .map((p) => p.childId)
+    .filter((id) => !inIds.includes(id) && roster.includes(id));
+  return (
+    <section className="card cf-late">
+      <button
+        className="cf-late-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        <UserPlus size={18} aria-hidden="true" />
+        <b>Add a late kid</b>
+        <small>
+          {waiting.length
+            ? `${plural(waiting.length, "kid", "kids")} on the roster at the desk, not in class`
+            : "They join the group that fits their age"}
+        </small>
+        <ChevronDown size={16} aria-hidden="true" />
+      </button>
+      {open && (
+        <AttendanceBoard
+          ops={ops}
+          block={block}
+          roster={roster}
+          ins={ins}
+          compact
+        />
+      )}
+    </section>
+  );
+}
+
+// Who's coaching this class today. The head coach can add a coach who
+// jumps in to help; that coach gets the class on their phone like the
+// crew: their group or station, check-offs, bonus picks, hold and notes.
+function ClassCoaches({ ops, block }) {
+  const { state, now } = ops;
+  const run = runOf(state, block.id);
+  const crew = classCrew(state, block, now).filter(
+    (c) => c.role !== "attendant",
+  );
+  const leadId = staff.find((s) => s.name === run?.lead)?.id;
+  if (leadId && !crew.some((c) => c.staffId === leadId))
+    crew.unshift({ staffId: leadId, role: "head" });
+  const ids = run?.groups
+    ? run.groups.flat()
+    : checkinsFor(state, block.id).map((c) => c.childId);
+  const { limit } = groupLimit(state, ids);
+  const need = Math.max(1, Math.ceil(ids.length / limit));
+  const free = coaches.filter((c) => !crew.some((x) => x.staffId === c.id));
+  const fewerGroups =
+    run?.groups && !run.startedAt && run.groups.length < crew.length;
+  const add = (id) =>
+    id &&
+    ops.run(`${firstName(staffName(id))} is helping with ${block.name}.`, (s) =>
+      applyGym(s, {
+        type: "addHelper",
+        session: block.id,
+        staffId: id,
+        actor: ops.actor,
+      }),
+    );
+  const remove = (id) =>
+    ops.run(`${firstName(staffName(id))} is off this class.`, (s) =>
+      applyGym(s, {
+        type: "removeHelper",
+        session: block.id,
+        staffId: id,
+        actor: ops.actor,
+      }),
+    );
+  return (
+    <section className="card cf-coaches" aria-label="Coaches in this class">
+      <div className="cf-coaches-head">
+        <span className="eyebrow">Coaches in this class</span>
+        {ids.length > 0 && (
+          <em className={crew.length < need ? "cf-flag f-pastDue" : "cf-ok"}>
+            {ids.length} kids at 1:{limit} ·{" "}
+            {crew.length < need
+              ? `needs ${need} coaches, ${crew.length} here`
+              : plural(crew.length, "coach is", "coaches are") + " enough"}
+          </em>
+        )}
+      </div>
+      <div className="cf-coach-list">
+        {crew.map((c) => {
+          const s = staff.find((x) => x.id === c.staffId);
+          return (
+            <span key={c.staffId} className="cf-coach-pill">
+              <CoachMark
+                initials={s.initials}
+                role={c.role === "helper" ? "station" : c.role}
+                size={30}
+              />
+              <span>
+                <b>{firstName(s.name)}</b>
+                <small>{roleNames[c.role]}</small>
+              </span>
+              {c.role === "helper" && (
+                <IconButton
+                  label={`${firstName(s.name)} isn't helping`}
+                  icon={X}
+                  tone="danger"
+                  size={14}
+                  onClick={() => remove(c.staffId)}
+                />
+              )}
+            </span>
+          );
+        })}
+        {free.length > 0 && (
+          <label className="cf-pill-select cf-add-helper">
+            <Hand size={14} aria-hidden="true" />
+            <span className="sr-only">Another coach is helping</span>
+            <select value="" onChange={(e) => add(e.target.value)}>
+              <option value="">Another coach is helping…</option>
+              {free.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {firstName(c.name)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} />
+          </label>
+        )}
+      </div>
+      {fewerGroups && (
+        <p className="cf-coaches-note">
+          {plural(crew.length, "coach", "coaches")} and{" "}
+          {plural(run.groups.length, "group", "groups")}.{" "}
+          <button
+            className="text-button"
+            onClick={() =>
+              ops.run(`Re-sorted into ${crew.length} groups.`, (s) =>
+                applyGym(s, {
+                  type: "regroup",
+                  session: block.id,
+                  count: Math.min(crew.length, stations.length),
+                  actor: ops.actor,
+                }),
+              )
+            }
+          >
+            Give every coach a group <ArrowRight size={14} />
+          </button>
+        </p>
+      )}
+    </section>
+  );
+}
+
+function GroupsStep({
+  ops,
+  block,
+  run,
+  minutes,
+  setMinutes,
+  warmup,
+  setWarmup,
+  rounds,
+  setRounds,
+}) {
   const { state, now } = ops;
   const [moving, setMoving] = useState(null);
-  const [over, setOver] = useState(null);
   const plan = planFor(state, block.index);
+  const mode = runMode(run);
+  const traveling = mode === "group";
+  const length = toMinutes(block.end) - toMinutes(block.start);
+  const time = classTimeline(length, {
+    warmup,
+    minutes,
+    stations: run.stations.length,
+    rounds,
+  });
+  const regroup = (patch, note) => {
+    setRounds(null);
+    ops.run(note, (s) =>
+      applyGym(s, {
+        type: "regroup",
+        session: block.id,
+        actor: ops.actor,
+        ...patch,
+      }),
+    );
+  };
   const move = (id, to) => {
     setMoving(null);
-    setOver(null);
     if (run.groups[to].includes(id)) return;
     ops.run(`${kidById(id).first} moved to group ${to + 1}.`, (s) =>
       applyGym(s, {
@@ -1697,49 +2205,155 @@ function GroupsStep({ ops, block, run, minutes, setMinutes }) {
       }),
     );
   };
-  const unassigned = run.stations.filter((st) => !run.coaches[st]);
+  const { bind, ghost, layer } = useDrag((id, zone) => {
+    if (zone.startsWith("g")) move(id, Number(zone.slice(1)));
+  });
+  const setCoach = (g, staffId) =>
+    ops.run(null, (s) =>
+      applyGym(
+        s,
+        traveling
+          ? {
+              type: "setLeader",
+              session: block.id,
+              group: g,
+              staffId,
+              actor: ops.actor,
+            }
+          : {
+              type: "setCoach",
+              session: block.id,
+              station: run.stations[g],
+              staffId,
+              actor: ops.actor,
+            },
+      ),
+    );
+  const coachOf = (g) => coachOfGroup(run, g);
+  const uncoached = run.groups
+    .map((_, g) => g)
+    .filter((g) => !coachOf(g))
+    .map((g) => g + 1);
+  const options = [
+    ...new Set([
+      ...classCrew(state, block, now)
+        .filter((c) => c.role !== "attendant")
+        .map((c) => c.staffId),
+      ...coaches.map((c) => c.id),
+    ]),
+  ];
   return (
     <>
-      <div className="cf-toolbar">
-        <span className="cf-count" role="group" aria-label="Number of groups">
-          Groups
-          {stations.map((_, i) => (
-            <button
-              key={i}
-              aria-pressed={run.groups.length === i + 1}
-              onClick={() =>
-                ops.run(`Re-sorted into ${i + 1} groups.`, (s) =>
-                  applyGym(s, {
-                    type: "regroup",
-                    session: block.id,
-                    count: i + 1,
-                    actor: ops.actor,
-                  }),
+      <section className="card cf-builder" aria-label="How the class runs">
+        <div className="cf-builder-row">
+          <span className="cf-count" role="group" aria-label="Number of groups">
+            Groups
+            {stations.map((_, i) => (
+              <button
+                key={i}
+                aria-pressed={run.groups.length === i + 1}
+                onClick={() =>
+                  regroup({ count: i + 1 }, `Re-sorted into ${i + 1} groups.`)
+                }
+              >
+                {i + 1}
+              </button>
+            ))}
+          </span>
+          {run.groups.length > 1 && (
+            <Segmented
+              size="sm"
+              label="How the coaches move"
+              value={mode}
+              options={Object.entries(coachModes).map(([value, m]) => ({
+                value,
+                label: m.label,
+              }))}
+              onChange={(m) =>
+                m !== mode &&
+                regroup(
+                  { mode: m, count: run.groups.length },
+                  coachModes[m].long + ".",
                 )
               }
+            />
+          )}
+        </div>
+        <p className="cf-builder-note">
+          {run.groups.length === 1
+            ? `One group: the coach takes the whole class through ${plural(run.stations.length, "station", "stations")} together.`
+            : `${coachModes[mode].long}. ${
+                traveling
+                  ? `${run.groups.length} groups share ${run.stations.length} stations, so some sit empty each rotation.`
+                  : `${run.stations.length} stations, one per group.`
+              }`}
+        </p>
+        <div className="cf-builder-row">
+          <label className="cc-inline">
+            Warm-up
+            <select
+              value={warmup}
+              onChange={(e) => setWarmup(Number(e.target.value))}
             >
-              {i + 1}
-            </button>
-          ))}
-        </span>
-        <label className="cc-inline">
-          Minutes per station
-          <select
-            value={minutes}
-            onChange={(e) => setMinutes(Number(e.target.value))}
-          >
-            {[5, 8, 10, 12, 15, 20].map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-        </label>
+              {[...new Set([0, 3, 5, 8, 10, warmup])]
+                .sort((a, b) => a - b)
+                .map((m) => (
+                  <option key={m} value={m}>
+                    {m ? `${m} min` : "None"}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="cc-inline">
+            Minutes per station
+            <select
+              value={minutes}
+              onChange={(e) => {
+                const m = Number(e.target.value);
+                setMinutes(m);
+                setRounds(fitRounds(length, warmup, run.stations.length, m));
+              }}
+            >
+              {[...new Set([5, 8, 10, 12, 15, 20, minutes])]
+                .sort((a, b) => a - b)
+                .map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+            </select>
+          </label>
+          <label className="cc-inline">
+            Times through
+            <select
+              value={rounds}
+              onChange={(e) => setRounds(Number(e.target.value))}
+            >
+              {Array.from({ length: MAX_ROUNDS }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? "Once" : `${n} times`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Tag tone={time.over ? "warn" : "info"} icon={Timer}>
+            {warmup ? `${warmup} warm-up + ` : ""}
+            {run.stations.length * rounds} × {minutes} = {time.used} of {length}{" "}
+            min
+            {time.over
+              ? " · runs over"
+              : time.spare > 0
+                ? ` · ${time.spare} to close`
+                : ""}
+          </Tag>
+        </div>
+      </section>
+      <div className="cf-toolbar">
         <span className="cc-muted cf-hint">
           Drag a kid, or tap one and then a group.
         </span>
-        {unassigned.length > 0 && (
+        {uncoached.length > 0 && (
           <span className="cf-flag f-desk">
-            <AlertTriangle size={12} /> No coach at{" "}
-            {unassigned.map(stationLabel).join(", ")}
+            <AlertTriangle size={12} /> No coach for group{" "}
+            {uncoached.join(", ")}
           </span>
         )}
       </div>
@@ -1747,23 +2361,18 @@ function GroupsStep({ ops, block, run, minutes, setMinutes }) {
       <div className="cf-board" style={{ "--cols": run.groups.length }}>
         {run.groups.map((ids, g) => {
           const sum = groupSummary(state, ids);
+          const ratio = groupLimit(state, ids);
           const st = run.stations[g];
           const meta = stations.find((s) => s.id === st);
+          const route = run.stations
+            .map((_, i) => run.stations[(g + i) % run.stations.length])
+            .map(stationLabel);
           return (
             <section
               key={g}
-              className={`cf-group card ${over === g ? "is-over" : ""} ${moving && !ids.includes(moving) ? "is-target" : ""}`.trim()}
+              className={`cf-group card ${ghost?.over === `g${g}` ? "is-over" : ""} ${moving && !ids.includes(moving) ? "is-target" : ""}`.trim()}
               style={{ "--station": meta.color }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setOver(g);
-              }}
-              onDragLeave={() => setOver(null)}
-              onDrop={(e) => {
-                e.preventDefault();
-                const id = e.dataTransfer.getData("text/plain");
-                if (id) move(id, g);
-              }}
+              data-drop={`g${g}`}
               aria-label={`Group ${g + 1}`}
             >
               <header>
@@ -1784,27 +2393,25 @@ function GroupsStep({ ops, block, run, minutes, setMinutes }) {
                   <b>{meta.name}</b>
                 </span>
               </div>
-              <p className="cf-group-focus">{focusAt(plan, st)}</p>
+              {traveling || run.groups.length === 1 ? (
+                <p className="cf-group-focus">Route: {route.join(" → ")}</p>
+              ) : (
+                <p className="cf-group-focus">{focusAt(plan, st)}</p>
+              )}
               <label className="cf-field">
-                <span>Coach</span>
+                <span>
+                  {traveling || run.groups.length === 1
+                    ? "Coach with this group"
+                    : `Coach at ${meta.name}`}
+                </span>
                 <select
-                  value={run.coaches[st] ?? ""}
-                  onChange={(e) =>
-                    ops.run(null, (s) =>
-                      applyGym(s, {
-                        type: "setCoach",
-                        session: block.id,
-                        station: st,
-                        staffId: e.target.value,
-                        actor: ops.actor,
-                      }),
-                    )
-                  }
+                  value={coachOf(g) ?? ""}
+                  onChange={(e) => setCoach(g, e.target.value)}
                 >
                   <option value="">Choose a coach</option>
-                  {coaches.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
+                  {options.map((id) => (
+                    <option key={id} value={id}>
+                      {staffName(id)}
                     </option>
                   ))}
                 </select>
@@ -1814,20 +2421,22 @@ function GroupsStep({ ops, block, run, minutes, setMinutes }) {
                   <AlertTriangle size={12} /> Ages outside the rule
                 </em>
               )}
+              {ratio.over && (
+                <em className="cf-flag f-pastDue">
+                  <AlertTriangle size={12} /> {ids.length} kids for one coach
+                  (1:{ratio.limit}). Split it or add a coach.
+                </em>
+              )}
               <div className="cf-group-kids">
                 {ids.map((id) => {
                   const kid = kidById(id);
                   return (
                     <button
                       key={id}
-                      className="cf-kidchip"
-                      draggable
+                      className={`cf-kidchip ${ghost?.id === id ? "is-lifted" : ""}`.trim()}
                       aria-pressed={moving === id}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/plain", id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
                       onClick={() => setMoving(moving === id ? null : id)}
+                      {...bind(id, kid.first)}
                     >
                       <KidFace id={id} state={state} now={now} size={32} />
                       <span className="cf-kidname">
@@ -1850,6 +2459,7 @@ function GroupsStep({ ops, block, run, minutes, setMinutes }) {
           );
         })}
       </div>
+      {layer}
     </>
   );
 }
@@ -1858,16 +2468,22 @@ function StationBoard({ ops, run, block }) {
   const { state, now } = ops;
   const r = rotation(run, Date.now());
   const plan = planFor(state, block.index);
+  const traveling = runMode(run) === "group";
   return (
     <div className="cf-stations">
       {run.stations.map((st) => {
         const g = r.groupAt(st);
-        const nextG = (g - 1 + r.total) % r.total;
+        const coach = coachAt(run, st, r);
         const meta = stations.find((s) => s.id === st);
+        // Who arrives next: the group one station back.
+        const after =
+          !r.done && r.idx + 1 < r.total
+            ? run.groups.findIndex((_, x) => r.nextStationOf(x) === st)
+            : -1;
         return (
           <section
             key={st}
-            className="cf-station card"
+            className={`cf-station card ${g < 0 ? "is-empty" : ""}`.trim()}
             style={{ "--station": meta.color }}
           >
             <header>
@@ -1877,24 +2493,37 @@ function StationBoard({ ops, run, block }) {
               <span>
                 <b>{meta.name}</b>
                 <small>
-                  {run.coaches[st] ? staffName(run.coaches[st]) : "No coach"}
+                  {coach
+                    ? staffName(coach)
+                    : g < 0
+                      ? "Free this rotation"
+                      : "No coach"}
                 </small>
               </span>
-              <span className="cf-group-num small" title={`Group ${g + 1}`}>
-                {g + 1}
-              </span>
+              {g >= 0 && (
+                <span className="cf-group-num small" title={`Group ${g + 1}`}>
+                  {g + 1}
+                </span>
+              )}
             </header>
             <p className="cf-group-focus">{focusAt(plan, st)}</p>
-            <div className="cf-names">
-              {run.groups[g].map((id) => (
-                <span key={id} className="cf-namechip">
-                  <KidFace id={id} state={state} now={now} size={26} />
-                  {kidById(id).first}
-                </span>
-              ))}
-            </div>
-            {!r.done && r.idx + 1 < r.total && (
-              <small className="cf-next-group">Next: group {nextG + 1}</small>
+            {g >= 0 && (
+              <div className="cf-names">
+                {run.groups[g].map((id) => (
+                  <span key={id} className="cf-namechip">
+                    <KidFace id={id} state={state} now={now} size={26} />
+                    {kidById(id).first}
+                  </span>
+                ))}
+              </div>
+            )}
+            {after >= 0 && (
+              <small className="cf-next-group">
+                Next: group {after + 1}
+                {traveling && coachOfGroup(run, after)
+                  ? ` with ${firstName(staffName(coachOfGroup(run, after)))}`
+                  : ""}
+              </small>
             )}
           </section>
         );
@@ -1904,22 +2533,17 @@ function StationBoard({ ops, run, block }) {
 }
 
 function LiveStep({ ops, block, run }) {
-  const mine = stationOfCoach(run, ops.me.id);
+  const traveling = runMode(run) === "group";
   return (
     <>
       <SectionHead
         title="Where everyone is"
-        note="The number in the corner is the group. It moves one station along each rotation."
-      >
-        {mine && (
-          <button
-            className="button navy compact"
-            onClick={() => ops.enter(block, "station")}
-          >
-            My station: {stationLabel(mine)}
-          </button>
-        )}
-      </SectionHead>
+        note={
+          traveling
+            ? "The number in the corner is the group. Each coach moves with their group."
+            : "The number in the corner is the group. It moves one station along each rotation."
+        }
+      />
       <StationBoard ops={ops} run={run} block={block} />
     </>
   );
@@ -1931,14 +2555,7 @@ function WrapStep({ ops, block, run, skills }) {
   const late = Math.round(
     (Date.parse(run.attendanceDoneAt) - classStart(block)) / 60000,
   );
-  const coaches = [
-    ...new Set(
-      [
-        ...Object.values(run.coaches).filter(Boolean),
-        staff.find((s) => s.name === run.lead)?.id,
-      ].filter(Boolean),
-    ),
-  ];
+  const coaches = runCoaches(run);
   return (
     <>
       <div className="stat-strip cf-strip">
@@ -2025,61 +2642,152 @@ function WrapStep({ ops, block, run, skills }) {
 
 /* ---------- Station coach ---------- */
 
+// A coach's own corner of a class: the group with them now, each kid's
+// next skill, and what's coming. With coaches staying put it follows the
+// coach's station; with coaches traveling it follows their group.
 function StationView({ ops, block }) {
   const { state, me, now } = ops;
   const run = runOf(state, block.id);
-  const assigned = stationOfCoach(run, me.id);
+  const traveling = runMode(run) === "group";
+  const post = postOf(run, me.id);
   const [chosen, setChosen] = useState(null);
-  const st = chosen ?? assigned;
   const plan = planFor(state, block.index);
-  const meta = stations.find((s) => s.id === st);
   const r = run?.startedAt ? rotation(run, Date.now()) : null;
-  const g =
-    run?.groups && st ? (r ? r.groupAt(st) : run.stations.indexOf(st)) : -1;
+  const groupCount = run?.groups?.length ?? 0;
+  let g = -1;
+  let st = null;
+  if (run?.groups) {
+    if (traveling) {
+      g = chosen !== null ? Number(chosen) : (post?.group ?? -1);
+      st = g >= 0 ? (r ? r.stationOf(g) : run.stations[g]) : null;
+    } else {
+      st = chosen ?? post?.station ?? null;
+      const s = run.stations.indexOf(st);
+      g = st ? (r ? r.groupAt(st) : s < groupCount ? s : -1) : -1;
+    }
+  }
+  const meta = stations.find((s) => s.id === st);
   const kids = g >= 0 ? run.groups[g] : [];
+  const live = r && !r.done;
+  // Station mode: the group arriving next. Group mode: where we go next.
   const nextG =
-    r && g >= 0 && r.idx + 1 < r.total ? (g - 1 + r.total) % r.total : null;
+    !traveling && live && r.idx + 1 < r.total && st
+      ? run.groups.findIndex((_, x) => r.nextStationOf(x) === st)
+      : -1;
+  const nextSt = traveling && live && g >= 0 ? r.nextStationOf(g) : null;
+  const helping = run?.helpers?.includes(me.id);
+  // The head coach (or the manager) can jump to running the class from
+  // here, and anyone on the class can start attendance if no one has.
+  const canLead =
+    me.head || run?.lead === me.name || leadOf(state, block.index) === me.id;
+  const onClass = classCrew(state, block, now).some((c) => c.staffId === me.id);
+  const toClass = (canLead || (!run && onClass)) && (
+    <button
+      className="button cyan compact"
+      onClick={() => ops.enter(block, "head")}
+    >
+      {!run
+        ? "Take attendance"
+        : !run.groups
+          ? "Back to attendance"
+          : run.startedAt
+            ? "Run the class"
+            : "Groups and start"}{" "}
+      <ArrowRight size={16} />
+    </button>
+  );
   const picker = run?.groups && (
     <label className="cf-pill-select">
-      <span className="sr-only">Station</span>
-      <select
-        value={st ?? ""}
-        onChange={(e) => setChosen(e.target.value || null)}
-      >
-        {!st && <option value="">Pick a station</option>}
-        {run.stations.map((id) => (
-          <option key={id} value={id}>
-            {stationLabel(id)}
-            {id === assigned ? " (mine)" : ""}
-          </option>
-        ))}
-      </select>
+      <span className="sr-only">{traveling ? "Group" : "Station"}</span>
+      {traveling ? (
+        <select
+          value={g >= 0 ? String(g) : ""}
+          onChange={(e) =>
+            setChosen(e.target.value === "" ? null : e.target.value)
+          }
+        >
+          {g < 0 && <option value="">Pick a group</option>}
+          {run.groups.map((_, i) => (
+            <option key={i} value={String(i)}>
+              Group {i + 1}
+              {i === post?.group ? " (mine)" : ""}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <select
+          value={st ?? ""}
+          onChange={(e) => setChosen(e.target.value || null)}
+        >
+          {!st && <option value="">Pick a station</option>}
+          {run.stations.map((id) => (
+            <option key={id} value={id}>
+              {stationLabel(id)}
+              {id === post?.station ? " (mine)" : ""}
+            </option>
+          ))}
+        </select>
+      )}
       <ChevronDown size={14} />
     </label>
   );
+  const hold = () =>
+    ops.run(r.paused ? "Clock running again." : "Clock on hold.", (s) =>
+      applyGym(s, {
+        type: r.paused ? "resume" : "hold",
+        session: block.id,
+        actor: ops.actor,
+      }),
+    );
+  const role = helping
+    ? "Helping"
+    : run?.lead === me.name || leadOf(state, block.index) === me.id
+      ? "Head coach"
+      : traveling
+        ? "Group coach"
+        : "Station coach";
   return (
     <>
       <Masthead kind="station">
         <Hero
-          eyebrow={`Station coach · ${block.name} · ${clock(block.start)}–${clock(block.end)}`}
-          title={meta ? meta.name : "Your station"}
+          eyebrow={`${role} · ${block.name} · ${clock(block.start)}–${clock(block.end)}`}
+          title={meta ? meta.name : traveling ? "Your group" : "Your station"}
           lead={
             !run?.groups
               ? run
-                ? `${run.lead} is taking attendance. ${checkinsFor(state, block.id).length} kids in so far. Your station shows up when the groups are made.`
-                : "Attendance hasn't started. Your station shows up when the head coach makes the groups."
-              : meta
-                ? focusAt(plan, st)
-                : "You aren't on a station in this class. Pick one to follow along."
+                ? `${run.lead} is taking attendance. ${checkinsFor(state, block.id).length} kids in so far. ${traveling ? "Your group" : "Your station"} shows up when the groups are made.`
+                : canLead || onClass
+                  ? "Attendance hasn't started. Take attendance to check kids in and make the groups."
+                  : "Attendance hasn't started. You'll see your kids when the head coach makes the groups."
+              : !meta
+                ? traveling
+                  ? "You don't have a group in this class. Pick one to follow along."
+                  : "You aren't on a station in this class. Pick one to follow along."
+                : r?.warmup
+                  ? `Warm-up. ${traveling ? `Group ${g + 1} starts` : "You start"} at ${meta.name}: ${focusAt(plan, st)}`
+                  : focusAt(plan, st)
           }
-          actions={picker}
+          actions={
+            <>
+              {toClass}
+              {picker}
+              {live && (
+                <button className="button outline-light compact" onClick={hold}>
+                  {r.paused ? <Play size={16} /> : <Pause size={16} />}{" "}
+                  {r.paused ? "Resume" : "Hold"}
+                </button>
+              )}
+            </>
+          }
           aside={
             run?.startedAt ? (
               <TimerRing run={run} />
             ) : run?.groups && g >= 0 ? (
               <div className="cf-bignum">
                 <strong>{g + 1}</strong>
-                <small>group starts with you</small>
+                <small>
+                  {traveling ? "your group all class" : "group starts with you"}
+                </small>
               </div>
             ) : null
           }
@@ -2094,17 +2802,27 @@ function StationView({ ops, block }) {
             title="Class is done"
           />
         ) : (
-          st &&
-          run?.groups && (
+          g >= 0 && (
             <>
               <SectionHead
                 title={`Group ${g + 1} · ${kids.length} kids`}
                 note={
-                  r ? "With you now." : "Starts with you when the class begins."
+                  traveling
+                    ? "With you all class."
+                    : r
+                      ? "With you now."
+                      : "Starts with you when the class begins."
                 }
               >
                 <TenureLegend />
               </SectionHead>
+              {groupLimit(state, kids).over && (
+                <p className="cf-flag f-pastDue cf-ratio-flag">
+                  <AlertTriangle size={12} /> {kids.length} kids for one coach
+                  (1:{groupLimit(state, kids).limit}). Split the lanes or ask
+                  the head coach for help.
+                </p>
+              )}
               <div className="cf-rows">
                 {kids.map((id) => (
                   <KidRow
@@ -2113,10 +2831,18 @@ function StationView({ ops, block }) {
                     id={id}
                     stationId={st}
                     prefer={focusSkills(plan, st)}
+                    tags={handoffsFor(run, id)
+                      .slice(0, 2)
+                      .map((h) => (
+                        <em key={h.id} className="cf-handoff" title={h.text}>
+                          {firstName(h.by)}: {h.text}
+                        </em>
+                      ))}
                   />
                 ))}
               </div>
-              {nextG !== null && (
+              <Handoff ops={ops} block={block} kids={kids} />
+              {nextG >= 0 && (
                 <div className="card cf-upnext">
                   <span className="eyebrow">Up next · group {nextG + 1}</span>
                   <div className="cf-names">
@@ -2129,11 +2855,81 @@ function StationView({ ops, block }) {
                   </div>
                 </div>
               )}
+              {nextSt && (
+                <div className="card cf-upnext">
+                  <span className="eyebrow">
+                    Up next · {stationLabel(nextSt)}
+                  </span>
+                  <p className="cf-group-focus">{focusAt(plan, nextSt)}</p>
+                  {coachAt(run, nextSt, r) && (
+                    <small className="cc-muted">
+                      {firstName(staffName(coachAt(run, nextSt, r)))}'s group is
+                      there now. Swap on the call.
+                    </small>
+                  )}
+                </div>
+              )}
             </>
           )
         )}
       </main>
     </>
+  );
+}
+
+// One line for whoever has a kid next: "sore wrist, keep off rings".
+function Handoff({ ops, block, kids }) {
+  const [childId, setChildId] = useState("");
+  const [text, setText] = useState("");
+  if (!kids.length) return null;
+  const send = (e) => {
+    e.preventDefault();
+    if (
+      ops.run(`Note passed on for ${kidById(childId).first}.`, (s) =>
+        applyGym(s, {
+          type: "handoff",
+          session: block.id,
+          childId,
+          text,
+          actor: ops.actor,
+        }),
+      )
+    ) {
+      setText("");
+      setChildId("");
+    }
+  };
+  return (
+    <form className="card cf-handoff-form" onSubmit={send}>
+      <span className="eyebrow">Pass a note to the next coach</span>
+      <div className="cf-handoff-row">
+        <select
+          aria-label="Kid"
+          value={childId}
+          onChange={(e) => setChildId(e.target.value)}
+        >
+          <option value="">Kid…</option>
+          {kids.map((id) => (
+            <option key={id} value={id}>
+              {kidById(id).first}
+            </option>
+          ))}
+        </select>
+        <input
+          aria-label="Note"
+          maxLength={140}
+          placeholder="Sore wrist, keep off rings"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button
+          className="button navy compact"
+          disabled={!childId || !text.trim()}
+        >
+          Pass it on
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -2592,7 +3388,7 @@ function DeskTab({ ops }) {
   const { state, now } = ops;
   const rows = deskIssues(state, now);
   const name = (sid) =>
-    sessions(now).find((s) => s.id === sid)?.name ?? "Earlier";
+    sessions(now, ops.state).find((s) => s.id === sid)?.name ?? "Earlier";
   return (
     <section className="card cf-panel">
       <h3>Today · {rows.length}</h3>
@@ -2737,7 +3533,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 function PlansTab({ ops }) {
   const { state, now, me } = ops;
-  const blocks = sessions(now).slice().sort(byStart);
+  // Every block on the weekly template, not just today's: a class that
+  // doesn't run today can still be planned and staffed.
+  const blocks = scheduleOf(state)
+    .blocks.filter((b) => !b.effectiveUntil || b.effectiveUntil >= dayKey(now))
+    .map((b) => sessionFromId(state, `${dayKey(now)}:${b.id}`))
+    .sort(byStart);
   const canPlanFor = (b) =>
     b.kind === "class" && (me.head || leadOf(state, b.index) === me.id);
   const [pick, setPick] = useState(
@@ -2816,6 +3617,7 @@ function PlansTab({ ops }) {
       </nav>
       <BlockEditor
         key={block.id}
+        ops={ops}
         block={block}
         draft={draftOf(block)}
         edit={edit}
@@ -2856,11 +3658,11 @@ function CoachStack({ crew, size = 30 }) {
   );
 }
 
-function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
+function BlockEditor({ ops, block, draft, edit, canCrew, canPlan }) {
   const { crew, plan } = draft;
   const isClass = block.kind === "class";
   const length = toMinutes(block.end) - toMinutes(block.start);
-  const used = plan.stations.length * plan.minutes;
+  const used = plan.warmup + plan.stations.length * plan.minutes;
   const readOnly = !canCrew && !canPlan;
   return (
     <div className="pl-editor">
@@ -2906,6 +3708,19 @@ function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
         onChange={(next) => edit({ crew: next })}
       />
 
+      <BlockSchedule ops={ops} block={block} />
+
+      {isClass && (
+        <ClassShape
+          block={block}
+          plan={plan}
+          crew={crew}
+          length={length}
+          canPlan={canPlan}
+          onChange={(p) => edit({ plan: p })}
+        />
+      )}
+
       {isClass && (
         <Section
           title="Stations"
@@ -2917,6 +3732,7 @@ function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
           toolbar={
             <>
               <Tag tone={used > length ? "warn" : "info"} icon={Timer}>
+                {plan.warmup ? `${plan.warmup} warm-up + ` : ""}
                 {plan.stations.length} × {plan.minutes} = {used} of {length} min
               </Tag>
               {canPlan && (
@@ -2984,16 +3800,125 @@ function BlockEditor({ block, draft, edit, canCrew, canPlan }) {
   );
 }
 
-// Each station's slot in the class, to scale, then the free run at the end.
+// How the class runs: the warm-up, whether coaches stay at stations or
+// travel with their groups, and what the class looks like with one, two
+// or three coaches, so the plan holds whoever turns up.
+function ClassShape({ block, plan, crew, length, canPlan, onChange }) {
+  const coachCount = crew.filter((c) =>
+    ["head", "station"].includes(c.role),
+  ).length;
+  // One, two and three coaches, plus this week's crew if it's bigger.
+  const crewShape = Math.min(coachCount, stations.length);
+  const counts = [...new Set([1, 2, 3, crewShape])]
+    .filter((n) => n >= 1)
+    .sort((a, b) => a - b);
+  const shapes = counts.map((n) => {
+    const mode = n === 1 ? "group" : modeFor(plan, n);
+    const count =
+      mode === "group"
+        ? Math.max(n, plan.stations.length)
+        : Math.min(n, stations.length);
+    const rounds = fitRounds(length, plan.warmup, count, plan.minutes);
+    const time = classTimeline(length, {
+      warmup: plan.warmup,
+      minutes: plan.minutes,
+      stations: count,
+      rounds,
+    });
+    return {
+      n,
+      mode,
+      rounds,
+      time,
+      text:
+        n === 1
+          ? `The whole class moves together through ${plural(count, "station", "stations")}`
+          : mode === "group"
+            ? `${n} groups, each with its coach, through ${plural(count, "station", "stations")}`
+            : `${n} coaches hold ${plural(count, "station", "stations")} and ${n} groups rotate`,
+    };
+  });
+  return (
+    <Section
+      title="How the class runs"
+      note="The same plan works with one, two or three coaches. On the day the head coach can still change the groups, timing and how coaches move."
+      toolbar={
+        canPlan && (
+          <>
+            <Segmented
+              size="sm"
+              label="Warm-up"
+              value={plan.warmup}
+              options={[...new Set([0, 5, 8, 10, plan.warmup])]
+                .sort((a, b) => a - b)
+                .map((m) => ({
+                  value: m,
+                  label: m ? `${m}-min warm-up` : "No warm-up",
+                }))}
+              onChange={(m) => onChange({ ...plan, warmup: m })}
+            />
+            <Segmented
+              size="sm"
+              label="How the coaches move"
+              value={plan.mode}
+              options={[
+                { value: "auto", label: "Pick for me" },
+                ...Object.entries(coachModes).map(([value, m]) => ({
+                  value,
+                  label: m.label,
+                })),
+              ]}
+              onChange={(m) => onChange({ ...plan, mode: m })}
+            />
+          </>
+        )
+      }
+    >
+      <div className="pl-shapes">
+        {shapes.map((x) => (
+          <Card
+            key={x.n}
+            pad="md"
+            className={`pl-shape ${x.n === crewShape ? "is-crew" : ""}`.trim()}
+          >
+            <span className="pl-shape-n">
+              <Users size={16} aria-hidden="true" />{" "}
+              {plural(x.n, "coach", "coaches")}
+              {x.n === crewShape && (
+                <Tag tone="info">This week&rsquo;s crew</Tag>
+              )}
+            </span>
+            <b>{x.text}</b>
+            <small>
+              {x.n > 1 ? `${coachModes[x.mode].label} · ` : ""}
+              {x.rounds > 1 ? `${x.rounds} times through · ` : ""}
+              {x.time.used} of {length} min
+              {x.time.over ? " · runs over" : ""}
+            </small>
+          </Card>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// The warm-up, each station's slot in the class, to scale, then the free
+// run at the end.
 function RotationBar({ block, plan, length }) {
-  const start = toMinutes(block.start);
-  const used = plan.stations.length * plan.minutes;
+  const start = toMinutes(block.start) + plan.warmup;
+  const used = plan.warmup + plan.stations.length * plan.minutes;
   return (
     <div
       className="pl-rot"
       role="img"
-      aria-label={`Rotation: ${plan.stations.map((s, i) => `${i + 1} ${stationLabel(s.station)}`).join(", ")}`}
+      aria-label={`Rotation: ${plan.warmup ? `warm-up ${plan.warmup} min, ` : ""}${plan.stations.map((s, i) => `${i + 1} ${stationLabel(s.station)}`).join(", ")}`}
     >
+      {plan.warmup > 0 && (
+        <span className="pl-rot-warm" style={{ flex: plan.warmup }}>
+          <em>Warm-up</em>
+          <small>{clockMin(toMinutes(block.start))}</small>
+        </span>
+      )}
       {plan.stations.map((s, i) => (
         <span
           key={i}
@@ -3038,7 +3963,7 @@ function CrewSection({ block, crew, canCrew, onChange }) {
       title="Crew"
       note={
         isClass
-          ? "One head coach takes attendance and builds groups. Station coaches each run a station."
+          ? "A class can run with one coach or several. The head coach takes attendance and builds the groups, and can add a coach who is helping on the day."
           : "Coaches on the floor for open gym."
       }
       actions={
@@ -3132,7 +4057,7 @@ function StationCard({ block, plan, i, canPlan, onChange }) {
   const [open, setOpen] = useState(false);
   const s = plan.stations[i];
   const info = stations.find((x) => x.id === s.station);
-  const start = toMinutes(block.start) + i * plan.minutes;
+  const start = toMinutes(block.start) + plan.warmup + i * plan.minutes;
   const pool = catalog.filter(
     (k) => k.category === stationCategory[s.station] && !k.special,
   );
@@ -3340,7 +4265,7 @@ export default function CoachApp({
     [setState],
   );
   const block = view.session
-    ? sessions(now).find((s) => s.id === view.session)
+    ? sessions(now, state).find((s) => s.id === view.session)
     : null;
   // A saved view from another day goes back to Today.
   useEffect(() => {
@@ -3348,7 +4273,12 @@ export default function CoachApp({
   });
   const enter = (b, role) =>
     setView({
-      id: role === "head" ? "class" : role === "station" ? "station" : "open",
+      id:
+        role === "head"
+          ? "class"
+          : role === "station" || role === "helper"
+            ? "station"
+            : "open",
       session: b.id,
     });
   const ops = {
@@ -3368,7 +4298,7 @@ export default function CoachApp({
   const floorBlock =
     mine.find((b) => sessionPhase(b, now) === "live") ??
     mine.find((b) => sessionPhase(b, now) === "upcoming") ??
-    sessions(now).find((b) => sessionPhase(b, now) === "live") ??
+    sessions(now, state).find((b) => sessionPhase(b, now) === "live") ??
     null;
   const floorRole = floorBlock
     ? (floorBlock.role ?? (floorBlock.kind === "class" ? "head" : "attendant"))

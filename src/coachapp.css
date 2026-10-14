@@ -228,7 +228,7 @@
   font-size: 58px;
 }
 .cf-timer-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -360,7 +360,9 @@
   color: var(--text-2);
 }
 .cf-search:focus-within {
-  box-shadow: 0 0 0 4px rgba(34, 188, 237, 0.45), 0 16px 40px -20px rgba(2, 3, 15, 0.6);
+  box-shadow:
+    0 0 0 4px rgba(34, 188, 237, 0.45),
+    0 16px 40px -20px rgba(2, 3, 15, 0.6);
 }
 .cf-main .cf-search {
   box-shadow: none;
@@ -472,7 +474,9 @@
   }
 }
 button.cf-slot {
-  transition: box-shadow 0.15s, transform 0.15s var(--ease-out);
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s var(--ease-out);
 }
 .cf-slot-time {
   display: grid;
@@ -789,7 +793,7 @@ button.cf-slot {
   min-width: 0;
 }
 .cf-skill-line small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -886,7 +890,9 @@ button.cf-slot {
   justify-items: center;
   gap: 4px;
   padding: 14px 8px 12px;
-  transition: transform 0.15s var(--ease-out), box-shadow 0.15s;
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s;
 }
 .cf-waiting b {
   font-size: 14px;
@@ -1059,7 +1065,9 @@ button.cf-slot {
   gap: 10px;
   padding: 12px 14px;
   border: 2px solid transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .cf-att.is-in {
   border-color: var(--cyan);
@@ -1109,9 +1117,8 @@ button.cf-slot {
 }
 .cf-board {
   display: grid;
-  grid-template-columns: repeat(var(--cols), minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
   gap: 14px;
-  overflow-x: auto;
   padding: 2px 2px 8px;
 }
 .cf-group {
@@ -1121,7 +1128,9 @@ button.cf-slot {
   padding: 0 14px 16px;
   overflow: hidden;
   border: 2px solid transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .cf-group.is-target {
   border-color: var(--cyan);
@@ -1185,7 +1194,7 @@ button.cf-slot {
   display: grid;
 }
 .cf-group-station small {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1252,7 +1261,9 @@ button.cf-slot {
   background: var(--surface-2);
   text-align: left;
   cursor: grab;
-  transition: background 0.15s, transform 0.15s var(--ease-out);
+  transition:
+    background 0.15s,
+    transform 0.15s var(--ease-out);
 }
 .cf-kidname {
   flex: 1;
@@ -1422,7 +1433,7 @@ button.cf-slot {
 .cf-coachcell .cf-mark {
   width: 30px;
   height: 30px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* ---------- Plans ---------- */
@@ -1659,7 +1670,9 @@ button.cf-slot {
 /* Toasts drop in just under the floating bar, clear of the bottom tab bar
    and the dock. */
 .cf .cc-toast {
-  top: calc(var(--gutter) + var(--nav-h) + 12px + env(safe-area-inset-top, 0px));
+  top: calc(
+    var(--gutter) + var(--nav-h) + 12px + env(safe-area-inset-top, 0px)
+  );
   bottom: auto;
   z-index: 70;
 }
@@ -1729,7 +1742,7 @@ button.cf-slot {
   .cf-table [data-label]::before {
     content: attr(data-label);
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -1799,7 +1812,7 @@ button.cf-slot {
   }
   .cf-strip .stat-tile .eyebrow {
     letter-spacing: 0.06em;
-    font-size: 10px;
+    font-size: 12px;
   }
   .cf-strip .stat-tile b {
     font-size: 13px;
@@ -1819,4 +1832,671 @@ button.cf-slot {
     padding-left: 10px;
     padding-right: 10px;
   }
+}
+
+/* ---------- Coaches in a class, the day's class builder ---------- */
+.cf-coaches,
+.cf-builder {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.cf-coaches-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.cf-coaches-head .eyebrow {
+  color: var(--cyan-deep);
+}
+.cf-coach-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cf-coach-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.cf-coach-pill > span {
+  display: grid;
+  line-height: 1.15;
+}
+.cf-coach-pill small {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+.cf-pill-select.cf-add-helper {
+  max-width: 100%;
+  min-width: 0;
+  color: var(--text);
+}
+.cf-pill-select.cf-add-helper > svg:first-child {
+  position: absolute;
+  left: 14px;
+  right: auto;
+}
+.cf-pill-select.cf-add-helper select {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding-left: 36px;
+  border: 1px dashed var(--ds-border-strong);
+  background: transparent;
+  color: var(--text);
+}
+.cf-coaches-note,
+.cf-builder-note {
+  margin: 0;
+  color: var(--text-2);
+}
+.cf-builder-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+.cf-station.is-empty {
+  opacity: 0.6;
+}
+.cf-timer.is-paused strong,
+.cf-timer.is-paused .cf-timer-label {
+  color: var(--ds-zone-paused);
+}
+.cf-ratio-flag {
+  margin: 0;
+  justify-self: start;
+}
+.cf-handoff {
+  max-width: 260px;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ds-warn-bg);
+  color: var(--ds-warn);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cf-handoff-form {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+.cf-handoff-form .eyebrow {
+  color: var(--cyan-deep);
+}
+.cf-handoff-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-handoff-row select,
+.cf-handoff-row input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 12px;
+  background: var(--ds-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.cf-handoff-row input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+/* ---------- Attendance board ---------- */
+.cf-attboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.cf-attboard.is-compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cf-col {
+  display: grid;
+  gap: 14px;
+  min-height: 160px;
+  padding: 16px;
+  transition:
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.cf-col.is-over {
+  box-shadow: inset 0 0 0 3px var(--cyan);
+  background: var(--ds-info-bg);
+}
+.cf-col-in {
+  background: var(--surface-2);
+}
+.cf-col-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.cf-col-head > span {
+  display: grid;
+}
+.cf-col-head b {
+  font-size: 18px;
+}
+.cf-col-head small,
+.cf-band-note {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cf-band-note {
+  margin: 0;
+  font-size: 13px;
+}
+.cf-col-empty {
+  margin: 0;
+  padding: 24px 8px;
+  border: 2px dashed var(--ds-border-strong);
+  border-radius: 14px;
+  color: var(--text-3);
+  text-align: center;
+}
+.cf-band {
+  display: grid;
+  gap: 8px;
+}
+.cf-band-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan-deep);
+}
+.cf-band.is-missing .cf-band-head {
+  color: var(--ds-warn);
+}
+.cf-band.is-missing,
+.cf-band.is-others {
+  padding-top: 12px;
+  border-top: 1px solid var(--ds-border);
+}
+.cf-band.is-others > .text-button {
+  justify-self: start;
+}
+.cf-band-kids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cf-ac-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.cf-ac {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--ds-border-strong);
+  border-radius: 999px;
+  background: var(--ds-surface);
+  color: var(--text);
+  font: inherit;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.cf-ac:hover {
+  border-color: var(--cyan);
+}
+.cf-ac.is-in {
+  border-color: var(--cyan);
+  background: var(--ds-info-bg);
+}
+.cf-ac.is-off {
+  border-style: dashed;
+  border-color: var(--ds-warn);
+}
+.cf-ac.is-lifted {
+  opacity: 0.35;
+}
+.cf-ac-name {
+  white-space: nowrap;
+}
+.cf-ac-name small {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cf-ac .cf-flag {
+  font-size: 12px;
+}
+.cf-ac-wrap .cf-levelpick {
+  margin: 0;
+}
+.cf-ghost {
+  position: fixed;
+  z-index: 1000;
+  transform: translate(-50%, -120%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--ds-navy);
+  color: #fff;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(9, 13, 25, 0.35);
+}
+.cf-late {
+  display: grid;
+  gap: 14px;
+  padding: 14px 18px;
+}
+.cf-late-toggle {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cf-late-toggle small {
+  color: var(--text-3);
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .cf-attboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cf-late-toggle {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .cf-late-toggle small {
+    grid-column: 2;
+  }
+}
+.cf-kidchip {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.cf-kidchip.is-lifted {
+  opacity: 0.35;
+}
+/* Side by side, "In class" stays in view while the gym list scrolls. */
+@media (min-width: 761px) {
+  .cf-attboard:not(.is-compact) .cf-col-in {
+    position: sticky;
+    top: 104px;
+    max-height: calc(100vh - 128px);
+    overflow-y: auto;
+  }
+}
+@media (max-width: 420px) {
+  .cf-pill-select.cf-add-helper,
+  .cf-pill-select.cf-add-helper select {
+    width: 100%;
+  }
+}
+/* Cards on the class screens never grow past the page on small phones. */
+.cf-builder,
+.cf-coaches,
+.cf-group,
+.cf-col,
+.cf-late {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.cf-builder-row > *,
+.cf-hero-actions > .button {
+  min-width: 0;
+  max-width: 100%;
+}
+.cf-count {
+  flex-wrap: wrap;
+}
+.cf-hero-actions > .button {
+  white-space: normal;
+}
+.cf-builder .ds-tag {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+}
+
+/* ---------- Phone: compact pass ----------
+   The masthead hero was sized for tablets and desktops. On a phone it took
+   most of the first screen before any kid, station or button showed. Here
+   the hero shrinks to a title bar with the controls a coach needs, and
+   cards tighten so the work starts above the fold. */
+@media (max-width: 600px) {
+  .cf-masthead .masthead-inner {
+    padding: 4px 16px 16px;
+  }
+  /* The LEARN · ADAPT · BUILD watermark is decoration; it costs a phone
+     a third of its height. */
+  .cf-masthead .outline-words {
+    display: none;
+  }
+  .cf-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy aside"
+      "actions actions";
+    column-gap: 12px;
+    row-gap: 10px;
+    align-items: center;
+  }
+  .cf-hero.no-aside {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "actions";
+  }
+  .cf-hero-aside {
+    justify-self: end;
+  }
+  .cf-hero-copy {
+    gap: 6px;
+    padding-top: 4px;
+  }
+  .cf-hero .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+  .cf-hero h1 {
+    font-size: 26px;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+  .cf-hero .lead {
+    font-size: 14px;
+    line-height: 1.4;
+    min-height: 0;
+  }
+  .cf-hero-actions {
+    padding-top: 0;
+    gap: 8px;
+  }
+  .cf-hero-actions .button {
+    min-height: 46px;
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+  /* Rings and big numbers sit beside the title instead of under it. */
+  .cf-bigring .ring,
+  .cf-timer .ring {
+    width: 124px !important;
+    height: 124px !important;
+  }
+  .cf-bigring strong,
+  .cf-timer strong {
+    font-size: 26px;
+  }
+  /* In the small ring the label reads in normal case, and the hint under
+     the time is left out; the bar at the top carries the same clock. */
+  .cf-timer-label {
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .cf-timer small {
+    display: none;
+  }
+  .cf-timer small,
+  .cf-bigring small,
+  .cf-ring-sub {
+    font-size: 12px;
+  }
+  .cf-bignum {
+    justify-items: end;
+    text-align: right;
+  }
+  .cf-bignum strong {
+    font-size: 44px;
+  }
+  .cf-bignum small {
+    font-size: 12px;
+    max-width: 9em;
+  }
+  .cf-steps li {
+    font-size: 12px;
+    padding: 4px 9px 4px 4px;
+    gap: 6px;
+  }
+  .cf-steps li span {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+  .cf-hero-tabs button {
+    padding: 7px 13px;
+    font-size: 13px;
+  }
+  /* The next class on Today. */
+  .cf-next {
+    padding: 14px 16px;
+    border-radius: 18px;
+    gap: 2px;
+  }
+  .cf-next h2 {
+    font-size: 22px;
+  }
+  .cf-next .button {
+    margin-top: 8px;
+  }
+  /* Page body. */
+  .cf-main {
+    padding: 14px 12px 120px;
+    gap: 12px;
+  }
+  .cf-section {
+    margin-top: 6px;
+  }
+  .cf-section h2 {
+    font-size: 22px;
+  }
+  /* Stat tiles: three small numbers in a row instead of three big blocks. */
+  .cf-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cf-strip.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cf-strip .stat-tile {
+    padding: 12px;
+    gap: 2px;
+  }
+  .cf-strip .stat-tile .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+  .cf-strip .stat-value {
+    font-size: 28px;
+  }
+  .cf-strip .stat-tile b {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  /* Kid rows: the shirt line stays on one line under the name. */
+  .cf-row {
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+  .cf-row-who {
+    gap: 10px;
+  }
+  .cf-row-who b {
+    font-size: 16px;
+  }
+  .cf-shirt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cf-shirt small {
+    white-space: nowrap;
+  }
+  .cf-row .cf-got {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+  /* The coaches card is a single strip of names on a phone. */
+  .cf-coaches {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .cf-coach-pill small {
+    display: none;
+  }
+  .cf-late {
+    padding: 10px 14px;
+  }
+  .cf-builder {
+    padding: 14px;
+  }
+  .cf-col {
+    padding: 12px;
+  }
+}
+@media (max-width: 600px) {
+  /* A card-sized aside (the next class on Today) stacks under the title;
+     only rings and big numbers sit beside it. */
+  .cf-hero:has(.cf-next) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "aside"
+      "actions";
+  }
+  .cf-hero:has(.cf-next) .cf-hero-aside {
+    justify-self: stretch;
+  }
+  .stat-strip.cf-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .stat-strip.cf-strip.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat-strip.cf-strip .stat-tile:last-child {
+    grid-column: auto;
+  }
+}
+@media (max-width: 600px) {
+  /* Choice pills wrap instead of hiding options off the edge. */
+  .cf-builder .ds-seg,
+  .pl .ds-seg {
+    flex-wrap: wrap;
+    border-radius: 18px;
+  }
+}
+@media (max-width: 600px) {
+  /* A hero with a search field (open gym) stacks, so the field gets the
+     full width and the count sits under it. */
+  .cf-hero:has(.cf-search) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "aside"
+      "actions";
+  }
+  .cf-hero:has(.cf-search) .cf-hero-aside {
+    justify-self: start;
+  }
+  .cf-hero-copy .cf-search {
+    width: 100%;
+  }
+  /* Class steps: only the current step keeps its name; the others are
+     numbered dots, so the row fits without scrolling. */
+  .cf-steps {
+    flex-wrap: nowrap;
+  }
+  .cf-steps li:not(.now) {
+    gap: 0;
+    padding: 4px;
+    font-size: 0;
+  }
+  .cf-steps li:not(.now) span {
+    font-size: 12px;
+  }
+}
+
+/* Inbox on Today */
+.ib {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+}
+.ib-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ib-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ib-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.ib-list small {
+  color: var(--text-3);
+}
+
+/* Time clock on Today */
+.ck {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.ck-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.ck-text {
+  display: grid;
+  flex: 1 1 180px;
+  gap: 2px;
+}
+.ck-text small {
+  color: var(--text-3);
+}
+.ck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

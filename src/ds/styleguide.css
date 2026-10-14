@@ -68,4 +68,7 @@
 /* The menu sample sits in the page instead of floating under a trigger. */
 .sg-menu .ds-menu {
   position: static;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 280px;
 }

@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { App } from "./main.jsx";
 import { seed } from "./domain.js";
 import { emptyClub, sessions } from "./club.js";
-import { emptyFloor } from "./floor.js";
+import { applyFloor, emptyFloor } from "./floor.js";
 import { applyGym, runOf, seedGym, stationOfCoach } from "./gym.js";
 
 const saved = () => JSON.parse(localStorage.getItem("lab-skill-unlocks-v1"));
@@ -13,6 +13,7 @@ const JORDAN = "+16025550150";
 const SAM = "+16025550151";
 const PRIYA = "+16025550152";
 const ALEX = "+16025550153";
+const MORGAN = "+16025550155";
 function signInAs(phone) {
   localStorage.setItem(
     "lab-session",
@@ -47,13 +48,28 @@ describe("coach floor", () => {
     await user.click(
       (await screen.findAllByRole("button", { name: /Homeschool ninja/ }))[0],
     );
+    // Nobody has been to the front desk in this seed: the roster waits
+    // under "Not at the front desk yet", and a tap still adds them.
     for (const name of [
       "June Alvarez",
       "Piper Lee",
       "Nina Fischer",
       "Tess Reyes",
     ])
-      await user.click(screen.getByRole("button", { name }));
+      await user.click(
+        screen.getByRole("button", {
+          name: `Add ${name}, not at the front desk`,
+        }),
+      );
+    // They're in class, flagged for the desk.
+    expect(
+      saved()
+        .gym.checkins.filter((c) => c.session === homeschool().id)
+        .every((c) => c.deskAt === null),
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: /^June Alvarez, in class/ }),
+    ).toBeTruthy();
     // Piper has no level yet; one tap sets it.
     await user.click(screen.getByRole("button", { name: "Piper: Beginner" }));
     expect(saved().gym.levels.piper.level).toBe("beginner");
@@ -76,7 +92,17 @@ describe("coach floor", () => {
       ]),
     );
     await user.click(screen.getByRole("button", { name: /Start class/ }));
-    expect(await screen.findByText("Rotation 1 of 2")).toBeTruthy();
+    // The warm-up runs first; the head coach can skip it.
+    expect(await screen.findByText("Warm-up")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Skip warm-up/ }));
+    // Two stations fit twice in the hour after the warm-up.
+    expect(await screen.findByText(/^Rotation 1 of 4/)).toBeTruthy();
+    // Hold freezes the clock for everyone; resume picks it up again.
+    await user.click(screen.getByRole("button", { name: /Hold/ }));
+    expect(runOf(saved(), homeschool().id).pausedAt).toBeTruthy();
+    expect((await screen.findAllByText("On hold")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: /Resume/ }));
+    expect(runOf(saved(), homeschool().id).pausedAt).toBeNull();
     await user.click(screen.getByRole("button", { name: /End class/ }));
     expect(await screen.findByText("Bonus picks")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /June/ }));
@@ -143,9 +169,15 @@ describe("coach floor", () => {
       type: "attendanceDone",
       session: block.id,
       count: 3,
+      mode: "station",
       actor: jordan,
     });
-    s = applyGym(s, { type: "startClass", session: block.id, actor: jordan });
+    s = applyGym(s, {
+      type: "startClass",
+      session: block.id,
+      warmup: 0,
+      actor: jordan,
+    });
     localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(s));
     signInAs(SAM);
     render(<App />);
@@ -162,6 +194,120 @@ describe("coach floor", () => {
     ).toBeTruthy();
     expect(screen.getByText(/^Group 1 · 2 kids$/)).toBeTruthy();
     expect(screen.getByText("Rotation 1 of 3")).toBeTruthy();
+  });
+
+  it("a coach added as a helper at check-in gets their group and can pass a note", async () => {
+    const block = homeschool();
+    const jordan = {
+      role: "Coach",
+      name: "Coach Jordan",
+      staffId: "jordan",
+      head: false,
+    };
+    let s = {
+      ...seed(),
+      club: emptyClub(),
+      floor: emptyFloor(),
+      gym: seedGym(),
+    };
+    s = applyGym(s, {
+      type: "checkIn",
+      session: block.id,
+      childIds: ["june", "piper", "nina", "tess"],
+      actor: jordan,
+    });
+    s = applyGym(s, {
+      type: "addHelper",
+      session: block.id,
+      staffId: "morgan",
+      actor: jordan,
+    });
+    s = applyGym(s, {
+      type: "attendanceDone",
+      session: block.id,
+      count: 2,
+      mode: "group",
+      actor: jordan,
+    });
+    s = applyGym(s, {
+      type: "setLeader",
+      session: block.id,
+      group: 1,
+      staffId: "morgan",
+      actor: jordan,
+    });
+    s = applyGym(s, {
+      type: "startClass",
+      session: block.id,
+      warmup: 0,
+      actor: jordan,
+    });
+    localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(s));
+    signInAs(MORGAN);
+    render(<App />);
+    const user = userEvent.setup();
+    await user.click(
+      (await screen.findAllByRole("button", { name: /Homeschool ninja/ }))[0],
+    );
+    const run = runOf(s, block.id);
+    expect(await screen.findByText(/^Helping · Homeschool ninja/)).toBeTruthy();
+    expect(
+      screen.getByText(`Group 2 · ${run.groups[1].length} kids`),
+    ).toBeTruthy();
+    expect(screen.getByText("With you all class.")).toBeTruthy();
+    const kid = run.groups[1][0];
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Kid" }),
+      kid,
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Note" }),
+      "Sore wrist, keep off rings",
+    );
+    await user.click(screen.getByRole("button", { name: "Pass it on" }));
+    expect(runOf(saved(), block.id).handoffs[0]).toMatchObject({
+      childId: kid,
+      text: "Sore wrist, keep off rings",
+      by: "Coach Morgan",
+    });
+  });
+
+  it("attendance lists front-desk arrivals by age, and one tap adds a band", async () => {
+    let s = {
+      ...seed(),
+      club: emptyClub(),
+      floor: emptyFloor(),
+      gym: seedGym(),
+    };
+    s = applyFloor(s, {
+      type: "checkIn",
+      childIds: ["june", "piper", "nina", "tess"],
+    });
+    localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(s));
+    signInAs(JORDAN);
+    render(<App />);
+    const user = userEvent.setup();
+    await user.click(
+      (await screen.findAllByRole("button", { name: /Homeschool ninja/ }))[0],
+    );
+    const gym = await screen.findByRole("region", { name: "In the gym" });
+    const young = within(gym)
+      .getByText(/^Up to 6 · 2$/)
+      .closest(".cf-band");
+    await user.click(within(young).getByRole("button", { name: "Add all 2" }));
+    const ins = saved()
+      .gym.checkins.filter((c) => c.session === homeschool().id)
+      .map((c) => c.childId)
+      .sort();
+    expect(ins).toEqual(["june", "piper"]);
+    // Desk arrivals carry their desk time; nobody is flagged.
+    expect(saved().gym.checkins.every((c) => c.deskAt !== null)).toBe(true);
+    // A roster kid who skipped the desk is listed separately.
+    expect(
+      within(gym).getByRole("button", {
+        name: "Add Rhys Hart, not at the front desk",
+      }),
+    ).toBeTruthy();
   });
 
   it("manager: a Spark export updates membership", async () => {

@@ -151,7 +151,7 @@ export default function Club({ state, childId, role, commit }) {
   const cur = currency(child);
   const stats = clubStats(state, childId);
   const [tab, setTab] = useState("My passport");
-  const [session, setSession] = useState(sessions()[0].id);
+  const [session, setSession] = useState(sessions()[0]?.id ?? "");
   const [station, setStation] = useState(
     () => stationFromInput(window.location.href) ?? "grip",
   );

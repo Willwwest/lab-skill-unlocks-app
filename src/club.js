@@ -3,7 +3,9 @@ import {
   gymDayKey,
   gymMinutes as minutesOnGymClock,
   toMinutes,
+  weekKeyOf,
 } from "./gym-time.js";
+import { sessionFromId, sessionsOn } from "./schedule.js";
 
 export const stations = [
   {
@@ -61,39 +63,12 @@ export const groups = [
   "9–12 / Developing",
 ];
 export const dayKey = gymDayKey;
-// The daily schedule. Classes earn a class star; open gym blocks are
-// coach-staffed stations where kids checked in at the front earn stars.
-// Index order is the stored id suffix, so append new blocks at the end.
-const schedule = [
-  {
-    name: "Ninja foundations",
-    kind: "class",
-    start: "15:30",
-    end: "16:30",
-    ages: "6–8",
-    lead: "Coach Jordan",
-  },
-  {
-    name: "Ninja progressions",
-    kind: "class",
-    start: "16:45",
-    end: "17:45",
-    ages: "9–12",
-    lead: "Coach Sam",
-  },
-  { name: "Open gym rotation", kind: "open", start: "12:00", end: "15:15" },
-  { name: "Evening open gym", kind: "open", start: "18:00", end: "20:00" },
-  {
-    name: "Homeschool ninja",
-    kind: "class",
-    start: "10:00",
-    end: "11:00",
-    ages: "5–12",
-    lead: "Coach Jordan",
-  },
-];
-export const sessions = (at = new Date()) =>
-  schedule.map((s, i) => ({ ...s, id: `${dayKey(at)}:${i}`, index: i }));
+// The day's sessions come from the schedule (schedule.js): the weekly
+// template for that weekday plus dated exceptions. Pass the app state so
+// a manager's changes count; without it the seed schedule is used.
+// Classes earn a class star; open gym blocks are coach-staffed stations
+// where kids checked in at the front earn stars.
+export const sessions = (at = new Date(), state) => sessionsOn(state, at);
 // Minutes since midnight on the gym's clock.
 export const gymMinutes = minutesOnGymClock;
 // "live", "upcoming" or "done" for a session at a moment.
@@ -113,9 +88,8 @@ export const isHere = (state, childId, at = new Date()) =>
     (p) => p.childId === childId && !p.out && dayKey(p.in) === dayKey(at),
   );
 // Class name for a stored session id ("2026-10-10:1").
-export const sessionName = (id) =>
-  sessions(`${id.slice(0, 10)}T12:00:00Z`).find((s) => s.id === id)?.name ??
-  "Class";
+export const sessionName = (id, state) =>
+  sessionFromId(state, id)?.name ?? "Class";
 export const emptyClub = () => ({ events: [], claims: [], profiles: {} });
 export function validClub(c) {
   return (
@@ -242,11 +216,7 @@ export function clubStats(state, id) {
     events,
   };
 }
-export function seasonKey(at = new Date()) {
-  const d = new Date(`${dayKey(at)}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-  return d.toISOString().slice(0, 10);
-}
+export const seasonKey = (at = new Date()) => weekKeyOf(dayKey(at));
 export function crowns(c, group, at = new Date()) {
   return stations.map((s) => {
     const scores = people
@@ -311,7 +281,7 @@ export function applyClub(state, action, now = new Date()) {
     const { kind, station, session, category } = action;
     if (!Object.hasOwn(points, kind))
       throw Error("Choose a valid recognition.");
-    const block = sessions(now).find((s) => s.id === session);
+    const block = sessions(now, state).find((s) => s.id === session);
     if (!block) throw Error("Choose a class from today.");
     if (kind === "class" && block.kind === "open")
       throw Error("Open gym has no class star. Check in at the front desk.");
@@ -425,9 +395,10 @@ export function applyClub(state, action, now = new Date()) {
           state,
           c,
           childId,
-          sessions(`${event.session.slice(0, 10)}T12:00:00Z`).find(
-            (s) => s.id === event.session,
-          ) ?? { id: event.session, kind: "class" },
+          sessionFromId(state, event.session) ?? {
+            id: event.session,
+            kind: "class",
+          },
           now,
         )
       )

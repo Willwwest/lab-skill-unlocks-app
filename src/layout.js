@@ -4,8 +4,10 @@
 // it in the layout editor. Status comes from the day's schedule, the class
 // plans and running rotations in gym.js, and station pauses in floor.js.
 import { sessionPhase, sessions, stations } from "./club.js";
-import { planFor, rotation, runOf, staffName } from "./gym.js";
-import { gymMinutes as minutesAt, toMinutes } from "./gym-time.js";
+import { coachAt, planFor, rotation, runOf, staffName } from "./gym.js";
+import { gymDayKey, gymMinutes as minutesAt, toMinutes } from "./gym-time.js";
+import { hoursOn } from "./schedule.js";
+import { segmentsFor } from "./flooruse.js";
 
 // Feet. The front door is in the south-east corner of the south wall,
 // door feet from the west wall.
@@ -264,12 +266,13 @@ export function applyLayout(state, action, now = new Date()) {
 
 /* ---------- What each zone is doing ---------- */
 
-// Open from the first block of the day to the last.
-export function openHours(at = new Date()) {
-  const list = sessions(at);
-  const start = Math.min(...list.map((s) => toMinutes(s.start)));
-  const end = Math.max(...list.map((s) => toMinutes(s.end)));
-  return { start, end, open: minutesAt(at) >= start && minutesAt(at) < end };
+// Open from that day's first block to its last, by the schedule. A day
+// with nothing scheduled (Sundays in the seed, holidays) is closed all day.
+export function openHours(at = new Date(), state) {
+  const h = hoursOn(state, gymDayKey(at));
+  if (!h) return { start: null, end: null, open: false, closedToday: true };
+  const now = minutesAt(at);
+  return { ...h, open: now >= h.start && now < h.end, closedToday: false };
 }
 
 // The stations a class block uses: the running rotation if there is one,
@@ -302,58 +305,98 @@ function classAt(state, block, station, at) {
       info.rotateIn = r.left;
       info.round = r.idx + 1;
       info.rounds = r.total;
+      info.warmup = r.warmup;
+      info.paused = r.paused;
     }
   }
-  if (run?.coaches?.[station]) info.coach = staffName(run.coaches[station]);
+  // With coaches traveling, the coach is whoever has the group that's here.
+  const coach = run?.groups
+    ? coachAt(run, station, r && !r.done ? r : null)
+    : null;
+  if (coach) info.coach = staffName(coach);
   return info;
 }
+
+// "15:30" for a moment, on the gym clock.
+const hhmm = (ms) => {
+  const m = minutesAt(new Date(ms));
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
 
 /*
  * One entry per zone:
  *   status  "class" | "open" | "paused" | "closed" | "amenity"
- *   class   the class using it (name, ages, coach, group, rotation)
+ *   class   the class using it (name, ages, coach, group, rotation) and
+ *           `segment`, the part of the class holding it ("Warm-up", ...)
  *   soon    a class taking it within SOON_MINUTES ({ name, start })
  *   reason  why a station is paused
+ * A class holds only the zones marked for the part of it that is running
+ * (see flooruse.js), so the rest of the floor stays open.
  */
 export function floorStatus(state, at = new Date()) {
   const layout = layoutOf(state);
-  const hours = openHours(at);
-  const blocks = sessions(at);
+  const hours = openHours(at, state);
+  const blocks = sessions(at, state);
   const live = blocks.filter((s) => sessionPhase(s, at) === "live");
   const liveClasses = live.filter((s) => s.kind === "class");
   const now = minutesAt(at);
-  const upcoming = blocks
+  const t = new Date(at).getTime();
+  const window = SOON_MINUTES * 60000;
+  const classes = blocks
     .filter(
-      (s) =>
-        s.kind === "class" &&
-        sessionPhase(s, at) === "upcoming" &&
-        toMinutes(s.start) - now <= SOON_MINUTES,
+      (b) =>
+        b.kind === "class" &&
+        (sessionPhase(b, at) === "live" ||
+          (sessionPhase(b, at) === "upcoming" &&
+            toMinutes(b.start) - now <= SOON_MINUTES)),
     )
-    .sort((a, b) => a.start.localeCompare(b.start));
+    .map((block) => ({
+      block,
+      live: sessionPhase(block, at) === "live",
+      segs: segmentsFor(state, block, at, layout.zones),
+    }));
+  const holder = (id) => {
+    for (const c of classes) {
+      if (!c.live) continue;
+      const seg = c.segs.find((x) => x.from <= t && t < x.to);
+      if (seg?.zones.has(id)) return { block: c.block, seg };
+    }
+    return null;
+  };
+  // The earliest part of any class that takes this zone in the next half hour.
+  const soonest = (id) => {
+    let best = null;
+    for (const c of classes)
+      for (const seg of c.segs)
+        if (
+          seg.from > t &&
+          seg.from - t <= window &&
+          seg.zones.has(id) &&
+          (!best || seg.from < best.from)
+        )
+          best = { from: seg.from, name: c.block.name };
+    return best && { name: best.name, start: hhmm(best.from) };
+  };
   const outages = state.floor?.outages ?? {};
   const zones = layout.zones.map((z) => {
     const base = { ...z, class: null, soon: null, reason: null };
-    if (!z.station)
-      return { ...base, status: hours.open ? "amenity" : "closed" };
     if (!hours.open) return { ...base, status: "closed" };
-    if (outages[z.station])
+    if (z.station && outages[z.station])
       return { ...base, status: "paused", reason: outages[z.station].reason };
-    const using = liveClasses.find((b) =>
-      classStations(state, b).includes(z.station),
-    );
-    if (using)
+    const hold = holder(z.id);
+    if (hold)
       return {
         ...base,
         status: "class",
-        class: classAt(state, using, z.station, at),
+        class: {
+          ...classAt(state, hold.block, z.station, at),
+          segment: hold.seg.label,
+        },
       };
-    const next = upcoming.find((b) =>
-      classStations(state, b).includes(z.station),
-    );
     return {
       ...base,
-      status: "open",
-      soon: next ? { name: next.name, start: next.start } : null,
+      status: z.station ? "open" : "amenity",
+      soon: soonest(z.id),
     };
   });
   return {

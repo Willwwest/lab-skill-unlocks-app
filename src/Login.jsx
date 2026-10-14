@@ -27,7 +27,13 @@ const demoAccounts = [
   { phone: "+16025550159", label: "Travis", note: "Owner" },
 ];
 
-export default function Login({ onSignedIn, storage = localStorage }) {
+// beforeSend (optional) checks the number with the shared database and
+// loads its roster before the code goes out.
+export default function Login({
+  onSignedIn,
+  beforeSend,
+  storage = localStorage,
+}) {
   const [step, setStep] = useState("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -48,10 +54,26 @@ export default function Login({ onSignedIn, storage = localStorage }) {
     if (step === "phone") phoneRef.current?.focus();
   }, [step]);
 
-  const send = (e) => {
+  const send = async (e) => {
     e?.preventDefault();
     setError("");
     try {
+      if (beforeSend) {
+        const number = normalizePhone(phone);
+        if (!number) throw Error("Enter a 10-digit US phone number.");
+        setBusy(true);
+        try {
+          await beforeSend(number);
+        } catch (err) {
+          throw Error(
+            /roster/i.test(err.message)
+              ? "We couldn’t find that number. Ask the front desk to add it to your family’s account."
+              : err.message,
+          );
+        } finally {
+          setBusy(false);
+        }
+      }
       const r = demoCodes.send(storage, phone);
       setNow(Date.now());
       setSent(r);
@@ -61,12 +83,12 @@ export default function Login({ onSignedIn, storage = localStorage }) {
       setError(err.message);
     }
   };
-  const verify = (value) => {
+  const verify = async (value) => {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
-      onSignedIn(demoCodes.verify(storage, phone, value));
+      await onSignedIn(demoCodes.verify(storage, phone, value));
     } catch (err) {
       setError(err.message);
       setCode("");

@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   CardHead,
+  Chip,
   CoachMark,
   Empty,
   Eyebrow,
@@ -24,7 +25,21 @@ import {
 } from "./ds/index.jsx";
 import { coaches, staff } from "./roster.js";
 import { clock, dayKey, sessions, sessionPhase } from "./club.js";
-import { calendarDayLabel, gymMinutes, toMinutes } from "./gym-time.js";
+import {
+  applySchedule,
+  comingBuckets,
+  programStatuses,
+  scheduleOf,
+  sessionFromId,
+} from "./schedule.js";
+import {
+  addDays,
+  calendarDayLabel,
+  dayAt,
+  gymClockTime as clockTime,
+  gymMinutes,
+  toMinutes,
+} from "./gym-time.js";
 import { roleNames, staffName } from "./gym.js";
 import {
   BREAK_LENGTHS,
@@ -55,6 +70,11 @@ import {
   staffingOf,
   statusInfo,
 } from "./staffing.js";
+import { TIMES, hoursText } from "./times.js";
+import { AvailabilityPanel } from "./AvailabilityEditor.jsx";
+import ScheduleBuilder from "./ScheduleBuilder.jsx";
+import MySchedule from "./MySchedule.jsx";
+import Timesheets from "./Timesheets.jsx";
 import "./staffing.css";
 
 /* ---------- Tabs ---------- */
@@ -64,23 +84,32 @@ export function staffTabs(me) {
   if (me.owner)
     return [
       ["now", "Right now"],
+      ["build", "Schedule"],
       ["day", "By the hour"],
       ["check", "Staffing"],
       ["requests", "Requests"],
       ["pie", "Portfolios"],
+      ["avail", "Hours"],
+      ["time", "Timesheets"],
       ["owner", "Owner"],
     ];
   if (me.head)
     return [
       ["now", "Right now"],
+      ["build", "Schedule"],
       ["day", "By the hour"],
       ["check", "Staffing"],
       ["requests", "Requests"],
       ["pie", "Portfolios"],
+      ["avail", "Hours"],
+      ["time", "Timesheets"],
+      ["week", "My week"],
       ["me", "My shift"],
     ];
   return [
     ["me", "My shift"],
+    ["week", "My week"],
+    ["avail", "Availability"],
     ["requests", "Requests"],
     ["pie", "My time"],
   ];
@@ -93,6 +122,10 @@ export const staffTitles = {
   requests: ["Shift", "requests."],
   pie: ["Time", "portfolios."],
   owner: ["Owner", "settings."],
+  avail: ["Hours and", "availability."],
+  build: ["The", "schedule."],
+  week: ["My", "week."],
+  time: ["Time", "sheets."],
   me: ["My", "shift."],
 };
 export const staffLeads = {
@@ -102,7 +135,13 @@ export const staffLeads = {
   requests: "Covers, days off and hour changes, with who can step in.",
   pie: "How each coach wants their time split, against what's booked today.",
   owner: "Ratios, minimums, break limits, standing hours and who manages.",
+  build:
+    "Build each week from standing hours or last week, staff every block, then publish.",
+  week: "The days and blocks you're booked for, and your hours.",
+  avail:
+    "When coaches can work, days off they've marked, and each week's hours against the range they asked for.",
   me: "Your day, your breaks, and what's next.",
+  time: "Clock times against the schedule, fixes with a reason, approval and payroll.",
 };
 
 /* ---------- Small pieces ---------- */
@@ -138,8 +177,14 @@ function Legend() {
   );
 }
 
+// The color class for a kind of work: the three built-in ones have their
+// own; programs added later take one of a few extra colors in order.
+const BASE = ["class", "open", "floater"];
+export const bucketClass = (m, i) =>
+  BASE.includes(m.id) ? `st-${m.id}` : `st-bucket-x${i % 3}`;
+
 // A donut of a portfolio's shares in modality order.
-export function Pie({ value, size = 120, label }) {
+export function Pie({ value, size = 120, label, list = modalities }) {
   const r = 15.9155;
   let offset = 25;
   return (
@@ -150,17 +195,16 @@ export function Pie({ value, size = 120, label }) {
       height={size}
       role="img"
       aria-label={
-        label ??
-        modalities.map((m) => `${m.short} ${value[m.id] ?? 0}%`).join(", ")
+        label ?? list.map((m) => `${m.short} ${value[m.id] ?? 0}%`).join(", ")
       }
     >
       <circle className="st-pie-track" cx="21" cy="21" r={r} />
-      {modalities.map((m) => {
+      {list.map((m, i) => {
         const v = Math.max(0, value[m.id] ?? 0);
         const el = (
           <circle
             key={m.id}
-            className={`st-pie-seg st-${m.id}`}
+            className={`st-pie-seg ${bucketClass(m, i)}`}
             cx="21"
             cy="21"
             r={r}
@@ -175,18 +219,14 @@ export function Pie({ value, size = 120, label }) {
   );
 }
 
+export { hoursText };
+
 const run = (ops, message, action) =>
   ops.run(message, (s) =>
     applyStaffing(s, { actor: ops.actor, ...action }, ops.now),
   );
 
-const timeOptions = (from = 8 * 60, to = 21 * 60, step = 15) => {
-  const out = [];
-  for (let m = from; m <= to; m += step)
-    out.push({ value: minutesToTime(m), label: clock(minutesToTime(m)) });
-  return out;
-};
-const TIMES = timeOptions();
+export { TIMES };
 
 /* ---------- Right now ---------- */
 
@@ -197,7 +237,9 @@ export function NowPanel({ ops }) {
   const out = board.filter((b) => b.status === "break");
   const m = gymMinutes(now);
   const nextBreak = breaksOn(state, now).find((b) => toMinutes(b.start) > m);
-  const live = sessions(now).filter((b) => sessionPhase(b, now) === "live");
+  const live = sessions(now, ops.state).filter(
+    (b) => sessionPhase(b, now) === "live",
+  );
   return (
     <>
       <StatStrip>
@@ -260,6 +302,12 @@ export function NowPanel({ ops }) {
                 <StatusTag status={b.status} />
               </div>
               <p className="ds-note">{statusLine(b)}</p>
+              {b.notIn && <Tag tone="bad">Scheduled, not clocked in</Tag>}
+              {b.clockIn && (
+                <small className="ds-note">
+                  Clocked in at {clockTime(b.clockIn)}
+                </small>
+              )}
             </Card>
           ))}
         </div>
@@ -280,10 +328,10 @@ export function DayPanel({ ops }) {
     <>
       <Section
         title="Today by the half hour"
-        note="Scroll sideways on a phone. The column with a ring is now."
+        note="Each square is half an hour. Now is outlined."
         actions={<Legend />}
       >
-        <Card pad="sm" className="st-grid-card">
+        <Card pad="sm" className="st-grid-card st-grid-wide">
           <div className="st-grid-scroll">
             <table className="st-grid">
               <thead>
@@ -325,6 +373,57 @@ export function DayPanel({ ops }) {
               </tbody>
             </table>
           </div>
+        </Card>
+        {/* On a phone the day runs down the screen, one column per coach,
+            so it fits without scrolling sideways. */}
+        <Card pad="sm" className="st-grid-card st-grid-phone">
+          <table className="st-grid st-gridv">
+            <thead>
+              <tr>
+                <th scope="col" className="st-gridv-time">
+                  <span className="sr-only">Time</span>
+                </th>
+                {grid.rows.map((r) => (
+                  <th key={r.staff.id} scope="col" title={r.staff.name}>
+                    <CoachMark initials={r.staff.initials} size={30} />
+                    <span className="sr-only">{r.staff.name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {grid.slots.map((t, i) => {
+                const label = clock(minutesToTime(t));
+                return (
+                  <tr
+                    key={t}
+                    className={
+                      m >= t && m < t + grid.step ? "st-grid-now" : undefined
+                    }
+                  >
+                    <th scope="row" className="st-gridv-time">
+                      {t % 60 === 0 ? (
+                        label
+                      ) : (
+                        <span className="sr-only">{label}</span>
+                      )}
+                    </th>
+                    {grid.rows.map((r) => (
+                      <td
+                        key={r.staff.id}
+                        className={`st-${r.cells[i]}`}
+                        title={`${r.staff.name} · ${label} · ${statusInfo[r.cells[i]].label}`}
+                      >
+                        <span className="sr-only">
+                          {r.staff.name}: {statusInfo[r.cells[i]].label}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </Card>
       </Section>
       <Section
@@ -471,13 +570,15 @@ function BlockCard({ ops, check, at }) {
                       }
                     >
                       {c.staff.name.replace("Coach ", "")}
+                      {c.addsMinutes
+                        ? ` · ${c.off ? "off, " : ""}+${hoursText(c.addsMinutes)}`
+                        : ""}
                     </Button>
                   ))}
                 </div>
               ) : (
                 <p className="ds-note">
-                  Nobody is free for all of it. Change someone's hours in
-                  Requests or ask the owner to adjust standing hours.
+                  Every coach is booked during this block.
                 </p>
               )}
             </div>
@@ -611,23 +712,25 @@ function RequestRow({ ops, r }) {
   const [to, setTo] = useState(r.toStaffId ?? "");
   const [reply, setReply] = useState("");
   const block =
-    r.index === null
-      ? null
-      : sessions(`${r.day}T19:00:00Z`).find((b) => b.index === r.index);
+    r.index === null ? null : sessionFromId(state, `${r.day}:${r.index}`);
+  const takeable = r.kind === "cover" || r.kind === "open";
   const options =
-    r.kind === "cover" && block
-      ? coverCandidates(state, block, `${r.day}T19:00:00Z`, {
+    takeable && block
+      ? coverCandidates(state, block, dayAt(r.day), {
           kind:
-            floaterOn(state, block.index, `${r.day}T19:00:00Z`) === r.staffId
+            r.floater ||
+            floaterOn(state, block.index, dayAt(r.day)) === r.staffId
               ? "floater"
               : undefined,
         })
       : [];
+  const myFit = options.find((c) => c.staff.id === me.id);
   const canVolunteer =
     r.status === "pending" &&
-    r.kind === "cover" &&
+    takeable &&
     r.staffId !== me.id &&
     !r.toStaffId &&
+    (!r.askedStaffId || r.askedStaffId === me.id) &&
     options.some((c) => c.staff.id === me.id);
   const mine = r.staffId === me.id;
   const tone = {
@@ -640,12 +743,18 @@ function RequestRow({ ops, r }) {
     <Card pad="md" className="st-request">
       <div className="st-request-head">
         <CoachMark
-          initials={staff.find((s) => s.id === r.staffId)?.initials ?? "?"}
+          initials={
+            r.staffId
+              ? (staff.find((s) => s.id === r.staffId)?.initials ?? "?")
+              : "+"
+          }
           size={36}
         />
         <div>
           <b>
-            {staffName(r.staffId)} · {requestKinds[r.kind]}
+            {r.staffId
+              ? `${staffName(r.staffId)} · ${requestKinds[r.kind]}`
+              : "Open shift"}
           </b>
           <small>
             {requestSummary(r)} ·{" "}
@@ -655,32 +764,55 @@ function RequestRow({ ops, r }) {
         <Tag tone={tone}>{r.status[0].toUpperCase() + r.status.slice(1)}</Tag>
       </div>
       {r.note && <p className="st-quote">“{r.note}”</p>}
+      {r.askedStaffId && !r.toStaffId && (
+        <p className="ds-note">
+          Asked <b>{staffName(r.askedStaffId)}</b> to take it.
+        </p>
+      )}
       {r.toStaffId && (
         <p className="ds-note">
           {r.volunteered ? "Volunteer" : "Cover"}:{" "}
           <b>{staffName(r.toStaffId)}</b>
+          {r.addsMinutes
+            ? ` · adds ${hoursText(r.addsMinutes)} to their day`
+            : ""}
         </p>
       )}
       {r.reply && <p className="ds-note">Reply: {r.reply}</p>}
       {r.status === "pending" && (
         <div className="st-request-actions">
           {canVolunteer && (
-            <Button
-              size="sm"
-              onClick={() =>
-                run(ops, "Thanks. The manager will confirm.", {
-                  type: "volunteer",
-                  id: r.id,
-                })
-              }
-            >
-              I can cover it
-            </Button>
+            <>
+              <Button
+                size="sm"
+                onClick={() =>
+                  run(ops, "Thanks. The manager will confirm.", {
+                    type: "volunteer",
+                    id: r.id,
+                  })
+                }
+              >
+                {r.kind === "open"
+                  ? "I'll take it"
+                  : r.askedStaffId
+                    ? "Accept"
+                    : "I can cover it"}
+              </Button>
+              {myFit?.addsMinutes > 0 && (
+                <small className="ds-note">
+                  {myFit.off
+                    ? `You're off that day. This adds ${hoursText(myFit.addsMinutes)}.`
+                    : `This adds ${hoursText(myFit.addsMinutes)} to your day.`}
+                </small>
+              )}
+            </>
           )}
           {me.head && (
             <>
-              {r.kind === "cover" && (
-                <Field label="Who covers">
+              {takeable && (
+                <Field
+                  label={r.kind === "open" ? "Who takes it" : "Who covers"}
+                >
                   <Select
                     value={to}
                     onChange={setTo}
@@ -693,7 +825,7 @@ function RequestRow({ ops, r }) {
                       },
                       ...options.map((c) => ({
                         value: c.staff.id,
-                        label: `${c.staff.name}${c.staff.id === r.toStaffId ? " (volunteered)" : ""}`,
+                        label: `${c.staff.name}${c.staff.id === r.toStaffId ? " (volunteered)" : ""}${c.off ? " · off that day" : ""}${c.addsMinutes ? ` · adds ${hoursText(c.addsMinutes)}` : ""}`,
                       })),
                     ]}
                   />
@@ -706,9 +838,9 @@ function RequestRow({ ops, r }) {
                 <Button
                   size="sm"
                   variant="dark"
-                  disabled={r.kind === "cover" && !to}
+                  disabled={takeable && !to}
                   onClick={() =>
-                    run(ops, "Approved. Today's schedule is updated.", {
+                    run(ops, "Approved. The schedule is updated.", {
                       type: "decide",
                       id: r.id,
                       approve: true,
@@ -756,49 +888,111 @@ function RequestRow({ ops, r }) {
         !mine &&
         !canVolunteer &&
         r.kind === "cover" && (
-          <p className="ds-note">
-            You're busy or off then, so you can't take it.
-          </p>
+          <p className="ds-note">You're booked then, so you can't take it.</p>
         )}
     </Card>
   );
 }
 
+// The next two weeks, for asking ahead.
+const REQUEST_DAYS = 14;
+
 function NewRequest({ ops }) {
   const { state, now, me } = ops;
-  const mine = commitments(state, me.id, now).filter(
-    (c) => sessionPhase(c.block, now) !== "done",
+  const today = dayKey(now);
+  const [day, setDay] = useState(today);
+  const when = day === today ? now : dayAt(day);
+  const mine = commitments(state, me.id, when).filter(
+    (c) => day !== today || sessionPhase(c.block, now) !== "done",
   );
-  const shift = shiftOn(state, me.id, now);
+  const shift = shiftOn(state, me.id, when);
   const [kind, setKind] = useState("cover");
-  const [index, setIndex] = useState(String(mine[0]?.block.index ?? ""));
+  const [index, setIndex] = useState("");
   const [start, setStart] = useState(shift?.start ?? "09:00");
   const [end, setEnd] = useState(shift?.end ?? "17:00");
   const [note, setNote] = useState("");
+  const [ask, setAsk] = useState("");
+  const [last, setLast] = useState(today);
+  // The block picked, or the first one that day.
+  const blockId = mine.some((c) => String(c.block.index) === index)
+    ? index
+    : String(mine[0]?.block.index ?? "");
+  const pickDay = (d) => {
+    setDay(d);
+    setIndex("");
+    const sh = shiftOn(state, me.id, d === today ? now : dayAt(d));
+    setStart(sh?.start ?? "09:00");
+    setEnd(sh?.end ?? "17:00");
+  };
   const send = () => {
     const ok = run(ops, "Request sent to the gym manager.", {
       type: "request",
       staffId: me.id,
       kind,
-      index: kind === "cover" ? Number(index) : undefined,
+      day: kind === "sick" ? today : day,
+      index: kind === "cover" ? blockId : undefined,
+      askStaffId: kind === "cover" && ask ? ask : undefined,
+      to: kind === "timeoff" && last > day ? last : undefined,
       start,
       end,
       note,
     });
     if (ok) setNote("");
   };
+  const days = Array.from({ length: REQUEST_DAYS }, (_, i) => {
+    const d = addDays(today, i);
+    return {
+      value: d,
+      label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : calendarDayLabel(d),
+    };
+  });
   return (
     <Card>
       <CardHead
-        title="Ask for a change today"
-        note="The gym manager approves. Coaches who are free can volunteer to cover."
+        title="Ask for a change"
+        note="Today or up to two weeks ahead. The gym manager approves. Other coaches, even ones who are off, can volunteer to cover."
       />
+      {kind !== "sick" && (
+        <Field label={kind === "timeoff" ? "First day" : "Day"}>
+          <Select value={day} onChange={pickDay} options={days} />
+        </Field>
+      )}
+      {kind === "timeoff" && (
+        <Field label="Last day">
+          <Select
+            value={last < day ? day : last}
+            onChange={setLast}
+            options={days.filter((o) => o.value >= day)}
+          />
+        </Field>
+      )}
+      {kind === "sick" && (
+        <p className="ds-note">
+          You're off today right away, and your blocks go up for cover. Feel
+          better.
+        </p>
+      )}
+      {kind === "cover" && mine.length > 0 && (
+        <Field label="Ask a specific coach (optional)">
+          <Select
+            value={ask}
+            onChange={setAsk}
+            options={[
+              { value: "", label: "Anyone can take it" },
+              ...coaches
+                .filter((c) => c.id !== me.id)
+                .map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+        </Field>
+      )}
       <Segmented
         label="What you need"
         options={[
           { value: "cover", label: "Cover" },
-          { value: "timeoff", label: "Day off" },
+          { value: "timeoff", label: "Time off" },
           { value: "hours", label: "Hours" },
+          { value: "sick", label: "Out sick" },
         ]}
         value={kind}
         onChange={setKind}
@@ -807,7 +1001,7 @@ function NewRequest({ ops }) {
         (mine.length ? (
           <Field label="Which block">
             <Select
-              value={index}
+              value={blockId}
               onChange={setIndex}
               options={[
                 ...new Map(mine.map((c) => [c.block.index, c])).values(),
@@ -818,7 +1012,11 @@ function NewRequest({ ops }) {
             />
           </Field>
         ) : (
-          <p className="ds-note">You have no blocks left today.</p>
+          <p className="ds-note">
+            {day === today
+              ? "You have no blocks left today."
+              : "You aren't booked on any blocks that day."}
+          </p>
         ))}
       {kind === "hours" && (
         <div className="st-two">
@@ -842,6 +1040,64 @@ function NewRequest({ ops }) {
   );
 }
 
+// Managers post a block that needs another coach; coaches claim it.
+function OpenShiftForm({ ops }) {
+  const { state, now } = ops;
+  const today = dayKey(now);
+  const [day, setDay] = useState(today);
+  const blocks = sessions(day === today ? now : dayAt(day), state);
+  const [index, setIndex] = useState("");
+  const pick = blocks.some((b) => String(b.index) === index)
+    ? index
+    : String(blocks[0]?.index ?? "");
+  const days = Array.from({ length: REQUEST_DAYS }, (_, i) => {
+    const d = addDays(today, i);
+    return {
+      value: d,
+      label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : calendarDayLabel(d),
+    };
+  });
+  return (
+    <Card className="st-open-form">
+      <CardHead
+        title="Post an open shift"
+        note="Every coach gets a notice and can claim it, even on a day off. You confirm who takes it."
+      />
+      <div className="st-two">
+        <Field label="Day">
+          <Select value={day} onChange={setDay} options={days} />
+        </Field>
+        <Field label="Block">
+          <Select
+            value={pick}
+            onChange={setIndex}
+            options={blocks.map((b) => ({
+              value: String(b.index),
+              label: `${b.name}, ${clock(b.start)}–${clock(b.end)}`,
+            }))}
+          />
+        </Field>
+      </div>
+      <div>
+        <Button
+          size="sm"
+          variant="dark"
+          disabled={!blocks.length}
+          onClick={() =>
+            run(ops, "Open shift posted.", {
+              type: "openShift",
+              day,
+              index: pick,
+            })
+          }
+        >
+          Post it
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export function RequestsPanel({ ops }) {
   const { state, me } = ops;
   const all = requestsFor(state);
@@ -856,6 +1112,7 @@ export function RequestsPanel({ ops }) {
           title={`Waiting on you · ${pending.length}`}
           note="Approving a cover swaps the coach on that block for that day only. A day off takes the coach off every block that day."
         >
+          <OpenShiftForm ops={ops} />
           {pending.length ? (
             <div className="st-requests">
               {pending.map((r) => (
@@ -870,13 +1127,14 @@ export function RequestsPanel({ ops }) {
         </Section>
       ) : (
         <Section
-          title="Covers you could take"
-          note="Only blocks where you're on shift and free."
+          title="Covers and open shifts"
+          note="Take one even on a day you're off. The manager confirms, and the hours are added to your day."
         >
-          {others.filter((r) => r.kind === "cover").length ? (
+          {others.filter((r) => r.kind === "cover" || r.kind === "open")
+            .length ? (
             <div className="st-requests">
               {others
-                .filter((r) => r.kind === "cover")
+                .filter((r) => r.kind === "cover" || r.kind === "open")
                 .map((r) => (
                   <RequestRow key={r.id} ops={ops} r={r} />
                 ))}
@@ -920,10 +1178,13 @@ function PieEditor({ ops, staffId }) {
   const { state, now } = ops;
   const saved = portfolioOf(state, staffId);
   const [draft, setDraft] = useState(saved);
+  const list = modalitiesOf(state);
+  const coming = comingBuckets(state);
+  const wants = staffingOf(state).interest?.[staffId] ?? [];
   const minShare = staffingOf(state).rules.minShare;
-  const sum = modalities.reduce((n, m) => n + (draft[m.id] ?? 0), 0);
-  const problem = portfolioProblem(draft, minShare);
-  const changed = modalities.some((m) => draft[m.id] !== saved[m.id]);
+  const sum = list.reduce((n, m) => n + (draft[m.id] ?? 0), 0);
+  const problem = portfolioProblem(draft, minShare, list);
+  const changed = list.some((m) => draft[m.id] !== saved[m.id]);
   const mix = actualMix(state, staffId, now);
   const step = (id, d) =>
     setDraft((p) => ({
@@ -942,16 +1203,19 @@ function PieEditor({ ops, staffId }) {
         aside={<Tag tone={sum === 100 ? "good" : "warn"}>{sum}% of 100</Tag>}
       />
       <div className="st-pie-row">
-        <Pie value={draft} size={160} />
+        <Pie value={draft} size={160} list={list} />
         <ul className="st-shares">
-          {modalities.map((m) => (
+          {list.map((m, i) => (
             <li key={m.id}>
-              <span className={`st-swatch st-${m.id}`} aria-hidden="true" />
+              <span
+                className={`st-swatch ${bucketClass(m, i)}`}
+                aria-hidden="true"
+              />
               <span className="st-share-name">
                 <b>{m.label}</b>
                 <small>
-                  Booked today {mix.share[m.id]}% ·{" "}
-                  {Math.round(mix.minutes[m.id] / 6) / 10} h
+                  Booked today {mix.share[m.id] ?? 0}% ·{" "}
+                  {Math.round((mix.minutes[m.id] ?? 0) / 6) / 10} h
                 </small>
               </span>
               <span className="st-stepper">
@@ -974,6 +1238,36 @@ function PieEditor({ ops, staffId }) {
         </ul>
       </div>
       {changed && problem && <p className="st-problem">{problem}</p>}
+      {coming.length > 0 && (
+        <div className="st-wants">
+          <span className="ds-field-label">
+            Coming soon: tap what {staffId === ops.me.id ? "you'd" : "they'd"}{" "}
+            like to add
+          </span>
+          <div className="st-chips">
+            {coming.map((b) => {
+              const on = wants.includes(b.id);
+              return (
+                <Chip
+                  key={b.id}
+                  on={on}
+                  onClick={() =>
+                    run(
+                      ops,
+                      on
+                        ? `${b.label} taken off the list.`
+                        : `${b.label} added. Managers see it.`,
+                      { type: "interest", staffId, bucket: b.id, on: !on },
+                    )
+                  }
+                >
+                  {b.label}
+                </Chip>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <SaveBar
         show={changed}
         message={problem ?? "Unsaved split"}
@@ -991,6 +1285,94 @@ function PieEditor({ ops, staffId }) {
   );
 }
 
+// Managers decide which programs coaches can split time across, and see
+// who wants to add a program that's coming soon.
+function ProgramsCard({ ops }) {
+  const { state } = ops;
+  const [name, setName] = useState("");
+  const buckets = scheduleOf(state).buckets;
+  const interest = staffingOf(state).interest ?? {};
+  const fans = (id) =>
+    Object.entries(interest)
+      .filter(([, list]) => list.includes(id))
+      .map(([sid]) => staffName(sid).replace("Coach ", ""));
+  const save = (action, msg) =>
+    ops.run(msg, (s) => applySchedule(s, { actor: ops.actor, ...action }));
+  return (
+    <Section
+      title="Programs"
+      note="What coaches can split their time across. A program that's coming soon doesn't count toward anyone's split yet, and coaches can say they'd like to add it."
+    >
+      <Card>
+        <ul className="st-programs">
+          {buckets.map((b) => {
+            const who = fans(b.id);
+            const core = BASE.includes(b.id);
+            return (
+              <li key={b.id}>
+                <span className="st-share-name">
+                  <b>{b.label}</b>
+                  <small>
+                    {b.status === "coming"
+                      ? who.length
+                        ? `${who.length} want to add it: ${who.join(", ")}`
+                        : "No one has asked for it yet"
+                      : core
+                        ? "Part of every coach's day"
+                        : programStatuses[b.status]}
+                  </small>
+                </span>
+                {core ? (
+                  <Tag tone="good">Running</Tag>
+                ) : (
+                  <Segmented
+                    size="sm"
+                    label={`${b.label} status`}
+                    value={b.status}
+                    options={Object.entries(programStatuses).map(
+                      ([value, label]) => ({ value, label }),
+                    )}
+                    onChange={(status) =>
+                      save(
+                        { type: "bucket", id: b.id, status },
+                        `${b.label}: ${programStatuses[status].toLowerCase()}.`,
+                      )
+                    }
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <form
+          className="st-program-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (
+              save(
+                { type: "bucket", label: name, status: "coming" },
+                `${name.trim()} added as coming soon.`,
+              )
+            )
+              setName("");
+          }}
+        >
+          <input
+            className="ds-textarea st-program-input"
+            aria-label="New program"
+            placeholder="Add a program, like Parkour"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Button type="submit" size="sm" disabled={!name.trim()}>
+            Add as coming soon
+          </Button>
+        </form>
+      </Card>
+    </Section>
+  );
+}
+
 export function PiePanel({ ops }) {
   const { state, now, me } = ops;
   const [editing, setEditing] = useState(null);
@@ -999,7 +1381,9 @@ export function PiePanel({ ops }) {
     const mix = actualMix(state, s.id, now);
     const drift = mix.total
       ? Math.max(
-          ...modalities.map((m) => Math.abs(target[m.id] - mix.share[m.id])),
+          ...modalitiesOf(state).map((m) =>
+            Math.abs((target[m.id] ?? 0) - (mix.share[m.id] ?? 0)),
+          ),
         )
       : 0;
     return { s, target, mix, drift };
@@ -1028,7 +1412,12 @@ export function PiePanel({ ops }) {
                 </div>
                 <div className="st-pie-pair">
                   <figure>
-                    <Pie value={target} size={88} label={`${s.name} target`} />
+                    <Pie
+                      value={target}
+                      size={88}
+                      label={`${s.name} target`}
+                      list={modalitiesOf(state)}
+                    />
                     <figcaption>Target</figcaption>
                   </figure>
                   <figure>
@@ -1036,15 +1425,16 @@ export function PiePanel({ ops }) {
                       value={mix.share}
                       size={88}
                       label={`${s.name} booked today`}
+                      list={modalitiesOf(state)}
                     />
                     <figcaption>Booked today</figcaption>
                   </figure>
                 </div>
                 <p className="ds-note st-pie-nums">
-                  {modalities
+                  {modalitiesOf(state)
                     .map(
                       (m) =>
-                        `${m.short} ${target[m.id]}% / ${mix.share[m.id]}%`,
+                        `${m.short} ${target[m.id] ?? 0}% / ${mix.share[m.id] ?? 0}%`,
                     )
                     .join(" · ")}
                 </p>
@@ -1064,6 +1454,7 @@ export function PiePanel({ ops }) {
           <Legend />
         </Section>
       )}
+      {me.head && <ProgramsCard ops={ops} />}
     </>
   );
 }
@@ -1214,6 +1605,7 @@ const ruleFields = [
     "Classes with a kid 6 or under",
   ],
   ["openRatio", "Kids per coach at open gym", "Against the expected headcount"],
+  ["maxWeekly", "Weekly hours cap", "No coach is booked past this"],
   [
     "maxOnBreak",
     "Coaches on break at once",
@@ -1432,6 +1824,10 @@ export function StaffPanel({ ops, tab }) {
   if (tab === "check") return <CheckPanel ops={ops} />;
   if (tab === "requests") return <RequestsPanel ops={ops} />;
   if (tab === "pie") return <PiePanel ops={ops} />;
+  if (tab === "avail") return <AvailabilityPanel ops={ops} />;
+  if (tab === "build" && ops.me.head) return <ScheduleBuilder ops={ops} />;
+  if (tab === "week") return <MySchedule ops={ops} />;
+  if (tab === "time" && ops.me.head) return <Timesheets ops={ops} />;
   if (tab === "owner" && ops.me.owner) return <OwnerPanel ops={ops} />;
   return <MePanel ops={ops} />;
 }

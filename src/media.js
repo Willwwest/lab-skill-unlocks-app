@@ -1,7 +1,16 @@
-// Photo storage for coach moments and profile pictures. Images live in this
-// browser's IndexedDB (localStorage is too small); records in app state
-// only hold the photo id. Production would upload to private storage.
+// Photo storage for coach moments and profile pictures. Records in app
+// state only hold the photo id. Connected to the database, photos go to the
+// private 'photos' bucket ({org}/{athlete}/{id}.jpg) so every device sees
+// them; this browser's IndexedDB keeps a copy. Without the database, the
+// IndexedDB copy is the only one.
 import { useEffect, useState } from "react";
+import {
+  remote,
+  uploadPhoto,
+  signedPhotoUrl,
+  downloadPhoto,
+  removePhoto,
+} from "./sync/photos.js";
 
 const DB = "lab-photos";
 const STORE = "photos";
@@ -54,33 +63,49 @@ async function scaled(source, max, quality) {
 }
 
 // Stores a full image (1600 px) and a thumbnail (480 px); returns the id.
-export async function savePhoto(source) {
+// childId says whose photo it is, for the shared copy.
+export async function savePhoto(source, childId) {
   const [full, thumb] = await Promise.all([
     scaled(source, 1600, 0.85),
     scaled(source, 480, 0.8),
   ]);
   const id = crypto.randomUUID();
-  await tx("readwrite", (s) => s.put({ full, thumb, at: Date.now() }, id));
+  if (remote) await uploadPhoto(id, childId, full, thumb);
+  await tx("readwrite", (s) =>
+    s.put({ full, thumb, at: Date.now() }, id),
+  ).catch((e) => {
+    if (!remote) throw e;
+  });
   return id;
 }
 
-export const deletePhoto = (id) => tx("readwrite", (s) => s.delete(id));
+export const deletePhoto = async (id) => {
+  if (remote) await removePhoto(id);
+  await tx("readwrite", (s) => s.delete(id)).catch(() => {});
+};
 export const clearPhotos = () => tx("readwrite", (s) => s.clear());
 
 const urls = new Map();
 async function photoURL(id, size) {
   const k = `${id}:${size}`;
   if (urls.has(k)) return urls.get(k);
-  const row = await tx("readonly", (s) => s.get(id));
-  if (!row) return null;
+  const row = await tx("readonly", (s) => s.get(id)).catch(() => null);
+  if (!row) {
+    if (!remote) return null;
+    // Taken on another device: a short-lived link to the shared copy.
+    const url = await signedPhotoUrl(id, size);
+    if (url) urls.set(k, url);
+    return url;
+  }
   const url = URL.createObjectURL(row[size]);
   urls.set(k, url);
   return url;
 }
 
 export async function photoBlob(id) {
-  const row = await tx("readonly", (s) => s.get(id));
-  return row?.full ?? null;
+  const row = await tx("readonly", (s) => s.get(id)).catch(() => null);
+  if (row?.full) return row.full;
+  return remote ? downloadPhoto(id) : null;
 }
 
 // Object URL for a stored photo, or null while loading / when missing.

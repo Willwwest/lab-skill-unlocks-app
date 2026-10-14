@@ -28,6 +28,7 @@ import {
   shoutouts,
   stations,
 } from "./club.js";
+import { sessionFromId } from "./schedule.js";
 import {
   applyFloor,
   arrival,
@@ -250,7 +251,7 @@ function NowView({ ops, now, go }) {
     .map((k) => ({ kid: k, days: birthdayIn(k.id, now) }))
     .filter(({ days }) => days !== null && days <= 7)
     .sort((a, b) => a.days - b.days);
-  const blocks = sessions(now).slice().sort(byStart);
+  const blocks = sessions(now, ops.state).slice().sort(byStart);
   const hour = gymHour(now);
   return (
     <div className="cc-view">
@@ -465,7 +466,7 @@ function NowView({ ops, now, go }) {
 }
 
 function BlockPicker({ ops, now, kinds }) {
-  const list = sessions(now)
+  const list = sessions(now, ops.state)
     .filter((s) => !kinds || kinds.includes(s.kind))
     .sort(byStart);
   return (
@@ -619,7 +620,7 @@ function ClassView({ ops, now }) {
           <BlockPicker ops={ops} now={now} kinds={["class"]} />
         </div>
         <div className="cc-chips">
-          {sessions(now)
+          {sessions(now, ops.state)
             .filter((s) => s.kind === "class")
             .map((s) => (
               <button
@@ -1212,7 +1213,7 @@ function WrapView({ ops, now }) {
   const groups = [...new Set(pending.map((e) => e.session))]
     .map((id) => ({
       id,
-      block: sessions(`${id.slice(0, 10)}T12:00:00Z`).find((s) => s.id === id),
+      block: sessionFromId(ops.state, id),
       items: pending.filter((e) => e.session === id),
     }))
     .sort(
@@ -1663,10 +1664,10 @@ export default function CoachCenter({
   const meButton = useRef(null);
   const [famPick, setFamPick] = useState(null);
   const block =
-    sessions(now).find((s) => s.id === blockId) ?? defaultBlock(now);
+    sessions(now, state).find((s) => s.id === blockId) ?? defaultBlock(now);
   // Keep the chosen block on today's date after midnight.
   useEffect(() => {
-    if (!sessions(now).some((s) => s.id === blockId))
+    if (!sessions(now, state).some((s) => s.id === blockId))
       setBlockId(defaultBlock(now).id);
   }, [now, blockId]);
   // Lock after inactivity on a shared device.
@@ -1733,7 +1734,7 @@ export default function CoachCenter({
   const go = (id, arg = null) => {
     // Class tools need a class; jump to the live, next or last one.
     if (id === "class" && block.kind !== "class") {
-      const classes = sessions(now)
+      const classes = sessions(now, state)
         .filter((s) => s.kind === "class")
         .sort(byStart);
       const pick =
@@ -1972,7 +1973,7 @@ export default function CoachCenter({
           onClose={() => setCamera(null)}
           onCapture={async (blob) => {
             try {
-              const photoId = await savePhoto(blob);
+              const photoId = await savePhoto(blob, camera.childId);
               const child = people.find((p) => p.id === camera.childId);
               const ok = run(
                 camera.purpose === "avatar"

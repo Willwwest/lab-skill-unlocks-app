@@ -1,0 +1,293 @@
+/* ============================================
+   FRONT DESK TV (?tv=desk)
+   The live map top left, today's schedule down the right, and a rotating
+   strip along the bottom: earn points now, crowns, shoutouts. Same ground,
+   hairlines and type as the floor board (floortv.css). Tokens only.
+   ============================================ */
+
+.dtv {
+  --rail: clamp(300px, 24vw, 540px);
+  --strip: clamp(220px, 31vh, 420px);
+  --hair: color-mix(in srgb, var(--ds-white) 9%, transparent);
+  --muted: var(--ds-text-on-ink-2);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail);
+  grid-template-rows: minmax(0, 1fr) var(--strip);
+  grid-template-areas:
+    "map rail"
+    "strip rail";
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--ds-scene-void);
+  color: var(--ds-text-on-ink);
+  font-family: var(--ds-font-body);
+}
+.dtv-map {
+  grid-area: map;
+}
+
+/* ---------- The strip ---------- */
+
+.dtv-strip {
+  grid-area: strip;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1vw;
+  min-width: 0;
+  padding: 1.3vw 2vw 1.6vw;
+  border-top: 1px solid var(--hair);
+  background: var(--ds-ink);
+}
+.dtv-strip > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dtv-strip .ftv-eyebrow {
+  color: var(--ds-text-on-ink);
+}
+.dtv-dots {
+  display: flex;
+  gap: 0.5vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dtv-dots li {
+  width: clamp(6px, 0.45vw, 10px);
+  aspect-ratio: 1;
+  border-radius: var(--ds-radius-pill);
+  background: var(--hair);
+}
+.dtv-dots li.is-on {
+  background: var(--ds-white);
+}
+.dtv-panel {
+  min-height: 0;
+  animation: dtv-in 0.5s var(--ds-ease) both;
+}
+@keyframes dtv-in {
+  from {
+    opacity: 0;
+  }
+}
+.dtv-cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1vw;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dtv-cards > li {
+  display: grid;
+  align-content: start;
+  gap: 0.45vw;
+  min-width: 0;
+  padding: 1vw 1.1vw;
+  border: 1px solid var(--hair);
+  border-radius: var(--ds-radius-lg);
+  background: color-mix(in srgb, var(--ds-white) 3%, transparent);
+}
+.dtv-cards strong {
+  font-size: clamp(14px, 1.05vw, 24px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.dtv-cards p {
+  margin: 0;
+  font-size: clamp(11px, 0.78vw, 17px);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* A movement: pictogram, name, what to do, where, and its points. */
+.dtv-move {
+  grid-template-rows: auto auto 1fr auto;
+}
+/* The app draws .move-art as a faint watermark behind skill cards; here it
+   is the card's picture, so undo that. */
+.dtv-move .move-art {
+  position: static;
+  width: clamp(44px, 4vw, 88px);
+  height: clamp(44px, 4vw, 88px);
+  margin-bottom: 0.2vw;
+  color: var(--ds-white);
+  opacity: 0.92;
+  transform: none;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.dtv-move p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.dtv-move footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6vw;
+  padding-top: 0.5vw;
+  border-top: 1px solid var(--hair);
+  font-size: clamp(11px, 0.74vw, 16px);
+  color: var(--muted);
+}
+.dtv-move footer small {
+  color: var(--ds-zone-class);
+}
+.dtv-move footer b {
+  font-size: clamp(14px, 1.05vw, 24px);
+  color: var(--ds-zone-open);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Crowns and shoutouts: a small kicker, then the nickname, large. */
+.dtv-kicker {
+  font-size: clamp(10px, 0.66vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.dtv-crown .dtv-kicker {
+  color: var(--ds-zone-class);
+}
+.dtv-shout .dtv-kicker {
+  color: var(--ds-zone-open);
+}
+.dtv-crown strong,
+.dtv-shout strong {
+  font-size: clamp(17px, 1.4vw, 32px);
+}
+.dtv-empty {
+  margin: 0;
+  font-size: clamp(14px, 1.1vw, 24px);
+  color: var(--muted);
+}
+
+/* ---------- The schedule ---------- */
+
+.dtv-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 2.2vw 1.9vw 1.9vw;
+  overflow: hidden;
+  background: var(--ds-ink);
+  border-left: 1px solid var(--hair);
+}
+.dtv-today {
+  padding-top: 1.2vw;
+  border-top: 1px solid var(--hair);
+}
+.dtv-schedule {
+  display: grid;
+  margin: 0.6vw 0 0;
+  padding: 0;
+  list-style: none;
+}
+.dtv-schedule li {
+  position: relative;
+  display: grid;
+  gap: 0.15vw;
+  padding: 0.85vw 0 0.85vw 1vw;
+  border-top: 1px solid var(--hair);
+}
+.dtv-schedule li:first-child {
+  border-top: 0;
+}
+.dtv-schedule li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.85vw;
+  bottom: 0.85vw;
+  width: 3px;
+  border-radius: 2px;
+  background: transparent;
+}
+.dtv-schedule li.is-live::before {
+  background: var(--tone);
+}
+.dtv-schedule time {
+  font-size: clamp(11px, 0.78vw, 17px);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dtv-schedule strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6vw;
+  font-size: clamp(14px, 1.05vw, 24px);
+  font-weight: 700;
+}
+.dtv-schedule em {
+  font-size: clamp(10px, 0.62vw, 13px);
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+.dtv-schedule span {
+  font-size: clamp(11px, 0.78vw, 17px);
+  color: var(--muted);
+}
+.dtv-schedule li.is-done {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtv-panel {
+    animation: none;
+  }
+}
+
+/* A phone or portrait screen: map, strip and schedule stack. */
+@media (max-width: 820px), (max-aspect-ratio: 1/1) {
+  .dtv {
+    display: block;
+    overflow-y: auto;
+  }
+  .dtv-strip,
+  .dtv-rail {
+    padding: var(--ds-space-4);
+  }
+  .dtv-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--ds-space-2);
+  }
+  .dtv-cards > li {
+    padding: var(--ds-space-3);
+  }
+  .dtv-rail {
+    border-left: 0;
+    border-top: 1px solid var(--hair);
+  }
+  .dtv-schedule li {
+    padding: var(--ds-space-2) 0 var(--ds-space-2) var(--ds-space-3);
+  }
+}
+
+/* A day with nothing scheduled: the schedule column says so. */
+.dtv-closed {
+  display: grid;
+  gap: 0.4vw;
+  margin-top: 0.6vw;
+}
+.dtv-closed strong {
+  font-size: clamp(17px, 1.35vw, 30px);
+  font-weight: 700;
+}
+.dtv-closed span {
+  font-size: clamp(12px, 0.86vw, 19px);
+  color: var(--muted);
+}

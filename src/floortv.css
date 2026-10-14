@@ -99,6 +99,9 @@
   font-weight: 600;
   color: var(--muted);
 }
+.ftv-label.is-soon .ftv-label-state::before {
+  background: var(--ds-zone-class);
+}
 .ftv-label-state::before {
   content: "";
   width: 0.55em;
@@ -145,6 +148,11 @@
   height: 0.8em;
   border-radius: 2px;
   background: var(--tone);
+}
+/* Open now, class soon: the open fill with a gold edge, as on the map. */
+.ftv-legend li.is-soon::before {
+  background: var(--ds-zone-open);
+  box-shadow: inset 0 0 0 2px var(--ds-zone-class);
 }
 
 /* Tools, bottom right: shown on load and on mouse movement. */
@@ -216,6 +224,97 @@
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: var(--ds-text-h3);
+}
+
+/* ---------- Demo day (?demo) ---------- */
+
+/* Across the top of the map: time, play and pause, the timeline of the
+   day, and a line on what the zones are showing. */
+.tv-demo {
+  position: absolute;
+  top: 1.4vw;
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  gap: 0.5vw;
+  width: min(760px, calc(100% - 3vw));
+  padding: 0.8vw 1vw;
+  border: 1px solid var(--hair);
+  border-radius: var(--ds-radius-lg);
+  background: color-mix(in srgb, var(--ds-ink) 88%, transparent);
+  transform: translateX(-50%);
+}
+.tv-demo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8vw;
+}
+.tv-demo-tag {
+  font-size: clamp(10px, 0.62vw, 13px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ds-zone-class);
+}
+.tv-demo-row time {
+  min-width: 5.2em;
+  font-size: clamp(14px, 1vw, 22px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tv-demo-play {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--hair);
+  border-radius: var(--ds-radius-pill);
+  background: transparent;
+  color: var(--ds-text-on-ink);
+  cursor: pointer;
+}
+.tv-demo-track {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  border-radius: var(--ds-radius-pill);
+  background: color-mix(in srgb, var(--ds-white) 8%, transparent);
+  cursor: pointer;
+  touch-action: none;
+}
+.tv-demo-block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: var(--ds-radius-pill);
+  opacity: 0.75;
+}
+.tv-demo-block.is-class {
+  background: var(--ds-zone-class);
+}
+.tv-demo-block.is-open {
+  background: var(--ds-zone-open);
+}
+.tv-demo-head {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--ds-white);
+  box-shadow: 0 0 0 2px var(--ds-ink);
+}
+.tv-demo p {
+  margin: 0;
+  font-size: clamp(12px, 0.82vw, 18px);
+  color: var(--muted);
+}
+.tv-demo-play:focus-visible,
+.tv-demo-track:focus-visible {
+  outline: 2px solid var(--ds-cyan);
+  outline-offset: 2px;
 }
 
 /* ---------- The rail ---------- */
@@ -593,5 +692,91 @@
   }
   .lay-side {
     position: static;
+  }
+}
+
+/* ---------- Class floor use editor ---------- */
+
+.use-classes {
+  margin-bottom: var(--ds-space-4);
+}
+.use-zone rect {
+  fill: var(--ds-gray-50);
+  stroke: var(--ds-gray-300);
+  stroke-width: 0.4;
+  cursor: pointer;
+}
+.use-zone.is-locked rect {
+  cursor: default;
+}
+/* Used by another part of this class: a gold outline. */
+.use-zone.is-other rect {
+  stroke: var(--ds-zone-class);
+  stroke-width: 0.6;
+  stroke-dasharray: 1.4 0.9;
+}
+/* Used by the part being marked: gold. */
+.use-zone.is-on rect {
+  fill: color-mix(in srgb, var(--ds-zone-class) 45%, var(--ds-white));
+  stroke: var(--ds-zone-class);
+  stroke-width: 1;
+  stroke-dasharray: none;
+}
+.use-zone rect:focus {
+  outline: none;
+}
+.use-zone rect:focus-visible {
+  outline: none;
+  stroke: var(--ds-cyan);
+  stroke-width: 1.2;
+}
+.use-parts {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.use-parts button {
+  display: grid;
+  gap: var(--ds-space-1);
+  width: 100%;
+  min-height: var(--ds-target);
+  padding: var(--ds-space-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.use-parts button[aria-pressed="true"] {
+  border-color: var(--ds-zone-class);
+  box-shadow: inset 4px 0 0 var(--ds-zone-class);
+}
+.use-parts button:focus-visible {
+  outline: 3px solid var(--ds-focus);
+  outline-offset: 1px;
+}
+.use-part-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--ds-space-2);
+}
+.use-part-head small {
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-3);
+  white-space: nowrap;
+}
+.use-part-zones {
+  font-size: var(--ds-text-small);
+  color: var(--ds-text-2);
+}
+@media (hover: hover) {
+  .use-parts button:hover {
+    border-color: var(--ds-border-strong);
   }
 }

@@ -53,7 +53,8 @@ for (const size of SIZES) {
   });
   await h.step("changes the rotation length", async () => {
     await page.getByRole("radio", { name: "10 min" }).click();
-    await page.getByText("4 × 10 = 40 of 60 min").waitFor();
+    // Four 10-minute stations after the 5-minute warm-up.
+    await page.getByText("4 × 10 = 45 of 60 min").waitFor();
   });
   await h.step("the save bar appears", async () => {
     await page.getByRole("region", { name: "Unsaved changes" }).waitFor();

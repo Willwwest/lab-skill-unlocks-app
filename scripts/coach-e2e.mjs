@@ -238,18 +238,21 @@ const journeys = {
     await h.has("Today at the gym");
     await h.overflow("Today");
     await h.shot("today", true);
-    // Floor tab goes to the next block; the hero button does too.
-    await h.click(".cf-next .button", "Take attendance");
+    // Open the class from the day's timeline, whatever the time of day.
+    await h.click(".cf-slot", "Ninja foundations");
     await h.has("Ninja foundations");
     await h.has("Attendance", ".cf-steps li.now");
     await h.shot("attendance-empty");
-    await h.click(".tile-mint .text-button", "Mark all");
+    // Front-desk arrivals wait in age bands; one button adds them all.
+    await h.check("desk arrivals are sorted into age bands", async () => (await h.count('[data-drop="out"] .cf-band-head')) >= 2);
+    await h.check("Jonah, who skipped the desk, is listed apart", async () => tab.eval(`[...document.querySelectorAll(".cf-band.is-missing .cf-ac")].some((b) => b.textContent.includes("Jonah"))`));
+    await h.click('[data-drop="out"] .cf-col-head .button', "Add all");
     await h.check("front-desk arrivals marked", async () => (await h.state()).gym.checkins.length >= 10);
     // Levels for first-timers.
-    const unrated = await h.count(".cf-att .cf-levelpick");
+    const unrated = await h.count(".cf-col-in .cf-levelpick");
     await h.check(`level pickers shown for unrated kids (${unrated})`, async () => unrated > 0);
-    await h.click(".cf-att .cf-levelpick button", "Beginner");
-    await h.check("one fewer level picker", async () => (await h.count(".cf-att .cf-levelpick")) === unrated - 1);
+    await h.click(".cf-col-in .cf-levelpick button", "Beginner");
+    await h.check("one fewer level picker", async () => (await h.count(".cf-col-in .cf-levelpick")) === unrated - 1);
     // Walk-in by search, with siblings listed.
     await h.type(".cf-main .cf-search input", "hart");
     await h.has("Willa Hart", ".cf-hits");
@@ -259,7 +262,7 @@ const journeys = {
     await h.overflow("attendance");
     await h.shot("attendance-marked", true);
     // Untap a kid by mistake and redo.
-    await h.click(".cf-att-main", "Theo Parker");
+    await h.click(".cf-col-in .cf-ac", "Theo");
     await h.check("Theo unmarked", async () => !(await h.state()).gym.checkins.some((c) => c.childId === "theo"));
     await h.click(".cc-toast .cc-undo");
     await h.check("undo restores Theo", async () => (await h.state()).gym.checkins.some((c) => c.childId === "theo"));
@@ -272,9 +275,16 @@ const journeys = {
     await h.has("Groups", ".cf-steps li.now");
     const groups = await h.count(".cf-group");
     await h.check(`grouped into ${groups} groups`, async () => groups >= 2);
-    await h.check("no group breaks the age rule", async () => (await h.count(".cf-group .cf-flag.f-pastDue")) === 0);
+    await h.check("no group breaks the age rule", async () => tab.eval(`![...document.querySelectorAll(".cf-group .cf-flag")].some((f) => f.textContent.includes("Ages outside"))`));
     await h.overflow("groups");
     await h.shot("groups", true);
+    // Another coach jumps in to help: they join the class's coaches.
+    await h.select(".cf-add-helper select", "morgan");
+    await h.check("Morgan is helping", async () => {
+      const s = await h.state();
+      return Object.values(s.gym.runs)[0].helpers?.includes("morgan");
+    });
+    await h.has("Helping today", ".cf-coaches");
     // Change group count, move a kid, change a coach.
     await h.click(".cf-count button", "2");
     await h.check("re-sorted (age rule may add groups)", async () => (await h.count(".cf-group")) >= 2);
@@ -301,6 +311,14 @@ const journeys = {
     // Moving a 5-year-old into the 7–8 group trips the age rule: the app asks once more.
     await h.has("mixes ages outside the rule", ".cf-hero-actions");
     await h.click(".cf-hero-actions .button", "Start anyway");
+    // The warm-up runs first; skip it to reach the first station.
+    await h.has("Warm-up", ".cf-timer");
+    await h.click(".cf-hero-actions .button", "Skip warm-up");
+    await h.has("Rotation 1 of", ".cf-timer");
+    // Hold freezes everyone's clock; resume picks it up.
+    await h.click(".cf-hero-actions .button", "Hold");
+    await h.has("On hold", ".cf-timer");
+    await h.click(".cf-hero-actions .button", "Resume");
     await h.has("Rotation 1 of", ".cf-timer");
     await h.check("live pill in the bar", async () => (await h.count(".cf-live")) === 1);
     await h.overflow("live class");
@@ -321,8 +339,13 @@ const journeys = {
     await h.click(".cf-live");
     await h.has("Rotation 2 of", ".cf-timer");
     // Rotate through to the end.
-    for (let i = 0; i < 4; i++) await tab.eval(`[...document.querySelectorAll(".cf-hero-actions .button")].find((b) => b.textContent.includes("Rotate now"))?.click()`);
-    await sleep(500);
+    // Rotate until the rotations are done; how many depends on the groups.
+    for (let i = 0; i < 10; i++) {
+      const done = await tab.eval(`document.body.textContent.includes("Rotations done")`);
+      if (done) break;
+      await tab.eval(`[...document.querySelectorAll(".cf-hero-actions .button")].find((b) => b.textContent.includes("Rotate now"))?.click()`);
+      await sleep(400);
+    }
     await h.has("Rotations done");
     await h.click(".cf-hero-actions .button", "End class");
     await h.has("Wrap-up", ".cf-steps li.now");
@@ -366,7 +389,7 @@ const journeys = {
     await tab.eval(`(async () => {
       const g = await import("/src/gym.js"); const c = await import("/src/club.js");
       const s = JSON.parse(localStorage.getItem("lab-skill-unlocks-v1"));
-      const next = g.applyGym(s, { type: "startClass", session: c.sessions(new Date())[0].id, actor: { role: "Coach", name: "Coach Jordan", staffId: "jordan" } });
+      const next = g.applyGym(s, { type: "startClass", session: c.sessions(new Date())[0].id, warmup: 0, actor: { role: "Coach", name: "Coach Jordan", staffId: "jordan" } });
       localStorage.setItem("lab-skill-unlocks-v1", JSON.stringify(next));
       window.dispatchEvent(new StorageEvent("storage", { key: "lab-skill-unlocks-v1", newValue: JSON.stringify(next) }));
     })()`);
@@ -404,7 +427,7 @@ const journeys = {
       build: `["ava","mateo","zoe","nora","finn","sofia","luca","ben"].forEach((id, i) => { s = f.applyFloor(s, { type: "checkIn", childIds: [id], by: "Front desk" }, ago(25 - i * 2)); });`,
     });
     await h.go(BASE + "?coach");
-    await h.click(".cf-next .button", "Start open gym");
+    await h.click(".cf-slot", "Open gym rotation");
     await h.has("gym.");
     await h.type(".cf-search input", "555-0127");
     await h.has("Ortiz family");

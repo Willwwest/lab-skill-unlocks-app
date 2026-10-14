@@ -249,3 +249,27 @@ Placeholders until the gym confirms them: shift times, the three modalities, rat
 ### Gym map in the coach app, owners edit
 
 The 3D gym floor board (`?tv`) now opens inside the coach app from the coach menu (**Gym map**), with a **Back to the app** button. Everyone on staff can look at it. Only the owners (Charlie Mitchell, Ally Mitchell and Travis) see **Edit floor** and can save or reset the floor plan; anyone else opening `?tv&edit` sees the editor locked. The rule lives in `applyLayout` (`src/layout.js`), and sign-in now carries the owner flag (`src/auth.js`). On a phone the map's tools sit under the class rail so they can be tapped.
+
+## Front desk TV (October 13, 2026)
+
+`?tv=desk` is the screen behind the front desk. The layout follows the owners' sketch:
+
+- **Gym map** (top left): the same live floor model as the floor board (`src/FloorMap.jsx`, shared by both screens). Gold means a class is on it now. A **gold edge on a mint zone** means it's open but a class takes it within 30 minutes. Mint means free for open gym. Add `&view=top` for the overhead plan.
+- **Class schedule** (right column): today's blocks in order, with the age group and lead coach. The live block is tagged **Now** with a coloured bar, the next one **Next**, and finished blocks fade.
+- **Bottom strip:** rotates every 15 seconds between:
+  - **Earn points now:** five point-earning movements on equipment no class is using and no station pause has closed. Each card has its pictogram, a plain-language instruction, the zone to go to, and its points. The strip spreads across stations and changes every 15 minutes through the day. A balance move points to the beam, not the vault blocks.
+  - **This week's crowns** and **Coach shoutouts:** only when there are some.
+
+**Names on public screens:** a kid is named only if their family turned on the weekly-crown opt-in, and then only by the nickname the parent chose. Everyone else is left off the TV entirely.
+
+The data behind the screen is in `src/tvs.js` (`todaySchedule`, `earnNow`, `weeklyCrowns`, `weeklyShoutouts`), tested in `src/tvs.test.js`. Shared screen helpers (the clock, `?at=` previews, photo URLs) are in `src/tvkit.js`. More channels, such as a weekly stars board and course-trial times, can be added the same way as `?tv=<name>` in `src/main.jsx`. `scripts/floor-e2e.mjs` checks the desk screen during a class, in open gym, rotating to crowns and shoutouts (opted-in nicknames only), closed, and at phone width.
+
+## Class floor use (October 13, 2026)
+
+A class no longer blocks every zone on its stations for the whole hour. Each class says which zones its **warm-up**, **each station** and its **close** use, and the TV board marks only those zones, only while that part runs.
+
+- **Default** (matches the coaches' rotation map): warm-up on the run track; grip on L1–L3, course on L4–L6, wall on WW (L1–L2), movement on the vault blocks, court on the court; nothing held at the close. So during Homeschool ninja's stations the advanced rig, track wall and balance beam stay open for open gym.
+- **Timing:** the plan's warm-up, then the rotation, then the close. Once the class is running in Coach center, the board follows the real rotation: with two groups on four stations, only the two stations the groups are at are held, and the next round's zones get the gold "class soon" edge.
+- **Editing:** **Class floor use** on the board's toolbar (or `?tv&edit=use`). Pick a class and a part, then tap zones on the floor plan. The class's head coach, the gym manager and the owners can save; other coaches see it read-only. **Back to the default** clears a class's marks.
+
+Code: `src/flooruse.js` (defaults, permissions, and `segmentsFor`, the class's parts in time), used by `floorStatus` in `src/layout.js`; the editor is `src/FloorUseEditor.jsx`. Tests: `src/flooruse.test.js`; browser steps in `scripts/floor-e2e.mjs`.

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js src/gym.test.js src/insights.test.js src/ds.test.js src/layout.test.js src/staffing.test.js",
+    "test": "node --test src/domain.test.js src/club.test.js src/floor.test.js src/auth.test.js src/gym.test.js src/insights.test.js src/ds.test.js src/layout.test.js src/tvs.test.js src/demoday.test.js src/flooruse.test.js src/closedday.test.js src/staffing.test.js src/classcoaches.test.js src/schedule.test.js src/availability.test.js src/shifts.test.js src/outbox.test.js src/requests.test.js src/timeclock.test.js src/sync/sync.test.js",
     "preview": "vite preview --host 127.0.0.1",
     "test:ui": "vitest run",
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
@@ -14,6 +14,7 @@
     "dev:lan": "vite --host 0.0.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "echarts": "^6.1.0",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",

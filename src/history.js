@@ -72,7 +72,7 @@ export function seedHistory(members, now = new Date()) {
         if (!joined || date <= joined) return;
         if (lapses[p.id] && ago < lapses[p.id]) return;
         const enrolled =
-          kind === "class" && kidInfo[p.id]?.classes.includes(index);
+          kind === "class" && kidInfo[p.id]?.classes.includes(String(index));
         if (kind === "class" && !enrolled) return;
         const keen = 0.4 + ((i * 37) % 45) / 100;
         const chance = kind === "class" ? keen : keen * 0.32;

@@ -419,6 +419,7 @@ const look = {
   closed: { fill: mix(Z.closed, 0.2), edge: mix(Z.closed, 0.5) },
 };
 const selectedEdge = new THREE.Color(S.white);
+const soonEdge = new THREE.Color(Z.class);
 
 /* ---------- Scene ---------- */
 
@@ -582,13 +583,20 @@ export function createFloorScene(canvas, { reducedMotion = false } = {}) {
     for (const [id, z] of zones) {
       const l = look[z.status] ?? look.amenity;
       z.plinth.material.color.copy(l.fill);
-      z.edgeMat.color.copy(id === selected ? selectedEdge : l.edge);
+      // Open now but a class takes it soon: the open fill, a gold edge.
+      const edge =
+        (z.status === "open" || z.status === "amenity") && z.soon
+          ? soonEdge
+          : l.edge;
+      z.edgeMat.color.copy(id === selected ? selectedEdge : edge);
     }
   }
   function setStatus(list) {
     for (const s of list) {
       const z = zones.get(s.id);
-      if (z) z.status = s.status;
+      if (!z) continue;
+      z.status = s.status;
+      z.soon = !!s.soon;
     }
     paint();
   }

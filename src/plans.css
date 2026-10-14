@@ -402,3 +402,100 @@ button.pl-add:hover {
     width: 210px;
   }
 }
+
+/* Warm-up slot on the rotation timeline */
+.pl-rot .pl-rot-warm {
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--ds-gray-700);
+  color: var(--ds-text-on-ink);
+}
+
+/* The class with one, two or three coaches */
+.pl-shapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: var(--ds-space-3);
+}
+.pl-shape {
+  display: grid;
+  align-content: start;
+  gap: var(--ds-space-2);
+}
+.pl-shape.is-crew {
+  box-shadow: inset 0 0 0 2px var(--ds-cyan);
+}
+.pl-shape-n {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-small);
+  font-weight: 700;
+  color: var(--ds-text-2, inherit);
+}
+.pl-shape small {
+  color: var(--ds-text-3, inherit);
+}
+
+/* Phone: block cards show the whole class name, and crew cards keep the
+   name and role controls on one line. */
+@media (max-width: 600px) {
+  .pl-block {
+    width: auto;
+    max-width: 260px;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .pl-block-main b,
+  .pl-block-main small {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .pl-block-end {
+    grid-column: 1 / -1;
+  }
+  .pl-crew {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ds-space-2);
+  }
+  .pl-coach {
+    padding: var(--ds-space-3);
+    flex-wrap: nowrap;
+  }
+  .pl-coach-name small {
+    display: none;
+  }
+}
+
+/* When a block runs */
+.pl-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+.pl-exceptions {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pl-exceptions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+.pl-exceptions small {
+  color: var(--ds-text-3);
+}
+.pl-oneday {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+}
+.pl-times {
+  display: flex;
+  gap: var(--ds-space-2);
+}

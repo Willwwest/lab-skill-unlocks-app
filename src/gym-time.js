@@ -92,3 +92,19 @@ export const toMinutes = (hhmm) => {
 // Calendar keys are gym days. Phoenix currently stays at UTC-7 year-round.
 export const gymLocalIso = (day, time = "12:00") =>
   `${day}T${time}:00${GYM_UTC_OFFSET}`;
+
+// Noon on a gym day, as an instant. Use it to ask "which sessions, shifts
+// or rules apply on this day".
+export const dayAt = (day) => gymLocalIso(day, "12:00");
+// ISO weekday of a gym day: 1 Monday … 7 Sunday.
+export const weekdayOf = (day) => {
+  const d = new Date(`${day}T12:00:00Z`).getUTCDay();
+  return d === 0 ? 7 : d;
+};
+export const addDays = (day, n) => {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+// The Monday that starts a gym day's week.
+export const weekKeyOf = (day) => addDays(day, 1 - weekdayOf(day));

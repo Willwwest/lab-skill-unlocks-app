@@ -2,56 +2,30 @@ import React, {
   lazy,
   Suspense,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { clock, dayKey } from "./club.js";
-import { gymClockTime, gymFullDay, gymLocalIso } from "./gym-time.js";
+import { clock, sessions } from "./club.js";
+import { gymClockTime, gymFullDay } from "./gym-time.js";
 import { floorStatus, layoutOf } from "./layout.js";
-import { createFloorScene } from "./floorScene.js";
 import { stationLabel } from "./gym.js";
+import FloorMap, { rank } from "./FloorMap.jsx";
+import { countdown, photoUrl, useNow } from "./tvkit.js";
+import { demoState } from "./demoday.js";
+import DemoBar from "./DemoBar.jsx";
+import { canMarkUse } from "./flooruse.js";
+import { scheduleOf } from "./schedule.js";
+import { nextOpening, openAgain } from "./tvs.js";
 import "./ds/tokens.css";
 import "./floortv.css";
 
 const LayoutEditor = lazy(() => import("./LayoutEditor.jsx"));
-// The public build leaves the gym photos out (they show kids); see
-// scripts/publish-app.sh.
-const FLOOR_PHOTOS = import.meta.env.VITE_FLOOR_PHOTOS !== "off";
+const FloorUseEditor = lazy(() => import("./FloorUseEditor.jsx"));
 
 const FEATURE_MS = 12000;
 const HOLD_MS = 45000;
 const VIEW_KEY = "lab-floor-view";
-const reduced = () =>
-  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-
-// "4:05" from milliseconds.
-const countdown = (ms) => {
-  const s = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
-
-// ?at=15:40 previews the board at that time today on the gym clock.
-function previewOffset() {
-  const at = new URLSearchParams(window.location.search).get("at");
-  if (!/^\d{1,2}:\d{2}$/.test(at ?? "")) return 0;
-  const [h, m] = at.split(":");
-  const when = Date.parse(
-    gymLocalIso(dayKey(new Date()), `${h.padStart(2, "0")}:${m}`),
-  );
-  return Number.isFinite(when) ? when - Date.now() : 0;
-}
-
-function useNow() {
-  const offset = useMemo(previewOffset, []);
-  const [now, setNow] = useState(() => new Date(Date.now() + offset));
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date(Date.now() + offset)), 1000);
-    return () => clearInterval(id);
-  }, [offset]);
-  return { now, preview: offset !== 0 };
-}
 
 // ?view=top on a TV's URL, else this screen's last choice, else 3D.
 function startView() {
@@ -73,11 +47,18 @@ function stateLine(z) {
   return null;
 }
 
+// When the group at a zone moves: on hold, warming up, or a countdown.
+function groupClock(c) {
+  if (c.paused) return "on hold";
+  if (c.warmup) return `warm-up · starts in ${countdown(c.rotateIn)}`;
+  return `moves in ${countdown(c.rotateIn)}`;
+}
+
 function zoneDetail(z) {
   if (z.status === "class") {
     const c = z.class;
     if (c.group)
-      return `Group ${c.group} · ${c.kids} ${c.kids === 1 ? "kid" : "kids"} · moves in ${countdown(c.rotateIn)}`;
+      return `Group ${c.group} · ${c.kids} ${c.kids === 1 ? "kid" : "kids"}${c.coach ? ` · ${c.coach}` : ""} · ${groupClock(c)}`;
     return `${c.name}${c.ages ? ` · ages ${c.ages}` : ""} · until ${clock(c.end)}`;
   }
   if (z.status === "open")
@@ -88,39 +69,9 @@ function zoneDetail(z) {
   return null;
 }
 
-// Which labels win a spot when two would overlap.
-const rank = { class: 0, paused: 1, open: 2, amenity: 3, closed: 4 };
-
-// On the map a word is enough; the rail carries the detail.
-function labelLine(z) {
-  if (z.status === "class") return "Class";
-  if (z.status === "paused") return "Paused";
-  if (z.status === "open")
-    return z.soon ? `Class at ${clock(z.soon.start)}` : "Open";
-  return null;
-}
-
-function Label({ zone, selected, innerRef }) {
-  const minor = !zone.station;
-  const line = minor ? null : labelLine(zone);
-  return (
-    <div
-      ref={innerRef}
-      className={`ftv-label is-${zone.status}${minor ? " is-minor" : ""}${selected ? " is-selected" : ""}`}
-      aria-hidden="true"
-    >
-      <span className="ftv-label-name">{zone.name}</span>
-      {line && <span className="ftv-label-state">{line}</span>}
-    </div>
-  );
-}
-
 function Featured({ zone }) {
   if (!zone) return null;
-  const photo =
-    zone.photo && FLOOR_PHOTOS
-      ? `${import.meta.env.BASE_URL}floor/${zone.photo}.webp`
-      : null;
+  const photo = photoUrl(zone);
   const detail = zoneDetail(zone);
   return (
     <figure className={`ftv-feature is-${zone.status}`} key={zone.id}>
@@ -143,7 +94,7 @@ function Featured({ zone }) {
   );
 }
 
-function Rail({ status, now, featured }) {
+function Rail({ status, now, featured, reopen }) {
   const stationZones = status.zones.filter((z) => z.station);
   const open = stationZones.filter((z) => z.status === "open");
   const paused = stationZones.filter((z) => z.status === "paused");
@@ -159,11 +110,11 @@ function Rail({ status, now, featured }) {
       {!status.hours.open && (
         <div className="ftv-block">
           <h2 className="ftv-eyebrow">Now</h2>
-          <h3>Closed</h3>
+          <h3>{status.hours.closedToday ? "Closed today" : "Closed"}</h3>
           <p>
             {status.next[0]
               ? `Doors open at ${clock(status.next[0].start)}.`
-              : "See you tomorrow."}
+              : reopen}
           </p>
         </div>
       )}
@@ -187,7 +138,7 @@ function Rail({ status, now, featured }) {
                   <span>{z.name}</span>
                   {z.class.group && (
                     <small>
-                      Group {z.class.group} · {countdown(z.class.rotateIn)}
+                      Group {z.class.group} · {groupClock(z.class)}
                     </small>
                   )}
                 </li>
@@ -262,19 +213,35 @@ function Rail({ status, now, featured }) {
  * starts overhead), or from the coach app with `onExit`. The owners
  * reshape the floor at ?tv&edit.
  */
-export default function FloorTV({ state, setState, session, onExit }) {
+export default function FloorTV({ state: stored, setState, session, onExit }) {
   const owner = session?.kind === "staff" && !!session.owner;
-  const canvasRef = useRef(null);
-  const sceneRef = useRef(null);
-  const labels = useRef({});
-  const sizes = useRef({});
-  const order = useRef({});
-  const { now, preview } = useNow();
-  const [editing, setEditing] = useState(() =>
-    new URLSearchParams(window.location.search).has("edit"),
+  const map = useRef(null);
+  const { now, preview, demo } = useNow(stored);
+  // ?demo shows the scripted day, built in memory; nothing is saved.
+  const state = useMemo(
+    () => (demo ? demoState(stored, demo.day, demo.minute) : stored),
+    [stored, demo?.day, demo?.minute],
   );
+  // "plan" (the owners' floor plan), "use" (class floor use) or false.
+  // ?tv&edit opens the plan, ?tv&edit=use the class floor use.
+  const [editing, setEditing] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    return q.get("edit") === "use" ? "use" : q.has("edit") ? "plan" : false;
+  });
+  const actor = {
+    role: "Coach",
+    name: session?.name,
+    staffId: session?.staffId,
+    head: !!session?.head,
+    owner: !!session?.owner,
+  };
+  // Owners, the gym manager and each class's head coach mark floor use.
+  const marksUse =
+    session?.kind === "staff" &&
+    scheduleOf(stored).blocks.some(
+      (b) => b.kind === "class" && canMarkUse(stored, actor, b.id),
+    );
   const [view, setView] = useState(startView);
-  const [error, setError] = useState("");
   const [feature, setFeature] = useState(0);
   const [held, setHeld] = useState(null);
   const [chrome, setChrome] = useState(true);
@@ -283,81 +250,7 @@ export default function FloorTV({ state, setState, session, onExit }) {
   const status = floorStatus(state, now);
   const signature = status.zones.map((z) => `${z.id}:${z.status}`).join("|");
 
-  // Label sizes and priority change only with their text; refresh after
-  // each render so the frame loop reads them without touching layout.
-  useLayoutEffect(() => {
-    for (const [id, el] of Object.entries(labels.current))
-      if (el) sizes.current[id] = { w: el.offsetWidth, h: el.offsetHeight };
-    order.current = Object.fromEntries(
-      [...status.zones]
-        .sort(
-          (a, b) =>
-            rank[a.status] - rank[b.status] ||
-            !a.station - !b.station ||
-            b.w * b.d - a.w * a.d,
-        )
-        .map((z, i) => [z.id, i]),
-    );
-  });
-
   useEffect(() => {
-    if (editing) return;
-    let scene;
-    try {
-      scene = createFloorScene(canvasRef.current, { reducedMotion: reduced() });
-    } catch {
-      setError("This screen can't draw the floor (WebGL is off).");
-      return;
-    }
-    sceneRef.current = scene;
-    // Place labels, then hide any that would overlap a more important one.
-    scene.onFrame = (pos, mode) => {
-      const placed = [];
-      const rankOf = order.current;
-      const ids = Object.keys(pos).sort(
-        (a, b) => (rankOf[a] ?? 99) - (rankOf[b] ?? 99),
-      );
-      for (const id of ids) {
-        const el = labels.current[id];
-        const s = sizes.current[id];
-        const p = pos[id];
-        if (!el || !s) continue;
-        const left = p.x - s.w / 2;
-        const top = mode === "top" ? p.y - s.h / 2 : p.y - s.h - 6;
-        const box = {
-          l: left - 8,
-          t: top - 4,
-          r: left + s.w + 8,
-          b: top + s.h + 4,
-        };
-        const clash = placed.some(
-          (o) => box.l < o.r && box.r > o.l && box.t < o.b && box.b > o.t,
-        );
-        const show = !p.behind && !clash && top > 8;
-        el.style.transform = `translate(${left}px, ${top}px)`;
-        el.style.opacity = show ? "" : 0;
-        if (show) placed.push(box);
-      }
-    };
-    return () => {
-      scene.dispose();
-      sceneRef.current = null;
-    };
-  }, [editing]);
-
-  useEffect(() => {
-    sceneRef.current?.setZones(layout.zones);
-    sceneRef.current?.setStatus(status.zones);
-    sceneRef.current?.setView(view);
-    // Rebuild only when the plan changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, editing]);
-  useEffect(() => {
-    sceneRef.current?.setStatus(status.zones);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, editing]);
-  useEffect(() => {
-    sceneRef.current?.setView(view);
     try {
       localStorage.setItem(VIEW_KEY, view);
     } catch {
@@ -382,7 +275,6 @@ export default function FloorTV({ state, setState, session, onExit }) {
     return () => clearInterval(id);
   }, [held, editing]);
   useEffect(() => {
-    sceneRef.current?.focus(held);
     if (!held) return;
     const id = setTimeout(() => setHeld(null), HOLD_MS);
     return () => clearTimeout(id);
@@ -413,19 +305,22 @@ export default function FloorTV({ state, setState, session, onExit }) {
     };
   }, []);
 
-  const down = useRef(null);
-  const onPointerDown = (e) => (down.current = { x: e.clientX, y: e.clientY });
-  const onPointerUp = (e) => {
-    const d = down.current;
-    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
-    setHeld(sceneRef.current?.pick(e.clientX, e.clientY) ?? null);
-  };
-
+  if (editing === "use")
+    return (
+      <Suspense fallback={<div className="ftv-loading" />}>
+        <FloorUseEditor
+          state={stored}
+          setState={setState}
+          session={session}
+          onClose={() => setEditing(false)}
+        />
+      </Suspense>
+    );
   if (editing)
     return (
       <Suspense fallback={<div className="ftv-loading" />}>
         <LayoutEditor
-          state={state}
+          state={stored}
           setState={setState}
           session={session}
           onClose={() => setEditing(false)}
@@ -435,35 +330,22 @@ export default function FloorTV({ state, setState, session, onExit }) {
 
   return (
     <main className={`ftv is-${view}`}>
-      <div className="ftv-stage">
-        <canvas
-          ref={canvasRef}
-          className="ftv-canvas"
-          onPointerDown={onPointerDown}
-          onPointerUp={onPointerUp}
-          aria-label={
-            view === "top"
-              ? "Overhead plan of the gym floor"
-              : "3D model of the gym floor"
-          }
-          role="img"
-        />
-        <div className="ftv-labels">
-          {status.zones.map((z) => (
-            <Label
-              key={z.id}
-              zone={z}
-              selected={z.id === held}
-              innerRef={(el) => (labels.current[z.id] = el)}
-            />
-          ))}
-        </div>
-        <ul className="ftv-legend" aria-label="Legend">
-          <li className="is-class">Class</li>
-          <li className="is-open">Open gym</li>
-          <li className="is-paused">Paused</li>
-          <li className="is-amenity">Shared space</li>
-        </ul>
+      <FloorMap
+        layout={layout}
+        status={status}
+        view={view}
+        held={held}
+        onPick={setHeld}
+        apiRef={map}
+      >
+        {demo && (
+          <DemoBar
+            demo={demo}
+            status={status}
+            now={now}
+            blocks={sessions(now, state)}
+          />
+        )}
         <div
           className={`ftv-tools${chrome || onExit ? " is-on" : ""}${onExit ? " is-embedded" : ""}`}
         >
@@ -491,18 +373,27 @@ export default function FloorTV({ state, setState, session, onExit }) {
             className="ftv-tool"
             onClick={() => {
               setHeld(null);
-              sceneRef.current?.home();
+              map.current?.home();
             }}
           >
             Reset view
           </button>
-          {owner && (
+          {owner && !demo && (
             <button
               type="button"
               className="ftv-tool"
-              onClick={() => setEditing(true)}
+              onClick={() => setEditing("plan")}
             >
               Edit floor
+            </button>
+          )}
+          {marksUse && !demo && (
+            <button
+              type="button"
+              className="ftv-tool"
+              onClick={() => setEditing("use")}
+            >
+              Class floor use
             </button>
           )}
           {onExit && (
@@ -511,9 +402,13 @@ export default function FloorTV({ state, setState, session, onExit }) {
             </button>
           )}
         </div>
-        {error && <p className="ftv-error">{error}</p>}
-      </div>
-      <Rail status={status} now={now} featured={featured} />
+      </FloorMap>
+      <Rail
+        status={status}
+        now={now}
+        featured={featured}
+        reopen={openAgain(nextOpening(state, now))}
+      />
       <div className="sr-only" aria-live="polite">
         {status.zones
           .filter((z) => z.station)

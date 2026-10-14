@@ -156,10 +156,10 @@ export const extraKids = rows.map(([id, first, last, age, , , goal], i) => ({
   goal,
 }));
 
-// Session indexes match club.js `sessions`: 0 foundations (6–8),
-// 1 progressions (9–12), 2 and 3 open gym, 4 the mixed-age homeschool
-// class. Five-year-olds only come to the homeschool class.
-const classFor = (age) => (age <= 5 ? [] : age <= 8 ? [0] : [1]);
+// Enrolled classes are schedule block ids (schedule.js): "0" foundations
+// (6–8), "1" progressions (9–12), "2" and "3" open gym, "4" the mixed-age
+// homeschool class. Five-year-olds only come to the homeschool class.
+const classFor = (age) => (age <= 5 ? [] : age <= 8 ? ["0"] : ["1"]);
 const homeschool = new Set([
   "june",
   "max",
@@ -200,9 +200,9 @@ const careNotes = {
 const noPhotos = new Set(["haddad", "cohen"]);
 
 export const kidInfo = {
-  theo: { last: "Parker", family: "parker", birthday: "10-14", classes: [0] },
-  maya: { last: "Brooks", family: "brooks", birthday: "06-02", classes: [1] },
-  leo: { last: "Rivera", family: "rivera", birthday: "01-19", classes: [0] },
+  theo: { last: "Parker", family: "parker", birthday: "10-14", classes: ["0"] },
+  maya: { last: "Brooks", family: "brooks", birthday: "06-02", classes: ["1"] },
+  leo: { last: "Rivera", family: "rivera", birthday: "01-19", classes: ["0"] },
   ...Object.fromEntries(
     rows.map(([id, , last, age, family, birthday]) => [
       id,
@@ -213,7 +213,7 @@ export const kidInfo = {
         // A few kids come for open gym only.
         classes: [
           ...(["finn", "ezra", "mia"].includes(id) ? [] : classFor(age)),
-          ...(homeschool.has(id) ? [4] : []),
+          ...(homeschool.has(id) ? ["4"] : []),
         ],
       },
     ]),

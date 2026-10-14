@@ -11,7 +11,7 @@ export function Avatar({ child, photoId, size = 48, className = "" }) {
         width: size,
         height: size,
         background: child.color,
-        fontSize: size * 0.36,
+        fontSize: Math.max(12, size * 0.36),
       }}
       aria-hidden="true"
     >

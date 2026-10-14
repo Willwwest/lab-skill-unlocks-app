@@ -222,7 +222,13 @@ test("a class runs from attendance to groups, rotations and bonus picks", () => 
   assert.ok(runOf(s, homeschool.id).groups[2].includes(moved));
   s = applyGym(
     s,
-    { type: "startClass", session: homeschool.id, actor: jordan },
+    {
+      type: "startClass",
+      session: homeschool.id,
+      minutes: 15,
+      warmup: 0,
+      actor: jordan,
+    },
     later(4),
   );
   const r0 = rotation(runOf(s, homeschool.id), later(4));
@@ -389,7 +395,7 @@ test("a coach's day lists only the blocks they work", () => {
   const mine = myBlocks(base(), "priya", now);
   assert.deepEqual(
     mine.map((b) => b.index),
-    [4, 2, 0, 1],
+    ["4", "2", "0", "1"],
   );
   assert.equal(mine[0].role, "station");
 });

@@ -12,10 +12,12 @@ import {
   sessions,
   stations,
 } from "./club.js";
+import { sessionFromId } from "./schedule.js";
 import { arrival, readySkills, stationCategory } from "./floor.js";
 import { coaches, families, kidInfo, staff } from "./roster.js";
 import { seedHistory } from "./history.js";
-import { gymLocalIso } from "./gym-time.js";
+import { gymLocalIso, toMinutes } from "./gym-time.js";
+import { publishedCrew } from "./shifts.js";
 
 export const levels = [
   { id: "beginner", label: "Beginner", short: "B" },
@@ -188,6 +190,7 @@ export const roleNames = {
   head: "Head coach",
   station: "Station coach",
   attendant: "Open gym",
+  helper: "Helping today",
 };
 
 export const crewFor = (state, index) =>
@@ -196,8 +199,14 @@ export const crewFor = (state, index) =>
 // (an approved cover or an added coach), else the weekly crew, minus anyone
 // with the day off. Plans & crew edits the weekly crew through crewFor.
 export function crewOn(state, index, at = new Date()) {
-  const d = state?.staffing?.days?.[dayKey(at)];
-  const list = d?.crew?.[index] ?? crewFor(state, index);
+  const day = dayKey(at);
+  const d = state?.staffing?.days?.[day];
+  // A one-day change wins, then a published week's schedule, then the
+  // standing crew.
+  const list =
+    d?.crew?.[index] ??
+    publishedCrew(state, index, day) ??
+    crewFor(state, index);
   const off = new Set(d?.off ?? []);
   return off.size ? list.filter((c) => !off.has(c.staffId)) : list;
 }
@@ -208,10 +217,14 @@ export const leadOf = (state, index, at = new Date()) =>
 
 // The blocks a coach works today, in time order, with their role.
 export function myBlocks(state, staffId, at = new Date()) {
-  return sessions(at)
+  return sessions(at, state)
     .map((s) => ({
       ...s,
-      role: crewOn(state, s.index, at).find((c) => c.staffId === staffId)?.role,
+      role:
+        crewOn(state, s.index, at).find((c) => c.staffId === staffId)?.role ??
+        (gymOf(state).runs[s.id]?.helpers?.includes(staffId)
+          ? "helper"
+          : undefined),
     }))
     .filter((s) => s.role)
     .sort((a, b) => a.start.localeCompare(b.start));
@@ -226,20 +239,41 @@ export const stationFocus = {
   court: "Dribbling, passing and shots from the marked spots",
   course: "Linking obstacles into a full run",
 };
+// How a class with more than one group moves. "station": each coach holds
+// a station and the groups rotate between coaches. "group": each coach
+// keeps one group all class and walks it from station to station, so a
+// class can visit more stations than it has coaches. "auto" picks
+// "group" when there are fewer coaches than planned stations.
+export const coachModes = {
+  station: {
+    label: "Coaches stay",
+    long: "Coaches stay at their station and the groups rotate",
+  },
+  group: {
+    label: "Coaches travel",
+    long: "Each coach keeps one group and walks it from station to station",
+  },
+};
+export const DEFAULT_WARMUP = 5;
+// Minutes kept free at the end for the cool-down, wins and pickup.
+export const CLOSE_MINUTES = 5;
+export const MAX_ROUNDS = 3;
 const defaultPlans = {
   0: { minutes: 12, stations: ["grip", "wall", "movement"] },
   1: { minutes: 12, stations: ["grip", "wall", "course", "court"] },
-  4: { minutes: 15, stations: ["grip", "wall", "movement", "course"] },
+  4: { minutes: 12, stations: ["grip", "wall", "movement", "course"] },
 };
 export function planFor(state, index) {
   const saved = gymOf(state).plans[index];
-  if (saved) return saved;
+  if (saved) return { warmup: DEFAULT_WARMUP, mode: "auto", ...saved };
   const d = defaultPlans[index] ?? {
     minutes: 12,
     stations: ["grip", "wall", "movement"],
   };
   return {
     minutes: d.minutes,
+    warmup: DEFAULT_WARMUP,
+    mode: "auto",
     stations: d.stations.map((station) => ({
       station,
       focus: stationFocus[station],
@@ -247,10 +281,39 @@ export function planFor(state, index) {
   };
 }
 // The first `count` planned stations, topped up from the rest of the gym.
-export function pickStations(plan, count) {
+// Paused stations are left out and replaced.
+export function pickStations(plan, count, paused = []) {
   const planned = plan.stations.map((s) => s.station);
   const extra = stations.map((s) => s.id).filter((id) => !planned.includes(id));
-  return [...planned, ...extra].slice(0, Math.min(count, stations.length));
+  const open = [...planned, ...extra].filter((id) => !paused.includes(id));
+  return open.slice(0, Math.min(count, open.length));
+}
+// "auto" resolved against the coaches on hand.
+export const modeFor = (plan, coachCount) =>
+  plan.mode === "station" || plan.mode === "group"
+    ? plan.mode
+    : coachCount < plan.stations.length
+      ? "group"
+      : "station";
+// How many times through the stations fit the class after the warm-up and
+// the close.
+export function fitRounds(length, warmup, stationCount, minutes) {
+  const room = length - warmup - CLOSE_MINUTES;
+  return Math.max(
+    1,
+    Math.min(MAX_ROUNDS, Math.floor(room / (stationCount * minutes))),
+  );
+}
+// The class timeline in minutes: warm-up, rotations, close.
+export function classTimeline(length, { warmup, minutes, stations, rounds }) {
+  const rotating = stations * rounds * minutes;
+  return {
+    warmup,
+    rotating,
+    used: warmup + rotating,
+    spare: length - warmup - rotating,
+    over: warmup + rotating > length,
+  };
 }
 export const focusAt = (plan, stationId) =>
   plan.stations.find((s) => s.station === stationId)?.focus ??
@@ -469,50 +532,143 @@ function placeLate(state, groups, childId) {
 
 // Who stands at each station: the class's station coaches in order, then
 // the head coach for anything left over.
-export function suggestCoaches(state, index, stationIds, leadId) {
+// Coaches helping on the day come after the crew.
+const coachPool = (state, index, leadId, helpers = []) => {
   const pool = crewOn(state, index)
     .filter((c) => c.role === "station")
     .map((c) => c.staffId);
+  for (const id of helpers) if (!pool.includes(id)) pool.push(id);
   if (leadId && !pool.includes(leadId)) pool.push(leadId);
+  return pool;
+};
+export function suggestCoaches(state, index, stationIds, leadId, helpers) {
+  const pool = coachPool(state, index, leadId, helpers);
   return Object.fromEntries(stationIds.map((id, i) => [id, pool[i] ?? null]));
 }
 
-// Where the class is: which rotation, how long is left, and which group is
-// at which station. Group g starts at station g and moves one along each
-// rotation. `offset` holds time skipped with "Rotate now".
+// Each coach keeps one group: the station coaches in order, then the head
+// coach.
+export function suggestLeaders(state, index, count, leadId, helpers) {
+  const pool = coachPool(state, index, leadId, helpers);
+  return Array.from({ length: count }, (_, g) => pool[g] ?? null);
+}
+
+// Where the class is: warming up, which rotation, how long is left, and
+// which group is at which station. Group g starts at station g and moves
+// one along each rotation, `rounds` times through the stations. With fewer
+// groups than stations (coaches travel), some stations sit empty each
+// rotation. `offset` holds time skipped with "Rotate now" and given back
+// after a hold; `pausedAt` freezes the clock.
 export const WARN_MS = 90 * 1000;
 export function rotation(run, at = Date.now()) {
   if (!run?.startedAt) return null;
   const span = run.minutes * 60000;
-  const total = run.stations.length;
+  const warm = (run.warmup ?? 0) * 60000;
+  const n = run.stations.length;
+  const rounds = run.rounds ?? 1;
+  const total = n * rounds;
+  const groups = run.groups?.length ?? n;
+  const clock = run.pausedAt
+    ? Date.parse(run.pausedAt)
+    : new Date(at).getTime();
   const elapsed = Math.max(
     0,
-    new Date(at).getTime() - Date.parse(run.startedAt) + (run.offset ?? 0),
+    clock - Date.parse(run.startedAt) + (run.offset ?? 0),
   );
-  const idx = Math.floor(elapsed / span);
-  const done = !!run.endedAt || idx >= total;
-  const left = done ? 0 : span - (elapsed % span);
+  const done = !!run.endedAt || elapsed >= warm + total * span;
+  const warmup = !done && elapsed < warm;
+  const into = Math.max(0, elapsed - warm);
+  const idx = Math.min(Math.floor(into / span), total - 1);
+  const left = done ? 0 : warmup ? warm - elapsed : span - (into % span);
+  const paused = !!run.pausedAt && !done;
+  const stationOf = (g, i = idx) =>
+    g >= 0 && g < groups ? run.stations[(g + i) % n] : null;
   return {
-    idx: Math.min(idx, total - 1),
+    idx,
     total,
+    round: Math.floor(idx / n) + 1,
+    rounds,
     done,
     left,
-    warn: !done && left <= WARN_MS,
-    stationOf: (g) => run.stations[(g + Math.min(idx, total - 1)) % total],
+    warmup,
+    paused,
+    warn: !done && !warmup && !paused && left <= WARN_MS,
+    stationOf,
+    nextStationOf: (g) => (idx + 1 < total ? stationOf(g, idx + 1) : null),
     groupAt: (stationId) => {
       const s = run.stations.indexOf(stationId);
-      return s < 0
-        ? -1
-        : (((s - Math.min(idx, total - 1)) % total) + total) % total;
+      if (s < 0) return -1;
+      const g = (((s - idx) % n) + n) % n;
+      return g < groups ? g : -1;
     },
   };
 }
-export const stationOfCoach = (run, staffId) =>
+export const runMode = (run) => (run?.mode === "group" ? "group" : "station");
+// The group at a station before the class starts or at a rotation.
+const groupAtStart = (run, stationId) => {
+  const s = run.stations.indexOf(stationId);
+  return s >= 0 && s < (run.groups?.length ?? 0) ? s : -1;
+};
+// The coach at a station right now: the station's own coach, or the
+// coach traveling with the group that's there.
+export function coachAt(run, stationId, r = null) {
+  if (!run) return null;
+  if (runMode(run) === "station") return run.coaches?.[stationId] ?? null;
+  const g = r ? r.groupAt(stationId) : groupAtStart(run, stationId);
+  return g >= 0 ? (run.leaders?.[g] ?? null) : null;
+}
+// The coach with a group right now.
+export function coachOfGroup(run, g, r = null) {
+  if (!run) return null;
+  if (runMode(run) === "group") return run.leaders?.[g] ?? null;
+  const st = r ? r.stationOf(g) : run.stations[g];
+  return run.coaches?.[st] ?? null;
+}
+// Where a coach is in a class: their group and station, now.
+export function postOf(run, staffId, at = Date.now()) {
+  if (!run?.groups || !staffId) return null;
+  const r = run.startedAt ? rotation(run, at) : null;
+  if (runMode(run) === "group") {
+    const group = (run.leaders ?? []).indexOf(staffId);
+    if (group < 0) return null;
+    return {
+      group,
+      station: r ? r.stationOf(group) : run.stations[group],
+      next: r && !r.done ? r.nextStationOf(group) : null,
+    };
+  }
+  const station =
+    Object.entries(run.coaches ?? {}).find(([, id]) => id === staffId)?.[0] ??
+    null;
+  if (!station) return null;
+  return {
+    station,
+    group: r ? r.groupAt(station) : groupAtStart(run, station),
+    next: null,
+  };
+}
+export const stationOfCoach = (run, staffId, at = Date.now()) =>
+  postOf(run, staffId, at)?.station ?? null;
+// Everyone coaching a class: station coaches, group coaches and the lead.
+export const runCoaches = (run) =>
   run
-    ? (Object.entries(run.coaches ?? {}).find(
-        ([, id]) => id === staffId,
-      )?.[0] ?? null)
-    : null;
+    ? [
+        ...new Set(
+          [
+            ...Object.values(run.coaches ?? {}),
+            ...(run.leaders ?? []),
+            ...(run.helpers ?? []),
+            staff.find((s) => s.name === run.lead)?.id,
+          ].filter(Boolean),
+        ),
+      ]
+    : [];
+// Notes passed between coaches for a kid in this class, newest first.
+export const handoffsFor = (run, childId) =>
+  (run?.handoffs ?? [])
+    .filter((h) => h.childId === childId)
+    .slice()
+    .reverse();
 
 export const bonusesBy = (state, sessionId, coachName) =>
   (state.club?.events ?? []).filter(
@@ -525,8 +681,8 @@ export const bonusesBy = (state, sessionId, coachName) =>
 
 /* ---------- Actions ---------- */
 
-const blockOf = (sessionId, now) => {
-  const b = sessions(now).find((s) => s.id === sessionId);
+const blockOf = (sessionId, now, state) => {
+  const b = sessions(now, state).find((s) => s.id === sessionId);
   if (!b) throw Error("Choose a class or open gym block from today.");
   return b;
 };
@@ -556,7 +712,20 @@ export function applyGym(state, action, now = new Date()) {
     ))
       throw Error(`${run.lead} is running this class.`);
   };
-  const indexOf = (session) => Number(String(session).split(":")[1]);
+  // Anyone coaching the class, its lead, or the gym manager.
+  const inClass = (run, index) => {
+    if (
+      actor.head ||
+      run.lead === actor.name ||
+      leadOf(state, index) === actor.staffId ||
+      runCoaches(run).includes(actor.staffId) ||
+      crewOn(state, index).some((c) => c.staffId === actor.staffId)
+    )
+      return;
+    throw Error("Only coaches in this class can do that.");
+  };
+  // A session id is "<day>:<block id>"; the block id is the class.
+  const indexOf = (session) => String(session).slice(11);
   let next = state;
   switch (action.type) {
     case "level": {
@@ -567,7 +736,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "checkIn": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       if (!action.childIds?.length) throw Error("Choose who to check in.");
       let added = 0;
       for (const childId of action.childIds) {
@@ -628,7 +797,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "undoCheckIn": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       const row = g.checkins.find(
         (c) => c.session === block.id && c.childId === action.childId,
       );
@@ -657,7 +826,7 @@ export function applyGym(state, action, now = new Date()) {
     }
     case "attendanceDone":
     case "regroup": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       if (block.kind !== "class") throw Error("Groups are for classes.");
       const present = g.checkins
         .filter((c) => c.session === block.id)
@@ -673,27 +842,107 @@ export function applyGym(state, action, now = new Date()) {
       if (run.startedAt)
         throw Error("The class has started. Move kids by hand.");
       const kids = present.map((id) => groupKid(withGym(state, g), id));
-      // The age rule wins: add groups when the asked-for number would mix ages.
+      const gs = withGym(state, g);
+      // One group per coach on the crew unless the head coach asks for
+      // another number. The age rule wins: add groups when the asked-for
+      // number would mix ages.
+      const helpers = run.helpers ?? [];
+      const crewSize = new Set([
+        ...crewOn(gs, block.index, now)
+          .filter((c) => ["head", "station"].includes(c.role))
+          .map((c) => c.staffId),
+        ...helpers,
+      ]).size;
       const want = Math.max(
         1,
-        action.count ?? run.groups?.length ?? plan.stations.length,
+        action.count ??
+          run.groups?.length ??
+          (crewSize || plan.stations.length),
       );
       const count = Math.min(
         Math.max(want, ageBands(kids).length),
         stations.length,
       );
-      const ids = pickStations(plan, count);
+      // One group always travels: the coach takes the class round together.
+      const mode =
+        count === 1
+          ? "group"
+          : (action.mode ??
+            (run.groups?.length > 1 ? run.mode : null) ??
+            modeFor(plan, action.count ?? (crewSize || count)));
+      if (!coachModes[mode]) throw Error("Choose how the coaches move.");
+      const paused = Object.keys(state.floor?.outages ?? {});
+      // Coaches who stay need one station per group. Coaches who travel
+      // take their groups through every planned station.
+      const ids = pickStations(
+        plan,
+        mode === "group" ? Math.max(count, plan.stations.length) : count,
+        paused,
+      );
+      if (ids.length < count)
+        throw Error("Not enough open stations for that many groups.");
       const leadId =
         staff.find((s) => s.name === run.lead)?.id ?? actor.staffId;
+      const length = toMinutes(block.end) - toMinutes(block.start);
+      const warmup = run.warmup ?? plan.warmup ?? DEFAULT_WARMUP;
       Object.assign(run, {
         attendanceDoneAt: run.attendanceDoneAt ?? at,
-        groups: autoGroups(kids, ids.length),
+        groups: autoGroups(kids, count),
         raised: count > want ? want : null,
+        mode,
         stations: ids,
-        coaches: suggestCoaches(withGym(state, g), block.index, ids, leadId),
+        coaches:
+          mode === "station"
+            ? suggestCoaches(gs, block.index, ids, leadId, helpers)
+            : {},
+        leaders:
+          mode === "group"
+            ? suggestLeaders(gs, block.index, count, leadId, helpers)
+            : [],
         minutes: plan.minutes,
+        warmup,
+        rounds: fitRounds(length, warmup, ids.length, plan.minutes),
       });
       g.runs[block.id] = run;
+      break;
+    }
+    // Another coach jumps in to help on the day. They get the class on
+    // their phone like the crew: their group or station, check-offs,
+    // bonus picks, the clock and notes.
+    case "addHelper": {
+      const block = blockOf(action.session, now, state);
+      if (block.kind !== "class") throw Error("Helpers are for classes.");
+      if (!coaches.some((c) => c.id === action.staffId))
+        throw Error("Choose a coach.");
+      const run = g.runs[block.id] ?? {
+        session: block.id,
+        lead: actor.name,
+        attendanceAt: at,
+      };
+      lead(run, block.index);
+      const crewIds = crewOn(state, block.index, now).map((c) => c.staffId);
+      if (
+        crewIds.includes(action.staffId) ||
+        (run.helpers ?? []).includes(action.staffId) ||
+        staff.find((s) => s.name === run.lead)?.id === action.staffId
+      )
+        throw Error(`${staffName(action.staffId)} is already in this class.`);
+      run.helpers = [...(run.helpers ?? []), action.staffId];
+      g.runs[block.id] = run;
+      break;
+    }
+    case "removeHelper": {
+      const run = g.runs[action.session];
+      if (!run?.helpers?.includes(action.staffId))
+        throw Error("That coach isn't helping in this class.");
+      lead(run, indexOf(action.session));
+      run.helpers = run.helpers.filter((id) => id !== action.staffId);
+      for (const [st, id] of Object.entries(run.coaches ?? {}))
+        if (id === action.staffId) run.coaches[st] = null;
+      if (run.leaders)
+        run.leaders = run.leaders.map((id) =>
+          id === action.staffId ? null : id,
+        );
       break;
     }
     case "takeLead": {
@@ -719,12 +968,34 @@ export function applyGym(state, action, now = new Date()) {
       if (!run?.stations?.includes(action.station))
         throw Error("Choose a station in this class.");
       lead(run, indexOf(action.session));
+      if (runMode(run) === "group")
+        throw Error("Coaches travel with their groups in this class.");
       if (action.staffId && !staff.some((s) => s.id === action.staffId))
         throw Error("Choose a coach.");
       // A coach holds one station; picking them again moves them.
       for (const [st, id] of Object.entries(run.coaches))
         if (id === action.staffId) run.coaches[st] = null;
       run.coaches[action.station] = action.staffId || null;
+      break;
+    }
+    case "setLeader": {
+      const run = g.runs[action.session];
+      if (!run?.groups) throw Error("Make the groups first.");
+      if (runMode(run) !== "group")
+        throw Error("Coaches stay at their stations in this class.");
+      lead(run, indexOf(action.session));
+      if (!(action.group >= 0 && action.group < run.groups.length))
+        throw Error("Choose a group.");
+      if (action.staffId && !staff.some((s) => s.id === action.staffId))
+        throw Error("Choose a coach.");
+      // A coach keeps one group; picking them again moves them.
+      run.leaders = run.groups.map((_, i) =>
+        i === action.group
+          ? action.staffId || null
+          : run.leaders?.[i] === action.staffId
+            ? null
+            : (run.leaders?.[i] ?? null),
+      );
       break;
     }
     case "startClass": {
@@ -734,6 +1005,18 @@ export function applyGym(state, action, now = new Date()) {
       if (run.startedAt) throw Error("The class is already running.");
       if (action.minutes)
         run.minutes = Math.max(3, Math.min(30, Number(action.minutes)));
+      if (action.warmup !== undefined) {
+        const w = Number(action.warmup);
+        if (!(Number.isInteger(w) && w >= 0 && w <= 15))
+          throw Error("A warm-up runs 0 to 15 minutes.");
+        run.warmup = w;
+      }
+      if (action.rounds !== undefined) {
+        const n = Number(action.rounds);
+        if (!(Number.isInteger(n) && n >= 1 && n <= MAX_ROUNDS))
+          throw Error(`Go through the stations 1 to ${MAX_ROUNDS} times.`);
+        run.rounds = n;
+      }
       run.startedAt = at;
       run.offset = 0;
       break;
@@ -746,6 +1029,48 @@ export function applyGym(state, action, now = new Date()) {
       run.offset = (run.offset ?? 0) + r.left;
       break;
     }
+    // Any coach in the class can hold the clock, the way any coach can
+    // give the stop signal. Resuming picks up where it stopped.
+    case "hold": {
+      const run = g.runs[action.session];
+      const r = rotation(run, now);
+      if (!r || r.done) throw Error("No rotation is running.");
+      inClass(run, indexOf(action.session));
+      if (run.pausedAt) throw Error("The clock is already on hold.");
+      run.pausedAt = at;
+      break;
+    }
+    case "resume": {
+      const run = g.runs[action.session];
+      if (!run?.pausedAt) throw Error("The clock isn't on hold.");
+      inClass(run, indexOf(action.session));
+      run.offset =
+        (run.offset ?? 0) - (Date.parse(at) - Date.parse(run.pausedAt));
+      run.pausedAt = null;
+      break;
+    }
+    // A line for whoever has the kid next: "sore wrist, keep off rings".
+    case "handoff": {
+      const run = g.runs[action.session];
+      if (!run?.groups?.flat().includes(action.childId))
+        throw Error("Choose a kid in this class.");
+      inClass(run, indexOf(action.session));
+      const text = String(action.text ?? "")
+        .trim()
+        .slice(0, 140);
+      if (!text) throw Error("Write the note first.");
+      run.handoffs = [
+        ...(run.handoffs ?? []),
+        {
+          id: crypto.randomUUID(),
+          childId: action.childId,
+          text,
+          by: actor.name,
+          at,
+        },
+      ];
+      break;
+    }
     case "endClass": {
       const run = g.runs[action.session];
       if (!run?.startedAt) throw Error("Start the class first.");
@@ -754,7 +1079,7 @@ export function applyGym(state, action, now = new Date()) {
       break;
     }
     case "bonus": {
-      const block = blockOf(action.session, now);
+      const block = blockOf(action.session, now, state);
       const ids = [...new Set(action.childIds ?? [])];
       if (!ids.length) throw Error("Pick at least one kid.");
       const given = bonusesBy(next, block.id, actor.name).length;
@@ -784,8 +1109,16 @@ export function applyGym(state, action, now = new Date()) {
       const minutes = Number(action.plan.minutes);
       if (!(minutes >= 3 && minutes <= 30))
         throw Error("Rotations run 3 to 30 minutes.");
+      const warmup = Number(action.plan.warmup ?? DEFAULT_WARMUP);
+      if (!(Number.isInteger(warmup) && warmup >= 0 && warmup <= 15))
+        throw Error("A warm-up runs 0 to 15 minutes.");
+      const mode = action.plan.mode ?? "auto";
+      if (mode !== "auto" && !coachModes[mode])
+        throw Error("Choose how the coaches move.");
       g.plans[action.index] = {
         minutes,
+        warmup,
+        mode,
         stations: list.map((s) => ({
           station: s.station,
           focus: String(s.focus ?? "")
@@ -806,7 +1139,10 @@ export function applyGym(state, action, now = new Date()) {
     case "crew": {
       manager();
       const list = (action.crew ?? []).filter(
-        (c) => staff.some((s) => s.id === c.staffId) && roleNames[c.role],
+        (c) =>
+          staff.some((s) => s.id === c.staffId) &&
+          roleNames[c.role] &&
+          c.role !== "helper",
       );
       if (new Set(list.map((c) => c.staffId)).size !== list.length)
         throw Error("Each coach appears once.");
@@ -917,9 +1253,7 @@ export function coachStats(state, from) {
     );
     const late = runs
       .map((r) => {
-        const block = sessions(`${r.session.slice(0, 10)}T12:00:00Z`).find(
-          (b) => b.id === r.session,
-        );
+        const block = sessionFromId(state, r.session);
         return block
           ? minutesBetween(
               gymLocalIso(r.session.slice(0, 10), block.start),

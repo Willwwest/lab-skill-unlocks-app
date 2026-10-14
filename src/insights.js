@@ -2,6 +2,7 @@
 // records with the demo history (state.gym.history) so both read the same.
 import { catalog, people } from "./domain.js";
 import { dayKey, sessions, clock } from "./club.js";
+import { sessionFromId } from "./schedule.js";
 import { staff } from "./roster.js";
 import { gymOf } from "./gym.js";
 import { gymLocalIso } from "./gym-time.js";
@@ -62,7 +63,7 @@ export function activity(state) {
 // Minutes after the block's start time that attendance was done.
 export function lateness(run) {
   const date = run.session.slice(0, 10);
-  const block = sessions(`${date}T12:00:00Z`).find((s) => s.id === run.session);
+  const block = sessionFromId(null, run.session);
   if (!block) return null;
   return (
     (Date.parse(run.attendanceDoneAt) -
@@ -134,7 +135,7 @@ export function insights(state, { days = 30, now = new Date() } = {}) {
   }));
 
   // Average check-ins per session, by weekday and block.
-  const blocks = sessions(now)
+  const blocks = sessions(now, state)
     .slice()
     .sort((x, y) => x.start.localeCompare(y.start));
   const heat = weekdays.map((label, w) =>

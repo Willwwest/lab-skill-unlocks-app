@@ -95,12 +95,16 @@ test("a planned class holds its stations; the rest of the floor is open gym", ()
   assert.equal(st.liveClasses.length, 1);
 });
 
-test("an upcoming class flags its zones while they are still open", () => {
-  const z = zone(base(), "rig-grip", at("15:10"));
-  assert.equal(z.status, "open");
-  assert.deepEqual(z.soon, { name: "Ninja foundations", start: "15:30" });
-  // Foundations doesn't use the court.
+test("an upcoming class flags its zones, each for the part that uses it", () => {
+  // Foundations warms up on the track at 3:30, then takes its stations at 3:35.
+  const track = zone(base(), "track", at("15:10"));
+  assert.deepEqual(track.soon, { name: "Ninja foundations", start: "15:30" });
+  const grip = zone(base(), "rig-grip", at("15:10"));
+  assert.equal(grip.status, "open");
+  assert.deepEqual(grip.soon, { name: "Ninja foundations", start: "15:35" });
+  // Foundations doesn't use the court or the advanced rig.
   assert.equal(zone(base(), "court", at("15:10")).soon, null);
+  assert.equal(zone(base(), "advanced", at("15:10")).soon, null);
 });
 
 test("a running rotation shows which group is at each zone and when it moves", () => {
@@ -122,7 +126,13 @@ test("a running rotation shows which group is at each zone and when it moves", (
   );
   s = applyGym(
     s,
-    { type: "startClass", session: homeschool.id, actor: jordan },
+    {
+      type: "startClass",
+      session: homeschool.id,
+      minutes: 15,
+      warmup: 0,
+      actor: jordan,
+    },
     at("10:02"),
   );
   const run = s.gym.runs[homeschool.id];

@@ -6,22 +6,43 @@
 // kids-per-coach ratios and the minimum crew per block.
 import { coaches, staff } from "./roster.js";
 import { sessions, dayKey } from "./club.js";
+import {
+  bucketOf,
+  comingBuckets,
+  portfolioBuckets,
+  sessionFromId,
+} from "./schedule.js";
 import { people } from "./domain.js";
 import { rosterFor } from "./floor.js";
-import { gymMinutes, toMinutes } from "./gym-time.js";
-import { checkinsFor, crewFor, crewOn, staffName } from "./gym.js";
+import {
+  dayAt,
+  gymMinutes,
+  toMinutes,
+  weekKeyOf,
+  weekdayOf,
+  calendarDayLabel,
+  addDays,
+} from "./gym-time.js";
+import { withNotices } from "./outbox.js";
+import { availableFor, hoursBand } from "./availability.js";
+import { publishedFloater, publishedOn, publishedShift } from "./shifts.js";
+import { checkinsFor, crewFor, crewOn, runOf, staffName } from "./gym.js";
 
 export { crewOn };
 
 export const STAFFING_VERSION = 1;
 
-// The kinds of work a coach's time is split across. Each coach keeps at
-// least the owner's minimum share (MIN_SHARE by default) in every one.
+// The kinds of work a coach's time is split across: the running programs
+// on the schedule (schedule.js buckets). Managers add programs and mark
+// them running or coming soon. Each coach keeps at least the owner's
+// minimum share (MIN_SHARE by default) in every running one.
 export const modalities = [
   { id: "class", label: "Ninja classes", short: "Classes" },
   { id: "open", label: "Open gym", short: "Open gym" },
   { id: "floater", label: "Floater", short: "Floater" },
 ];
+export const modalitiesOf = (state) =>
+  state ? portfolioBuckets(state) : modalities;
 export const MIN_SHARE = 10;
 
 // What a coach is doing at a moment.
@@ -36,22 +57,30 @@ export const statusInfo = {
 
 export const requestKinds = {
   cover: "Cover a block",
-  timeoff: "Day off",
+  timeoff: "Time off",
   hours: "Change my hours",
+  sick: "Out sick",
+  open: "Open shift",
 };
+// Time off can be asked for up to this many days in one request.
+export const MAX_TIMEOFF_DAYS = 31;
 
 // Minutes around a class start and end that need a floater on the floor.
 export const TRANSITION_MIN = 10;
 export const BREAK_LENGTHS = [15, 30, 45, 60];
 
+// Standing hours. Day coaches work Monday to Friday, evening coaches
+// Monday to Saturday. A shift without weekdays runs every day.
+const WEEKDAYS_5 = [1, 2, 3, 4, 5];
+const WEEKDAYS_6 = [1, 2, 3, 4, 5, 6];
 const defaultShifts = {
-  jordan: { start: "09:30", end: "17:00" },
-  sam: { start: "09:30", end: "18:30" },
-  priya: { start: "09:30", end: "18:00" },
-  riley: { start: "09:30", end: "18:00" },
-  morgan: { start: "15:00", end: "20:15" },
-  dev: { start: "15:00", end: "20:15" },
-  alex: { start: "09:00", end: "17:30" },
+  jordan: { start: "09:30", end: "17:00", weekdays: WEEKDAYS_5 },
+  sam: { start: "09:30", end: "18:30", weekdays: WEEKDAYS_5 },
+  priya: { start: "09:30", end: "18:00", weekdays: WEEKDAYS_5 },
+  riley: { start: "09:30", end: "18:00", weekdays: WEEKDAYS_5 },
+  morgan: { start: "15:00", end: "20:15", weekdays: WEEKDAYS_6 },
+  dev: { start: "15:00", end: "20:15", weekdays: WEEKDAYS_6 },
+  alex: { start: "09:00", end: "17:30", weekdays: WEEKDAYS_5 },
 };
 const defaultPortfolios = {
   jordan: { class: 70, open: 15, floater: 15 },
@@ -97,7 +126,7 @@ export function seedStaffing(now = new Date()) {
         kind: "cover",
         staffId: "dev",
         day,
-        index: 3,
+        index: "3",
         toStaffId: null,
         start: null,
         end: null,
@@ -107,8 +136,9 @@ export function seedStaffing(now = new Date()) {
       },
     ],
     // Owner settings. Classes with a kid aged 6 or under use youngRatio.
+    // A class can run with one coach; the ratio decides when it needs more.
     rules: {
-      classMin: 3,
+      classMin: 1,
       openMin: 1,
       floaterPerClass: 1,
       classRatio: 8,
@@ -116,6 +146,7 @@ export function seedStaffing(now = new Date()) {
       openRatio: 10,
       maxOnBreak: 1,
       minShare: MIN_SHARE,
+      maxWeekly: 40,
       expected: {},
     },
     // Who manages, set by the owner. Missing means the roster default.
@@ -197,7 +228,7 @@ export const minutesToTime = (m) =>
 const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
 const dayOf = (s, day) => s.days[day] ?? {};
 // Midday on a gym day, as an instant, for day-based lookups.
-export const noonOf = (day) => `${day}T19:00:00Z`;
+export const noonOf = (day) => dayAt(day);
 
 /* ---------- Who works when ---------- */
 
@@ -205,16 +236,30 @@ export function shiftOn(state, staffId, at = new Date()) {
   const s = staffingOf(state);
   const d = dayOf(s, dayKey(at));
   if ((d.off ?? []).includes(staffId)) return null;
-  return d.hours?.[staffId] ?? s.shifts[staffId] ?? null;
+  if (d.hours?.[staffId]) return d.hours[staffId];
+  // A published week says exactly who works when.
+  const day = dayKey(at);
+  if (publishedOn(state, day)) {
+    const sh = publishedShift(state, staffId, day);
+    return sh ? { start: sh.start, end: sh.end } : null;
+  }
+  const standing = s.shifts[staffId];
+  if (!standing) return null;
+  if (standing.weekdays && !standing.weekdays.includes(weekdayOf(dayKey(at))))
+    return null;
+  return { start: standing.start, end: standing.end };
 }
 
 export const floaterOn = (state, index, at = new Date()) => {
   const s = staffingOf(state);
   const d = dayOf(s, dayKey(at));
+  const published = publishedFloater(state, index, dayKey(at));
   const id =
     d.floaters && index in d.floaters
       ? d.floaters[index]
-      : (s.floaters[index] ?? null);
+      : published !== undefined
+        ? published
+        : (s.floaters[index] ?? null);
   return id && !(d.off ?? []).includes(id) ? id : null;
 };
 
@@ -225,16 +270,26 @@ export const breaksOn = (state, at = new Date()) => {
     .sort((a, b) => a.start.localeCompare(b.start));
 };
 
+// The day's crew for a block plus any coach the head coach added as a
+// helper when the class checked in.
+export function classCrew(state, block, at = new Date()) {
+  const crew = crewOn(state, block.index, at);
+  const helpers = (runOf(state, block.id)?.helpers ?? [])
+    .filter((id) => !crew.some((c) => c.staffId === id))
+    .map((staffId) => ({ staffId, role: "helper" }));
+  return [...crew, ...helpers];
+}
+
 // Everything a coach is booked for on a day, as minute ranges.
 export function commitments(state, staffId, at = new Date()) {
   const out = [];
-  for (const b of sessions(at)) {
-    const role = crewOn(state, b.index, at).find(
+  for (const b of sessions(at, state)) {
+    const role = classCrew(state, b, at).find(
       (c) => c.staffId === staffId,
     )?.role;
     if (role)
       out.push({
-        kind: role === "attendant" ? "open" : "class",
+        kind: bucketOf(state, sessionFromId(state, b.id) ?? b),
         role,
         block: b,
         start: toMinutes(b.start),
@@ -285,8 +340,30 @@ export function coachStatusAt(state, staffId, at = new Date(), minute) {
   return { status: "free", next, shift };
 }
 
+// The time clock (timeclock.js), read straight from state so this file
+// doesn't import it. Only counts once anyone has used the clock.
+const clockInUse = (state) => (state?.time?.entries ?? []).length > 0;
+const clockedInOn = (state, staffId, day) =>
+  (state?.time?.entries ?? []).find(
+    (e) => e.staffId === staffId && e.day === day && !e.out,
+  ) ?? null;
+// Booked from this minute and not on the clock: "Scheduled, not in".
+export function notClockedIn(state, staffId, at = new Date()) {
+  if (!clockInUse(state)) return false;
+  const shift = shiftOn(state, staffId, at);
+  if (!shift) return false;
+  const m = gymMinutes(at);
+  if (m < toMinutes(shift.start) + 5 || m >= toMinutes(shift.end)) return false;
+  return !clockedInOn(state, staffId, dayKey(at));
+}
+
 export const boardNow = (state, at = new Date()) =>
-  coaches.map((s) => ({ staff: s, ...coachStatusAt(state, s.id, at) }));
+  coaches.map((s) => ({
+    staff: s,
+    ...coachStatusAt(state, s.id, at),
+    clockIn: clockedInOn(state, s.id, dayKey(at))?.in ?? null,
+    notIn: notClockedIn(state, s.id, at),
+  }));
 
 // The day as a grid of time slots, one row per coach.
 export function dayGrid(state, at = new Date(), step = 30) {
@@ -405,10 +482,10 @@ export function breakClashes(state, at = new Date()) {
 
 /* ---------- Time portfolios ---------- */
 
-export function portfolioProblem(p, min = MIN_SHARE) {
+export function portfolioProblem(p, min = MIN_SHARE, list = modalities) {
   if (!p || typeof p !== "object") return "Fill in every type of work.";
   let sum = 0;
-  for (const m of modalities) {
+  for (const m of list) {
     const v = p[m.id];
     if (!Number.isInteger(v) || v < 0)
       return `Enter a whole number for ${m.label}.`;
@@ -420,23 +497,30 @@ export function portfolioProblem(p, min = MIN_SHARE) {
   return null;
 }
 
-export const portfolioOf = (state, staffId) =>
-  staffingOf(state).portfolios[staffId] ??
-  Object.fromEntries(
-    modalities.map((m) => [m.id, Math.round(100 / modalities.length)]),
-  );
+// A coach's split across the running programs. A program added since
+// they last saved starts at 0 until they rebalance.
+export function portfolioOf(state, staffId) {
+  const list = modalitiesOf(state);
+  const saved = staffingOf(state).portfolios[staffId];
+  if (!saved)
+    return Object.fromEntries(
+      list.map((m) => [m.id, Math.round(100 / list.length)]),
+    );
+  return Object.fromEntries(list.map((m) => [m.id, saved[m.id] ?? 0]));
+}
 
 // How a coach's booked minutes on a day split across the modalities.
 export function actualMix(state, staffId, at = new Date()) {
-  const mins = Object.fromEntries(modalities.map((m) => [m.id, 0]));
+  const list = modalitiesOf(state);
+  const mins = Object.fromEntries(list.map((m) => [m.id, 0]));
   for (const c of commitments(state, staffId, at))
-    mins[c.kind] += c.end - c.start;
+    mins[c.kind] = (mins[c.kind] ?? 0) + c.end - c.start;
   const total = Object.values(mins).reduce((a, b) => a + b, 0);
   return {
     minutes: mins,
     total,
     share: Object.fromEntries(
-      modalities.map((m) => [
+      list.map((m) => [
         m.id,
         total ? Math.round((mins[m.id] / total) * 100) : 0,
       ]),
@@ -449,7 +533,7 @@ export function portfolioGap(state, staffId, at = new Date()) {
   const target = portfolioOf(state, staffId);
   const { share, total } = actualMix(state, staffId, at);
   return Object.fromEntries(
-    modalities.map((m) => [
+    modalitiesOf(state).map((m) => [
       m.id,
       total ? target[m.id] - share[m.id] : target[m.id],
     ]),
@@ -496,17 +580,36 @@ export function neededCoaches(state, block) {
   };
 }
 
+// How many kids one coach can take in a group: the little-ones ratio when
+// anyone in it is 6 or under.
+export function groupLimit(state, ids) {
+  const r = staffingOf(state).rules;
+  const young = ids.some(
+    (id) => (people.find((p) => p.id === id)?.age ?? 99) <= 6,
+  );
+  const limit = young ? (r.youngRatio ?? r.classRatio) : r.classRatio;
+  return { limit, young, over: ids.length > limit };
+}
+
 // Gaps and clashes for one block on a day.
 export function blockCheck(state, block, at = new Date()) {
   const s = staffingOf(state);
-  const crew = crewOn(state, block.index, at);
+  const crew = classCrew(state, block, at);
   const { kids, ratio, min, need } = neededCoaches(state, block);
   const issues = [];
   const b0 = toMinutes(block.start);
   const b1 = toMinutes(block.end);
-  const off = dayOf(s, dayKey(at)).off ?? [];
+  const today = dayOf(s, dayKey(at));
+  const off = today.off ?? [];
+  // Once the block has been restaffed for the day, the weekly crew member
+  // who is off no longer needs covering.
+  const restaffed = !!today.crew?.[block.index];
   for (const c of crewFor(state, block.index))
-    if (off.includes(c.staffId) && !crew.some((x) => x.staffId === c.staffId))
+    if (
+      !restaffed &&
+      off.includes(c.staffId) &&
+      !crew.some((x) => x.staffId === c.staffId)
+    )
       issues.push({
         tone: "bad",
         text: `${staffName(c.staffId)} is off. Find cover.`,
@@ -544,12 +647,18 @@ export function blockCheck(state, block, at = new Date()) {
         tone: "warn",
         text: `${staffName(c.staffId)} has a break ${brk.start}–${brk.end}`,
       });
+    const m = gymMinutes(at);
+    if (m >= b0 && m < b1 && notClockedIn(state, c.staffId, at))
+      issues.push({
+        tone: "warn",
+        text: `${staffName(c.staffId)} hasn't clocked in`,
+      });
   }
   return { block, crew, floater, kids, ratio, need, issues };
 }
 
 export const dayCheck = (state, at = new Date()) =>
-  sessions(at)
+  sessions(at, state)
     .slice()
     .sort((a, b) => a.start.localeCompare(b.start))
     .map((b) => blockCheck(state, b, at));
@@ -557,40 +666,97 @@ export const dayCheck = (state, at = new Date()) =>
 // Coaches who could take a block (or float it), best fit first: on shift
 // for the whole block, not booked or on break then, and furthest under
 // their target share for that kind of work.
+// Being off doesn't rule a coach out: a coach who isn't working then can
+// still take a block, and the minutes it adds to their day come back with
+// them (`addsMinutes`, `off`). Coaches already on shift rank first.
 export function coverCandidates(state, block, at = new Date(), { kind } = {}) {
-  const want = kind ?? (block.kind === "class" ? "class" : "open");
+  const want = kind ?? bucketOf(state, sessionFromId(state, block.id) ?? block);
   const pad = want === "floater" ? TRANSITION_MIN : 0;
   const b0 = toMinutes(block.start) - pad;
   const b1 = toMinutes(block.end) + pad;
-  return coaches
-    .map((s) => {
-      const shift = shiftOn(state, s.id, at);
-      if (!shift || toMinutes(shift.start) > b0 || toMinutes(shift.end) < b1)
-        return null;
-      const inBlock =
-        crewOn(state, block.index, at).some((c) => c.staffId === s.id) ||
-        floaterOn(state, block.index, at) === s.id;
-      const busy = commitments(state, s.id, at).some(
-        (c) =>
-          c.block.index !== block.index && overlaps(b0, b1, c.start, c.end),
-      );
-      const onBreak = breaksOn(state, at).some(
-        (x) =>
-          x.staffId === s.id &&
-          overlaps(b0, b1, toMinutes(x.start), toMinutes(x.end)),
-      );
-      if (inBlock || busy || onBreak) return null;
-      return { staff: s, gap: portfolioGap(state, s.id, at)[want] };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.gap - a.gap);
+  return (
+    coaches
+      .map((s) => {
+        const shift = shiftOn(state, s.id, at);
+        const s0 = shift ? toMinutes(shift.start) : null;
+        const s1 = shift ? toMinutes(shift.end) : null;
+        const covered = shift && s0 <= b0 && s1 >= b1;
+        const addsMinutes = covered
+          ? 0
+          : shift
+            ? Math.max(0, s0 - b0) + Math.max(0, b1 - s1)
+            : b1 - b0;
+        const inBlock =
+          crewOn(state, block.index, at).some((c) => c.staffId === s.id) ||
+          floaterOn(state, block.index, at) === s.id;
+        const busy = commitments(state, s.id, at).some(
+          (c) =>
+            c.block.index !== block.index && overlaps(b0, b1, c.start, c.end),
+        );
+        const onBreak = breaksOn(state, at).some(
+          (x) =>
+            x.staffId === s.id &&
+            overlaps(b0, b1, toMinutes(x.start), toMinutes(x.end)),
+        );
+        if (inBlock || busy || onBreak) return null;
+        const avail = availableFor(state, s.id, dayKey(at), b0, b1);
+        const band = hoursBand(
+          state,
+          s.id,
+          weekKeyOf(dayKey(at)),
+          addsMinutes / 60,
+        );
+        return {
+          staff: s,
+          gap: portfolioGap(state, s.id, at)[want] ?? 0,
+          off: !shift,
+          addsMinutes,
+          available: avail.ok,
+          why: avail.reason,
+          hours: band.hours,
+          overMax: band.status === "over" || band.status === "cap",
+        };
+      })
+      .filter(Boolean)
+      // Coaches who can work it and stay inside their hours come first.
+      .sort(
+        (a, b) =>
+          Number(!a.available) - Number(!b.available) ||
+          Number(a.overMax) - Number(b.overMax) ||
+          a.addsMinutes - b.addsMinutes ||
+          b.gap - a.gap,
+      )
+  );
 }
 
 /* ---------- Actions ---------- */
 
+// Give a coach working hours that reach a block they've just taken on.
+// A coach who was off gets the block (plus floater padding) as their day.
+function stretchShift(s, view, day, at, staffId, block, floater = false) {
+  const pad = floater ? TRANSITION_MIN : 0;
+  const b0 = toMinutes(block.start) - pad;
+  const b1 = toMinutes(block.end) + pad;
+  const shift = shiftOn(view, staffId, at);
+  const d = (s.days[day] ??= {});
+  d.off = (d.off ?? []).filter((id) => id !== staffId);
+  if (!d.off.length) delete d.off;
+  if (shift && toMinutes(shift.start) <= b0 && toMinutes(shift.end) >= b1)
+    return;
+  const start = shift ? Math.min(toMinutes(shift.start), b0) : b0;
+  const end = shift ? Math.max(toMinutes(shift.end), b1) : b1;
+  (d.hours ??= {})[staffId] = {
+    start: minutesToTime(start),
+    end: minutesToTime(end),
+  };
+}
+
 const touchDay = (s, day) => (s.days[day] ??= {});
 
 export function applyStaffing(state, action, now = new Date()) {
+  // Notices for the people a change affects (outbox.js).
+  const notices = [];
+  const when = (d) => (d === dayKey(now) ? "today" : calendarDayLabel(d));
   const s = structuredClone(staffingOf(state));
   const actor = action.actor ?? {};
   if (actor.role !== "Coach" || !actor.staffId)
@@ -612,7 +778,7 @@ export function applyStaffing(state, action, now = new Date()) {
   const at = action.day ? noonOf(day) : now;
   const view = () => ({ ...state, staffing: s });
   const blockAt = (index, when = at) => {
-    const b = sessions(when).find((x) => x.index === Number(index));
+    const b = sessions(when, view()).find((x) => x.index === String(index));
     if (!b) throw Error("Choose a block.");
     return b;
   };
@@ -648,12 +814,25 @@ export function applyStaffing(state, action, now = new Date()) {
     case "portfolio": {
       coach(action.staffId);
       self(action.staffId);
+      const list = modalitiesOf(state);
       const p = Object.fromEntries(
-        modalities.map((m) => [m.id, Number(action.portfolio?.[m.id])]),
+        list.map((m) => [m.id, Number(action.portfolio?.[m.id])]),
       );
-      const why = portfolioProblem(p, s.rules.minShare ?? MIN_SHARE);
+      const why = portfolioProblem(p, s.rules.minShare ?? MIN_SHARE, list);
       if (why) throw Error(why);
       s.portfolios[action.staffId] = p;
+      break;
+    }
+    // "I'd like to work this when it starts": a program that's coming soon.
+    case "interest": {
+      coach(action.staffId);
+      self(action.staffId);
+      if (!comingBuckets(state).some((b) => b.id === action.bucket))
+        throw Error("Choose a program that's coming soon.");
+      const mine = new Set(s.interest?.[action.staffId] ?? []);
+      if (action.on) mine.add(action.bucket);
+      else mine.delete(action.bucket);
+      (s.interest ??= {})[action.staffId] = [...mine];
       break;
     }
     case "shift": {
@@ -665,7 +844,78 @@ export function applyStaffing(state, action, now = new Date()) {
         action.start >= action.end
       )
         throw Error("Shifts need a start before the end.");
-      s.shifts[action.staffId] = { start: action.start, end: action.end };
+      const weekdays = action.weekdays ?? s.shifts[action.staffId]?.weekdays;
+      s.shifts[action.staffId] = {
+        start: action.start,
+        end: action.end,
+        ...(weekdays ? { weekdays: [...new Set(weekdays)].sort() } : {}),
+      };
+      break;
+    }
+    // A coach's own availability and the weekly hours they'd like.
+    case "availability": {
+      coach(action.staffId);
+      self(action.staffId);
+      const weekly = (action.weekly ?? []).map((w) => ({
+        weekday: Number(w.weekday),
+        start: w.start,
+        end: w.end,
+      }));
+      for (const w of weekly) {
+        if (!(w.weekday >= 1 && w.weekday <= 7)) throw Error("Pick a weekday.");
+        if (!validTime(w.start) || !validTime(w.end) || w.start >= w.end)
+          throw Error("Each day needs a start before the end.");
+      }
+      const num = (v) => (v === "" || v == null ? null : Number(v));
+      const min = num(action.minHours);
+      const max = num(action.maxHours);
+      for (const v of [min, max])
+        if (v != null && !(Number.isFinite(v) && v >= 0 && v <= 80))
+          throw Error("Weekly hours are 0 to 80.");
+      if (min != null && max != null && min > max)
+        throw Error("The minimum can't be more than the maximum.");
+      const a = (s.availability ??= {})[action.staffId] ?? {};
+      s.availability[action.staffId] = {
+        ...a,
+        weekly,
+        minHours: min,
+        maxHours: max,
+        updatedAt: new Date(now).toISOString(),
+      };
+      break;
+    }
+    case "unavailable": {
+      coach(action.staffId);
+      self(action.staffId);
+      const dayRe = /^\d{4}-\d{2}-\d{2}$/;
+      const to = action.to || action.from;
+      if (
+        !dayRe.test(action.from ?? "") ||
+        !dayRe.test(to ?? "") ||
+        to < action.from
+      )
+        throw Error("Pick the first and last day.");
+      const a = ((s.availability ??= {})[action.staffId] ??= {});
+      a.dated = [
+        ...(a.dated ?? []),
+        {
+          id: crypto.randomUUID(),
+          from: action.from,
+          to,
+          note: String(action.note ?? "")
+            .trim()
+            .slice(0, 140),
+        },
+      ].sort((x, y) => x.from.localeCompare(y.from));
+      break;
+    }
+    case "removeUnavailable": {
+      coach(action.staffId);
+      self(action.staffId);
+      const a = s.availability?.[action.staffId];
+      if (!a?.dated?.some((d) => d.id === action.id))
+        throw Error("That day is already cleared.");
+      a.dated = a.dated.filter((d) => d.id !== action.id);
       break;
     }
     case "floater": {
@@ -709,6 +959,7 @@ export function applyStaffing(state, action, now = new Date()) {
         ...crew,
         { staffId: action.staffId, role },
       ];
+      stretchShift(s, view(), day, at, action.staffId, b);
       break;
     }
     case "rules": {
@@ -737,6 +988,9 @@ export function applyStaffing(state, action, now = new Date()) {
       ])
         if (!Number.isInteger(r[k]) || r[k] < 1 || r[k] > 40)
           throw Error("Use whole numbers from 1 to 40.");
+      r.maxWeekly ??= 40;
+      if (!Number.isInteger(r.maxWeekly) || r.maxWeekly < 1 || r.maxWeekly > 80)
+        throw Error("The weekly cap is 1 to 80 hours.");
       if (![0, 1].includes(r.floaterPerClass))
         throw Error("Floater is on or off.");
       if (
@@ -748,10 +1002,10 @@ export function applyStaffing(state, action, now = new Date()) {
       if (
         !Number.isInteger(r.minShare) ||
         r.minShare < 0 ||
-        r.minShare * modalities.length > 100
+        r.minShare * modalitiesOf(state).length > 100
       )
         throw Error(
-          `The minimum share is 0 to ${Math.floor(100 / modalities.length)}%.`,
+          `The minimum share is 0 to ${Math.floor(100 / modalitiesOf(state).length)}%.`,
         );
       s.rules = r;
       break;
@@ -765,10 +1019,41 @@ export function applyStaffing(state, action, now = new Date()) {
       s.roles = { ...(s.roles ?? {}), [m.id]: action.level };
       break;
     }
+    // A manager posts a block nobody is on yet; coaches claim it.
+    case "openShift": {
+      manager();
+      if (day < dayKey(now)) throw Error("Pick today or a day ahead.");
+      const b = blockAt(action.index);
+      const req = {
+        id: crypto.randomUUID(),
+        kind: "open",
+        staffId: null,
+        postedBy: actor.staffId,
+        day,
+        index: b.index,
+        toStaffId: null,
+        note: String(action.note ?? "")
+          .trim()
+          .slice(0, 280),
+        status: "pending",
+        at: new Date(now).toISOString(),
+      };
+      s.requests.push(req);
+      notices.push({
+        kind: "open.posted",
+        to: coaches.map((c) => c.id),
+        text: `Open shift: ${requestSummary(req).replace(/^Open: /, "")}, ${when(day)}. Claim it in Requests.`,
+      });
+      break;
+    }
     case "request": {
       coach(action.staffId);
       self(action.staffId);
-      if (!requestKinds[action.kind]) throw Error("Choose what you need.");
+      if (day < dayKey(now)) throw Error("Pick today or a day ahead.");
+      if (!requestKinds[action.kind] || action.kind === "open")
+        throw Error("Choose what you need.");
+      if (action.kind === "sick" && day !== dayKey(now))
+        throw Error("Out sick is for today. Ask for time off for a day ahead.");
       const req = {
         id: crypto.randomUUID(),
         kind: action.kind,
@@ -794,6 +1079,19 @@ export function applyStaffing(state, action, now = new Date()) {
         )
           throw Error(`You're not on ${b.name} that day.`);
         req.index = b.index;
+        if (action.askStaffId) {
+          coach(action.askStaffId);
+          if (action.askStaffId === action.staffId)
+            throw Error("Ask another coach.");
+          req.askedStaffId = action.askStaffId;
+        }
+      }
+      if (action.kind === "timeoff") {
+        const last = action.to || day;
+        if (last < day) throw Error("The last day can't be before the first.");
+        if (last > addDays(day, MAX_TIMEOFF_DAYS - 1))
+          throw Error(`Ask for up to ${MAX_TIMEOFF_DAYS} days at a time.`);
+        if (last !== day) req.to = last;
       }
       if (action.kind === "hours") {
         if (
@@ -812,31 +1110,98 @@ export function applyStaffing(state, action, now = new Date()) {
             r.staffId === req.staffId &&
             r.kind === req.kind &&
             r.day === req.day &&
-            r.index === req.index,
+            String(r.index) === String(req.index),
         )
       )
         throw Error("You already asked for that.");
       s.requests.push(req);
+      // Out sick needs no approval: they're off today, and every block
+      // they were on today goes up for cover.
+      if (req.kind === "sick") {
+        const mine = commitments(view(), req.staffId, at);
+        const d = touchDay(s, day);
+        d.off = [...new Set([...(d.off ?? []), req.staffId])];
+        req.status = "approved";
+        req.decidedAt = req.at;
+        for (const c of mine) {
+          const cover = {
+            id: crypto.randomUUID(),
+            kind: "cover",
+            staffId: req.staffId,
+            day,
+            index: c.block.index,
+            toStaffId: null,
+            start: null,
+            end: null,
+            note: "Out sick",
+            status: "pending",
+            at: req.at,
+            ...(c.kind === "floater" ? { floater: true } : {}),
+          };
+          s.requests.push(cover);
+          notices.push({
+            kind: "cover.needed",
+            to: coaches.map((x) => x.id).filter((id) => id !== req.staffId),
+            text: `Cover needed: ${requestSummary(cover).replace(/^Cover /, "")}, today. ${staffName(req.staffId)} is out sick.`,
+          });
+        }
+        notices.push({
+          kind: "sick",
+          to: "managers",
+          text: `${staffName(req.staffId)} is out sick today${mine.length ? `. ${mine.length} block${mine.length === 1 ? "" : "s"} need cover` : ""}.`,
+        });
+        break;
+      }
+      if (req.askedStaffId)
+        notices.push({
+          kind: "swap.asked",
+          to: [req.askedStaffId],
+          text: `${staffName(req.staffId)} asked you to take ${requestSummary(req).replace(/^Cover /, "")}, ${when(req.day)}.`,
+        });
+      notices.push({
+        kind: "request.created",
+        to: "managers",
+        text: `${staffName(req.staffId)} asked: ${requestSummary(req)}, ${when(req.day)}.`,
+      });
+      if (req.kind === "cover" && !req.askedStaffId)
+        notices.push({
+          kind: "cover.needed",
+          to: coaches.map((c) => c.id).filter((id) => id !== req.staffId),
+          text: `Cover needed: ${requestSummary(req).replace(/^Cover /, "")}, ${when(req.day)}.`,
+        });
       break;
     }
     case "volunteer": {
       const r = s.requests.find((x) => x.id === action.id);
-      if (!r || r.status !== "pending" || r.kind !== "cover")
+      if (!r || r.status !== "pending" || !["cover", "open"].includes(r.kind))
         throw Error("That request is closed.");
       if (r.staffId === actor.staffId)
         throw Error("Someone else has to cover it.");
+      if (r.askedStaffId && r.askedStaffId !== actor.staffId)
+        throw Error(`${staffName(r.staffId)} asked someone else.`);
       const rAt = noonOf(r.day);
       const b = blockAt(r.index, rAt);
       const kind =
-        floaterOn(view(), b.index, rAt) === r.staffId ? "floater" : undefined;
+        r.floater || floaterOn(view(), b.index, rAt) === r.staffId
+          ? "floater"
+          : undefined;
       if (
         !coverCandidates(view(), b, rAt, { kind }).some(
           (c) => c.staff.id === actor.staffId,
         )
       )
-        throw Error(`You're busy or off during ${b.name}.`);
+        throw Error(`You're busy during ${b.name}.`);
       r.toStaffId = actor.staffId;
+      r.addsMinutes =
+        coverCandidates(view(), b, rAt, { kind }).find(
+          (c) => c.staff.id === actor.staffId,
+        )?.addsMinutes ?? 0;
       r.volunteered = true;
+      notices.push({
+        kind: "cover.volunteered",
+        to: "managers",
+        text: `${staffName(actor.staffId)} can cover for ${staffName(r.staffId)}, ${when(r.day)}.`,
+      });
       break;
     }
     case "cancelRequest": {
@@ -853,6 +1218,11 @@ export function applyStaffing(state, action, now = new Date()) {
         throw Error("That request is already decided.");
       if (!action.approve) {
         r.status = "denied";
+        notices.push({
+          kind: "request.decided",
+          to: [r.staffId],
+          text: `Declined: ${requestSummary(r)}, ${when(r.day)}.${r.reply ? ` "${r.reply}"` : ""}`,
+        });
         r.decidedBy = actor.staffId;
         r.decidedAt = new Date(now).toISOString();
         r.reply = String(action.reply ?? "")
@@ -867,24 +1237,78 @@ export function applyStaffing(state, action, now = new Date()) {
         if (!to) throw Error("Pick who covers it.");
         coach(to);
         const b = blockAt(r.index, rAt);
-        const asFloater = floaterOn(view(), b.index, rAt) === r.staffId;
+        const asFloater =
+          r.floater || floaterOn(view(), b.index, rAt) === r.staffId;
         const free = coverCandidates(view(), b, rAt, {
           kind: asFloater ? "floater" : undefined,
         }).some((c) => c.staff.id === to);
         if (!free)
           throw Error(`${staffName(to)} is busy or off during ${b.name}.`);
+        const before = view();
         if (asFloater) (d.floaters ??= {})[b.index] = to;
-        else
-          (d.crew ??= {})[b.index] = crewOn(view(), b.index, rAt).map((c) =>
-            c.staffId === r.staffId ? { ...c, staffId: to } : c,
-          );
+        else {
+          const crew = crewOn(before, b.index, rAt);
+          // A coach who is off has already dropped out of the day's crew,
+          // so the cover takes the role they had on the standing crew.
+          const had =
+            crewFor(before, b.index).find((c) => c.staffId === r.staffId)
+              ?.role ?? (b.kind === "class" ? "station" : "attendant");
+          (d.crew ??= {})[b.index] = crew.some((c) => c.staffId === r.staffId)
+            ? crew.map((c) =>
+                c.staffId === r.staffId ? { ...c, staffId: to } : c,
+              )
+            : [...crew, { staffId: to, role: had }];
+        }
+        // A coach who was off, or whose hours didn't reach the block,
+        // now works it: their day grows to cover it.
+        stretchShift(s, before, r.day, rAt, to, b, asFloater);
+        r.toStaffId = to;
+      }
+      if (r.kind === "open") {
+        const to = action.toStaffId ?? r.toStaffId;
+        if (!to) throw Error("Pick who takes it.");
+        coach(to);
+        const b = blockAt(r.index, rAt);
+        if (!coverCandidates(view(), b, rAt).some((c) => c.staff.id === to))
+          throw Error(`${staffName(to)} is busy during ${b.name}.`);
+        const before = view();
+        const crew = crewOn(before, b.index, rAt);
+        const role =
+          b.kind === "class"
+            ? crew.some((c) => c.role === "head")
+              ? "station"
+              : "head"
+            : "attendant";
+        (d.crew ??= {})[b.index] = [...crew, { staffId: to, role }];
+        stretchShift(s, before, r.day, rAt, to, b);
         r.toStaffId = to;
       }
       if (r.kind === "timeoff")
-        d.off = [...new Set([...(d.off ?? []), r.staffId])];
+        for (let x = r.day; x <= (r.to ?? r.day); x = addDays(x, 1)) {
+          const dd = touchDay(s, x);
+          dd.off = [...new Set([...(dd.off ?? []), r.staffId])];
+        }
       if (r.kind === "hours")
         (d.hours ??= {})[r.staffId] = { start: r.start, end: r.end };
       r.status = "approved";
+      if (r.staffId)
+        notices.push({
+          kind: "request.decided",
+          to: [r.staffId],
+          text: `Approved: ${requestSummary(r)}, ${when(r.day)}.`,
+        });
+      if (r.kind === "cover" && r.toStaffId)
+        notices.push({
+          kind: "cover.assigned",
+          to: [r.toStaffId],
+          text: `You're covering for ${staffName(r.staffId)}: ${requestSummary(r).replace(/^Cover /, "")}, ${when(r.day)}.`,
+        });
+      if (r.kind === "open" && r.toStaffId)
+        notices.push({
+          kind: "open.assigned",
+          to: [r.toStaffId],
+          text: `You've got the open shift: ${requestSummary(r).replace(/^Open: /, "")}, ${when(r.day)}.`,
+        });
       r.decidedBy = actor.staffId;
       r.decidedAt = new Date(now).toISOString();
       break;
@@ -892,7 +1316,7 @@ export function applyStaffing(state, action, now = new Date()) {
     default:
       throw Error("Unknown staffing action.");
   }
-  return { ...state, staffing: s };
+  return withNotices({ ...state, staffing: s }, notices, now);
 }
 
 export const requestsFor = (state, staffId) =>
@@ -906,9 +1330,16 @@ export const pendingRequests = (state) =>
 
 export function requestSummary(r) {
   if (r.kind === "cover") {
-    const b = sessions(noonOf(r.day)).find((x) => x.index === r.index);
+    const b = sessionFromId(null, `${r.day}:${r.index}`);
     return b ? `Cover ${b.name}, ${b.start}–${b.end}` : "Cover a block";
   }
+  if (r.kind === "open") {
+    const b = sessionFromId(null, `${r.day}:${r.index}`);
+    return b ? `Open: ${b.name}, ${b.start}–${b.end}` : "Open shift";
+  }
   if (r.kind === "hours") return `Work ${r.start}–${r.end}`;
+  if (r.kind === "sick") return "Out sick";
+  if (r.to)
+    return `Off ${calendarDayLabel(r.day)} to ${calendarDayLabel(r.to)}`;
   return "Day off";
 }

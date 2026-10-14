@@ -22,6 +22,7 @@ import {
   neededCoaches,
   portfolioProblem,
   seedStaffing,
+  shiftOn,
   staffingOf,
   validStaffing,
   levelOf,
@@ -209,23 +210,15 @@ test("staffing check flags the missing floater and ratios", () => {
 test("cover request: volunteer, approve, and the floor sees the new crew", () => {
   let s = base();
   // Dev asks for cover for evening open gym (seeded). Riley's shift ends
-  // at 6, so Riley can't take it; nobody else is free either.
+  // at 6, but working past it doesn't rule Riley out: the cover adds two
+  // hours to Riley's day.
   const req = staffingOf(s).requests[0];
-  assert.throws(
-    () => run(s, { type: "volunteer", actor: coach("riley"), id: req.id }),
-    /busy or off/,
+  const riley = coverCandidates(s, evening, now).find(
+    (c) => c.staff.id === "riley",
   );
-  s = run(s, {
-    type: "shift",
-    actor: charlie,
-    staffId: "riley",
-    start: "09:30",
-    end: "20:15",
-  });
-  assert.ok(
-    coverCandidates(s, evening, now).some((c) => c.staff.id === "riley"),
-  );
+  assert.equal(riley.addsMinutes, 120);
   s = run(s, { type: "volunteer", actor: coach("riley"), id: req.id });
+  assert.equal(staffingOf(s).requests[0].addsMinutes, 120);
   assert.throws(
     () =>
       run(s, {
@@ -242,8 +235,39 @@ test("cover request: volunteer, approve, and the floor sees the new crew", () =>
   // The coach floor's own lookup follows the change.
   assert.ok(myBlocks(s, "riley", now).some((b) => b.index === evening.index));
   assert.ok(!myBlocks(s, "dev", now).some((b) => b.index === evening.index));
+  // Riley's day now runs to the end of the block.
+  assert.deepEqual(shiftOn(s, "riley", now), { start: "09:30", end: "20:00" });
   // The weekly crew is untouched.
   assert.deepEqual(s.gym.crew[evening.index] ?? null, null);
+});
+
+test("a coach who is off can volunteer for a cover, and approval adds the hours", () => {
+  // Morgan takes the day off; Dev asks for cover of evening open gym.
+  let s = run(base(), {
+    type: "request",
+    actor: coach("morgan"),
+    staffId: "morgan",
+    kind: "timeoff",
+  });
+  const off = staffingOf(s).requests.find((r) => r.kind === "timeoff");
+  s = run(s, { type: "decide", actor: alex, id: off.id, approve: true });
+  assert.equal(shiftOn(s, "morgan", now), null);
+  const cover = staffingOf(s).requests.find((r) => r.kind === "cover");
+  const morgan = coverCandidates(s, evening, now).find(
+    (c) => c.staff.id === "morgan",
+  );
+  assert.equal(morgan.off, true);
+  assert.equal(morgan.addsMinutes, 120);
+  s = run(s, { type: "volunteer", actor: coach("morgan"), id: cover.id });
+  s = run(s, { type: "decide", actor: alex, id: cover.id, approve: true });
+  assert.deepEqual(shiftOn(s, "morgan", now), { start: "18:00", end: "20:00" });
+  assert.ok(myBlocks(s, "morgan", now).some((b) => b.index === evening.index));
+  // The block is covered, so the check no longer asks for cover for Morgan.
+  assert.ok(
+    !blockCheck(s, evening, now).issues.some((i) =>
+      /Morgan is off/.test(i.text),
+    ),
+  );
 });
 
 test("day off empties the coach's blocks and the check asks for cover", () => {
